@@ -1,0 +1,152 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #1d1425;
+  --bg-deep: #0e0816;
+  --bg-soft: #2a1f36;
+  --bg-raised: #362748;
+  --section: #b38fb9;
+  --section-warm: #c8a5ce;
+  --section-shadow: #9b75a4;
+  --brand: #925af4;
+  --brand-hover: #7e46e0;
+  --brand-soft: #a67aff;
+  --brand-glow: #b794ff;
+  --ink: #f4ede1;
+  --ink-muted: #c9b8d4;
+  --ink-dim: #8a7a96;
+  --hairline: rgba(244, 237, 225, 0.08);
+  --hairline-strong: rgba(244, 237, 225, 0.2);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-feature-settings: "ss01", "cv11", "cv09";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--brand);
+    color: var(--ink);
+  }
+  /* Remove default number spinner styles on tracking input */
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+@layer utilities {
+  /* ——— textures ——————————————————————————— */
+  .noise-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.08;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.95  0 0 0 0 0.93  0 0 0 0 0.88  0 0 0 1 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+
+  .grid-lines {
+    background-image:
+      linear-gradient(to right, var(--hairline) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--hairline) 1px, transparent 1px);
+    background-size: 72px 72px;
+  }
+
+  .grid-lines-fine {
+    background-image:
+      linear-gradient(to right, var(--hairline) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--hairline) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .ambient-glow {
+    background-image:
+      radial-gradient(ellipse 60% 55% at 15% 20%, rgba(146, 90, 244, 0.28), transparent 62%),
+      radial-gradient(ellipse 50% 70% at 90% 80%, rgba(179, 143, 185, 0.16), transparent 60%),
+      radial-gradient(ellipse 90% 40% at 50% 110%, rgba(146, 90, 244, 0.18), transparent 65%);
+  }
+
+  /* ——— diagonal transitions ———————————————— */
+  .clip-bottom-slope {
+    clip-path: polygon(0 0, 100% 0, 100% calc(100% - 72px), 0 100%);
+  }
+  .clip-top-slope {
+    clip-path: polygon(0 0, 100% 72px, 100% 100%, 0 100%);
+  }
+  .clip-both-slopes {
+    clip-path: polygon(0 0, 100% 72px, 100% calc(100% - 72px), 0 100%);
+  }
+
+  /* ——— caret / cursor ————————————————————— */
+  .caret::after {
+    content: "▌";
+    color: var(--brand-glow);
+    margin-left: 2px;
+    animation: blink 1.05s steps(2) infinite;
+  }
+
+  /* ——— reveal on scroll ——————————————————— */
+  .reveal {
+    opacity: 0;
+    transform: translateY(28px);
+    transition:
+      opacity 820ms cubic-bezier(0.2, 0.8, 0.2, 1),
+      transform 820ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* ——— shared scrollbars ————————————————— */
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  /* ——— hairline divider with asterisk ———— */
+  .divider-dot {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .divider-dot::before,
+  .divider-dot::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--hairline-strong);
+  }
+
+  /* ——— underline hover for links ———————— */
+  .hover-underline {
+    background-image: linear-gradient(var(--brand-glow), var(--brand-glow));
+    background-size: 0% 1px;
+    background-repeat: no-repeat;
+    background-position: 0 100%;
+    transition: background-size 380ms ease;
+  }
+  .hover-underline:hover {
+    background-size: 100% 1px;
+  }
+
+  /* ——— ghost monumental type ————————————— */
+  .ghost-type {
+    color: transparent;
+    -webkit-text-stroke: 1px var(--hairline-strong);
+    letter-spacing: -0.06em;
+  }
+}
