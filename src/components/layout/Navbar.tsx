@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import Image from "next/image"
 
 const links = [
   { href: "/tracking", label: "Track" },
@@ -11,9 +12,12 @@ const links = [
   { href: "/#reviews", label: "Voices" },
 ];
 
+type Audience = "personal" | "business";
+
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [audience, setAudience] = useState<Audience>("personal");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -30,17 +34,37 @@ export default function Navbar() {
           : "border-b border-transparent"
       }`}
     >
-      <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-6 px-5 py-4 md:px-10 md:py-5">
-        {/* Wordmark */}
-        <Link href="/" className="group flex items-center gap-3">
-          <span className="font-display text-[28px] italic leading-none tracking-tight text-ink md:text-[32px]">
-            Skoro
-            <span className="not-italic text-brand-glow">.</span>
-          </span>
-          <span className="hidden font-mono text-[10px] uppercase tracking-label text-ink-dim md:block">
-            №SK-2026
-          </span>
-        </Link>
+      {/* Wordmark — absolutely positioned, outside the centered flex row */}
+      <Link href="/" className="group absolute left-4 md:left-6 top-1/2 -translate-y-1/2 flex items-center gap-3 z-10">
+        <Image src="/images/home/skoro_cropped.png" alt="Skoro" width={220} height={56} priority className="h-10 w-auto md:h-12" />
+      </Link>
+
+      <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-6 pl-2 pr-5 py-4 md:pl-4 md:pr-10 md:py-5">
+        {/* Audience toggle — holds the slot where the logo used to sit in flex */}
+        <div className="hidden items-center rounded-full border border-hairline-strong bg-bg-soft/60 p-1 font-mono text-[10px] uppercase tracking-label md:flex">
+          <button
+            onClick={() => setAudience("personal")}
+            className={`rounded-full px-3.5 py-1.5 transition ${
+              audience === "personal"
+                ? "bg-ink text-bg"
+                : "text-ink-muted hover:text-ink"
+            }`}
+          >
+            Для физлиц
+          </button>
+          <button
+            onClick={() => setAudience("business")}
+            className={`rounded-full px-3.5 py-1.5 transition ${
+              audience === "business"
+                ? "bg-ink text-bg"
+                : "text-ink-muted hover:text-ink"
+            }`}
+          >
+            Для бизнеса
+          </button>
+        </div>
+        {/* Mobile spacer — keeps layout balanced when toggle is hidden */}
+        <div aria-hidden className="h-10 w-[150px] md:hidden" />
 
         {/* Desktop nav */}
         <nav className="hidden md:block">

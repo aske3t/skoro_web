@@ -1,25 +1,26 @@
 import type { Metadata } from "next";
-import { Instrument_Serif, Manrope, JetBrains_Mono } from "next/font/google";
+import { Barlow_Condensed, Space_Grotesk, IBM_Plex_Mono, Oswald } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import "./globals.css";
 
-const display = Instrument_Serif({
+const display = Oswald ({
   subsets: ["latin"],
-  weight: ["400"],
-  style: ["normal", "italic"],
+  weight: ["700"],
+  style: ["normal"],
   variable: "--font-display",
   display: "swap",
 });
 
-const body = Manrope({
+const body = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
 });
 
-const mono = JetBrains_Mono({
+const mono = IBM_Plex_Mono({
   subsets: ["latin"],
+  weight: ["400", "500", "600"],
   variable: "--font-mono",
   display: "swap",
 });

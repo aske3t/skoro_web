@@ -33,7 +33,7 @@ export default {
         },
       },
       fontFamily: {
-        display: ["var(--font-display)", "ui-serif", "Georgia", "serif"],
+        display: ["var(--font-display)", "Impact", "ui-sans-serif", "sans-serif"],
         body: ["var(--font-body)", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
       },

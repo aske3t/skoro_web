@@ -45,19 +45,18 @@ export default function HeroTracking() {
 
           {/* Editorial headline */}
           <h1 className="mt-7 font-display text-[clamp(3rem,8vw,6.5rem)] font-normal leading-[0.95] tracking-[-0.02em] text-ink">
-            Parcels,
+            Курьер
             <br />
-            <span className="italic text-brand-glow">in perpetual</span>
+            <span className="italic text-brand-glow">по запросу</span>
             <br />
-            motion.
+            вашего бизнеса.
           </h1>
 
           {/* Sub-copy */}
           <p className="mt-8 max-w-md text-lg leading-relaxed text-ink-muted md:text-xl">
-            Same-day dispatch across&nbsp;
-            <span className="text-ink">40+ cities</span>. Real-time positioning,
-            hand-to-hand provenance, and couriers you'd trust with a signed
-            first&nbsp;edition.
+            Курьерская служба с ориентиром на ваш бизнес&nbsp;
+            <span className="text-ink">и интересы</span>.<p>
+              </p>Занимайтесь фирмой - сервис оставьте на нас.
           </p>
 
           {/* Console tracking input */}
