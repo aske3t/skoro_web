@@ -1,53 +1,80 @@
 "use client";
 
 import { useReveal } from "@/lib/useReveal";
-import { ArrowUpRight, Calendar, Clock, Truck, type LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  Clock,
+  FileText,
+  Wallet,
+  type LucideIcon,
+} from "lucide-react";
 
-type Service = {
+type Problem = {
   ordinal: string;
   title: string;
   tagline: string;
   description: string;
-  meta: { label: string; value: string }[];
+  pros: string[];
+  cons: string[];
   icon: LucideIcon;
 };
 
-const services: Service[] = [
+const problems: Problem[] = [
   {
     ordinal: "01",
-    title: "Same-Day",
-    tagline: "Dispatched within the hour.",
+    title: "Агрегаторы - нестабильно и непрофессионально",
+    tagline: "Проблема · Люди",
     description:
-      "Courier on your doorstep in minutes. Hand-delivered across town before the sun crosses the meridian.",
-    meta: [
-      { label: "ETA", value: "< 4h" },
-      { label: "Coverage", value: "In-city" },
+      "Непонятное и нестабильное ценообразование. Водители не заинтересованы в качестве - для них вы один заказ из сотни, приехал и забыл.\nСпектр услуг сильно ограничен - такси не решает задачи вашего бизнеса.",
+    pros: [
+      "Установленная тарифная сетка и индивидуальные договоренности",
+      "Профессиональный и клиентоориентированный подход",
+      "Возьмем много задач в один маршрут",
     ],
-    icon: Clock,
+    cons: ["Подключение и регламенты — 1 рабочий день"],
+    icon: AlertTriangle,
   },
   {
     ordinal: "02",
-    title: "Express",
-    tagline: "Priority corridors, cross-country.",
+    title: "Свой автопарк - дорого и рискованно.",
+    tagline: "Проблема · Время",
     description:
-      "Overnight express along our dedicated air-road corridors. Sealed handoffs, signed at every checkpoint.",
-    meta: [
-      { label: "ETA", value: "< 24h" },
-      { label: "Coverage", value: "Domestic" },
+      "Курьер нужен «сейчас», а штатный уехал на маршрут. План рушится, сделка зависает.",
+    pros: [
+      "Дежурные курьеры в городе",
+      "Выезд в течение 15 минут",
+      "Доставка день в день",
     ],
-    icon: Truck,
+    cons: ["В час-пик — повышенный тариф"],
+    icon: Clock,
   },
   {
     ordinal: "03",
-    title: "Scheduled",
-    tagline: "Pickups on your calendar.",
+    title: "Доставка съедает бюджет",
+    tagline: "Проблема · Деньги",
     description:
-      "Book recurring pickups on the week you need them. Morning, afternoon or evening bracketing — your choice.",
-    meta: [
-      { label: "ETA", value: "Planned" },
-      { label: "Coverage", value: "Unlimited" },
+      "Штатные курьеры простаивают половину дня, но зарплата, налоги и ГСМ идут каждый день.",
+    pros: [
+      "Платите только за реальные поездки",
+      "Без зарплат, авто и ДМС",
+      "Прозрачный тариф без сюрпризов",
     ],
-    icon: Calendar,
+    cons: ["В сезонный пик разово может быть дороже штата"],
+    icon: Wallet,
+  },
+  {
+    ordinal: "04",
+    title: "Документы теряются",
+    tagline: "Проблема · Отчётность",
+    description:
+      "Оригиналы не доходят, подписи собираются неделями, закрывающие появляются в последний день квартала.",
+    pros: [
+      "Цифровой трек каждой передачи",
+      "Электронные акты и реестры",
+      "Выгрузки в 1С — по расписанию",
+    ],
+    cons: ["Бумажные оригиналы возим отдельным рейсом"],
+    icon: FileText,
   },
 ];
 
@@ -78,24 +105,47 @@ export default function Services() {
           <div>
             <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-bg/80">
               <span className="inline-block h-px w-8 bg-bg/50" />
-              Services · 01/03
+              Problems · 04
             </div>
             <h2 className="mt-5 max-w-3xl font-display text-[clamp(2.25rem,6vw,4.5rem)] font-normal leading-[1] tracking-[-0.02em] text-bg">
-              Three ways
+              Почему мы
               <br />
-              <span className="italic">to move.</span>
+              <span className="italic">нужны?</span>
             </h2>
           </div>
           <p className="max-w-sm text-base leading-relaxed text-bg/80 md:text-lg">
-            Every Skoro courier is vetted, tracked and bonded. Pick the cadence
-            — we handle the choreography.
+            Четыре узких места, с которыми чаще всего приходят к нам. Отметьте
+            знакомое — с него и начнём.
           </p>
         </div>
 
-        {/* Cards */}
-        <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-5">
-          {services.map((s, i) => (
-            <ServiceCard key={s.ordinal} service={s} delay={i * 140} />
+        {/* Counter strip */}
+        <div className="mt-12 flex items-center gap-5 border-y border-bg/15 py-3.5 font-mono text-[11px] uppercase tracking-label text-bg/60">
+          <span>Обнаружено</span>
+          <span className="font-display text-[22px] italic leading-none text-bg">
+            04
+          </span>
+          <span className="h-px flex-1 bg-bg/10" />
+          <span className="hidden sm:inline">Обновлено · Q2 · 2026</span>
+        </div>
+
+        {/* Cards — asymmetric 2x2 */}
+        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-5">
+          {problems.map((p, i) => (
+            <ProblemCard
+              key={p.ordinal}
+              problem={p}
+              delay={i * 120}
+              offsetClass={
+                i === 1
+                  ? "md:translate-y-10"
+                  : i === 2
+                    ? "md:-translate-y-6"
+                    : i === 3
+                      ? "md:translate-y-4"
+                      : ""
+              }
+            />
           ))}
         </div>
       </div>
@@ -103,23 +153,29 @@ export default function Services() {
   );
 }
 
-function ServiceCard({ service, delay }: { service: Service; delay: number }) {
+function ProblemCard({
+  problem,
+  delay,
+  offsetClass,
+}: {
+  problem: Problem;
+  delay: number;
+  offsetClass: string;
+}) {
   const ref = useReveal<HTMLElement>();
-  const Icon = service.icon;
+  const Icon = problem.icon;
   return (
     <article
       ref={ref}
       style={{ transitionDelay: `${delay}ms` }}
-      className={`reveal group relative overflow-hidden rounded-[1.75rem] border border-bg/15 bg-bg p-7 shadow-card transition duration-500 hover:-translate-y-2 hover:border-brand/40 hover:shadow-brand md:p-8 ${
-        service.ordinal === "02" ? "md:translate-y-10" : ""
-      }`}
+      className={`reveal group relative overflow-hidden rounded-[1.75rem] border border-bg/15 bg-bg p-7 shadow-card transition duration-500 hover:-translate-y-2 hover:border-brand/40 hover:shadow-brand md:p-8 ${offsetClass}`}
     >
       <div className="noise-layer rounded-[1.75rem]" />
 
       {/* Top row */}
       <div className="relative flex items-start justify-between">
         <span className="font-display text-6xl italic leading-none text-brand-glow/90 md:text-7xl">
-          {service.ordinal}
+          {problem.ordinal}
         </span>
         <span className="flex h-12 w-12 items-center justify-center rounded-full border border-hairline-strong bg-bg-soft text-ink transition group-hover:border-brand group-hover:text-brand-glow">
           <Icon size={20} />
@@ -129,38 +185,43 @@ function ServiceCard({ service, delay }: { service: Service; delay: number }) {
       {/* Title */}
       <div className="relative mt-12">
         <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
-          {service.tagline}
+          {problem.tagline}
         </div>
-        <h3 className="mt-3 font-display text-4xl leading-none text-ink md:text-[2.75rem]">
-          {service.title}
+        <h3 className="mt-3 font-display text-4xl leading-none text-ink md:text-[2.5rem]">
+          {problem.title}
         </h3>
       </div>
 
       {/* Description */}
-      <p className="relative mt-5 text-sm leading-relaxed text-ink-muted">
-        {service.description}
+      <p className="relative mt-5 max-w-[44ch] text-sm leading-relaxed text-ink-muted">
+        {problem.description}
       </p>
 
-      {/* Meta rows */}
-      <div className="relative mt-8 space-y-2 border-t border-hairline pt-4">
-        {service.meta.map((m) => (
-          <div
-            key={m.label}
-            className="flex items-center justify-between font-mono text-[11px] uppercase tracking-label"
-          >
-            <span className="text-ink-dim">{m.label}</span>
-            <span className="text-ink">{m.value}</span>
-          </div>
-        ))}
-      </div>
+      {/* Solution — pros / cons */}
+      <div className="relative mt-8 border-t border-hairline pt-5">
+        <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+          Решение
+        </div>
 
-      {/* Hover cue */}
-      <div className="relative mt-6 flex items-center justify-between border-t border-hairline pt-5 font-mono text-[11px] uppercase tracking-label text-ink-muted">
-        Request
-        <ArrowUpRight
-          size={16}
-          className="text-ink transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-brand-glow"
-        />
+        <ul className="mt-3 space-y-1.5 text-sm text-ink">
+          {problem.pros.map((item) => (
+            <li key={item} className="flex gap-2.5">
+              <span className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-brand-glow" />
+              <span>{item}</span>
+            </li>
+          ))}
+        </ul>
+
+        {problem.cons.length > 0 && (
+          <ul className="mt-3 space-y-1.5 text-sm text-ink-muted">
+            {problem.cons.map((item) => (
+              <li key={item} className="flex gap-2.5">
+                <span className="mt-[10px] h-px w-2.5 shrink-0 bg-ink-dim" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </article>
   );

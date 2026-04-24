@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image"
 import { ArrowUpRight } from "lucide-react";
 
 const columns = [
@@ -21,7 +22,7 @@ const columns = [
     ],
   },
   {
-    heading: "Studio",
+    heading: "Our partners",
     links: [
       { label: "Our method", href: "/#why" },
       { label: "Voices", href: "/#reviews" },
@@ -33,7 +34,7 @@ const columns = [
 
 const social = [
   { label: "Instagram", href: "#" },
-  { label: "X / Twitter", href: "#" },
+  { label: "Facebook", href: "#" },
   { label: "LinkedIn", href: "#" },
 ];
 
@@ -60,13 +61,13 @@ export default function Footer() {
               The Dispatch · weekly bulletin
             </div>
             <h3 className="mt-5 max-w-2xl font-display text-[clamp(2rem,5vw,3.5rem)] leading-[1] tracking-[-0.02em] text-ink">
-              Letters from the
+              Thanks for making it
               <br />
-              <span className="italic text-brand-glow">road.</span>
+              <span className="italic text-brand-glow">this far.</span>
             </h3>
             <p className="mt-5 max-w-md text-base leading-relaxed text-ink-muted">
-              Route notes, city spotlights and the occasional dispatch mishap —
-              straight from our control room. No marketing, ever.
+              Here, you’ll find our contact details and more about how we work.
+              We’ll be happy to answer any questions.
             </p>
           </div>
 
@@ -92,7 +93,7 @@ export default function Footer() {
               </button>
             </div>
             <p className="mt-3 font-mono text-[10px] uppercase tracking-label text-ink-dim">
-              One email, every Thursday · Unsubscribe at will
+              Get into our updates!
             </p>
           </form>
         </div>
@@ -100,20 +101,18 @@ export default function Footer() {
         {/* Sitemap */}
         <div className="grid grid-cols-2 gap-10 py-16 md:grid-cols-5">
           <div className="col-span-2 max-w-xs">
-            <Link href="/" className="inline-flex items-baseline gap-2">
-              <span className="font-display text-4xl italic leading-none text-ink">
-                Skoro<span className="not-italic text-brand-glow">.</span>
-              </span>
+            <Link href="/" className="-ml-8 inline-flex items-center">
+              <Image src="/images/home/skoro_cropped.png" alt="Skoro" width={220} height={56} priority className="h-10 w-auto md:h-12" />
             </Link>
             <p className="mt-5 text-sm leading-relaxed text-ink-muted">
-              Couriered &mdash; not shipped. 133 Main Street, London EC1V&nbsp;7DU.
+              Your work &mdash; our delivery&nbsp;.
             </p>
             <ul className="mt-6 space-y-1.5 font-mono text-[11px] uppercase tracking-label text-ink-muted">
               <li className="flex items-center gap-2">
-                <span className="text-ink-dim">Email ·</span> contact@skoro.co
+                <span className="text-ink-dim font-bold">Email ·</span> skorodelivery@gmail.com
               </li>
               <li className="flex items-center gap-2">
-                <span className="text-ink-dim">Dispatch ·</span> +44 20 4530 1121
+                <span className="text-ink-dim font-bold">Телефон ·</span> +420 795 402 571
               </li>
             </ul>
           </div>

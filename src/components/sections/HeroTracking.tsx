@@ -60,7 +60,7 @@ export default function HeroTracking() {
           </p>
 
           {/* Console tracking input */}
-          <form
+          {/*<form
             onSubmit={onSubmit}
             className="group mt-10 flex w-full items-stretch overflow-hidden rounded-2xl border border-hairline-strong bg-bg-deep/80 shadow-card backdrop-blur transition focus-within:border-brand/60 focus-within:shadow-brand"
           >
@@ -75,19 +75,19 @@ export default function HeroTracking() {
               spellCheck={false}
               placeholder="SK-XXXX-XXXX-XXXX"
               className="min-w-0 flex-1 bg-transparent px-5 py-5 font-mono text-base text-ink placeholder:text-ink-dim focus:outline-none md:text-lg"
-            />
-            <button
-              type="submit"
-              className="group/btn relative flex items-center gap-2 bg-brand px-6 py-5 font-mono text-[11px] uppercase tracking-label text-ink transition hover:bg-brand-hover md:px-8"
-            >
-              Locate
-              <ArrowRight
-                size={16}
-                className="transition group-hover/btn:translate-x-1"
-              />
-            </button>
-          </form>
+            />*/}
 
+          <button
+            type="submit"
+            className="group/btn relative mt-4 flex items-center gap-2 rounded-2xl bg-brand px-6 py-5 font-mono text-[11px] uppercase tracking-label text-ink transition hover:bg-brand-hover md:px-8 "
+          >
+            Связаться с нами
+            <ArrowRight
+              size={16}
+              className="transition group-hover/btn:translate-x-1"
+            />
+          </button>
+          
           {/* Stat strip */}
           <div className="mt-10 grid grid-cols-3 gap-6 border-t border-hairline pt-6 md:max-w-lg">
             <Stat value="8,392" label="Dispatched today" />

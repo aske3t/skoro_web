@@ -16,25 +16,33 @@ const features: Feature[] = [
     number: "I",
     ordinal: "01",
     icon: History,
-    title: "Real-time positioning",
+    title: "Доставка документов",
     description:
-      "Every parcel emits a heartbeat every ninety seconds. Watch yours travel on a map built for surgeons, not for tourists.",
+      "Подпишем за вас документы, представим ваши интересы в возможной форме и доставим на указанный адрес.",
   },
   {
     number: "II",
     ordinal: "02",
     icon: UserRound,
-    title: "Vetted couriers, always",
+    title: "Экспресс-доставка",
     description:
-      "Background-checked, bonded and peer-rated. The same face on every recurring pickup when you choose it.",
+      "Довезем ваши заказы до получателя, примем оплату и настроии работу с вашей системой.",
   },
   {
     number: "III",
     ordinal: "03",
     icon: ShieldCheck,
-    title: "Insured hand-to-hand",
+    title: "Закупки и снабжение",
     description:
-      "Coverage up to £10,000 by default. Tamper-evident seals and signature handoffs on every waypoint.",
+      "Предоставим регулярные и разовые пополнения расходных материалов под нужды вашего бизнеса в согласованным с вами графиком.\nКупить кофе в офис? Докупить материалы в строительном и привезти через полчаса?\n\nНе проблема!",
+  },
+  {
+    number: "IV",
+    ordinal: "04",
+    icon: ShieldCheck,
+    title: "Переезды и крупногабарит",
+    description:
+      "Организуем переезд и перевозку крупногабаритного груза.\nПереезд офиса, поставка мебели.",
   },
 ];
 
@@ -129,7 +137,7 @@ function FeatureRow({ feature, delay }: { feature: Feature; delay: number }) {
         <h3 className="font-display text-2xl leading-tight text-ink md:text-[2rem]">
           {feature.title}
         </h3>
-        <p className="mt-3 text-base leading-relaxed text-ink-muted md:text-lg">
+        <p className="whitespace-pre-line mt-3 text-base leading-relaxed text-ink-muted md:text-lg">
           {feature.description}
         </p>
       </div>
