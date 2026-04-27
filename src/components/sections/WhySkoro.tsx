@@ -2,6 +2,7 @@
 
 import { useReveal } from "@/lib/useReveal";
 import { History, ShieldCheck, UserRound, type LucideIcon } from "lucide-react";
+import Calculator from "@/components/calculator/Calculator";
 
 type Feature = {
   number: string;
@@ -73,27 +74,22 @@ export default function WhySkoro() {
               Method · why&nbsp;Skoro
             </div>
             <h2 className="mt-6 max-w-2xl font-display text-[clamp(2.25rem,6vw,4.75rem)] font-normal leading-[1] tracking-[-0.02em] text-ink">
-              We move packages
+              Нет нужды искать курьера под каждую задачу.
               <br />
-              the way a&nbsp;
-              <span className="italic text-brand-glow">jeweller</span>
+              Мы закроем&nbsp;
+              <span className="italic text-brand-glow">все</span>
               <br />
-              moves stones.
+              за один маршрут.
             </h2>
             <p className="mt-7 max-w-lg text-base leading-relaxed text-ink-muted md:text-lg">
-              No black boxes, no vanishing links in the chain. Every Skoro
-              handoff is logged, signed, and watchable from the moment the box
-              closes to the moment it reopens.
+              Мы подойдем как развиющимся предприятиям, так и уже собранному бизнесу.
+              Создаем логистику и заменяем уже существующую в случае форс-мажора.
+              Ознакомьтесь с нашим спектром услуг более детально. {/*добавить стрелку сбоку*/}
             </p>
           </div>
 
-          {/* Stats block */}
-          <div className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl border border-hairline-strong bg-hairline-strong">
-            <StatBig value="99.8%" label="On-time arrivals" />
-            <StatBig value="40+" label="Cities covered" />
-            <StatBig value="24/7" label="Live dispatch" />
-            <StatBig value="£10k" label="Default insurance" />
-          </div>
+          {/* Calculator (заменил блок статистики) */}
+          <Calculator />
         </div>
 
         {/* Feature rows */}
@@ -104,19 +100,6 @@ export default function WhySkoro() {
         </div>
       </div>
     </section>
-  );
-}
-
-function StatBig({ value, label }: { value: string; label: string }) {
-  return (
-    <div className="flex flex-col justify-between gap-6 bg-bg-soft/90 p-6 md:p-8">
-      <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
-        {label}
-      </span>
-      <span className="font-display text-5xl leading-none text-ink md:text-6xl">
-        {value}
-      </span>
-    </div>
   );
 }
 

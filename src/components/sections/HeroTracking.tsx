@@ -90,9 +90,9 @@ export default function HeroTracking() {
           
           {/* Stat strip */}
           <div className="mt-10 grid grid-cols-3 gap-6 border-t border-hairline pt-6 md:max-w-lg">
-            <Stat value="8,392" label="Dispatched today" />
-            <Stat value="1,428" label="On the road" />
-            <Stat value="99.8%" label="On-time rate" />
+            <Stat value="30 минут" label="Доставка по Брно" />
+            <Stat value="1 день" label="Подключение" />
+            <Stat value="100%" label="Страховка отправления" />
           </div>
         </div>
 
