@@ -1,12 +1,12 @@
 const items = [
-  "SK-7812 · LON → DUB · IN TRANSIT",
-  "SK-0394 · NYC → SFO · DISPATCH",
-  "SK-2010 · TYO → SIN · DELIVERED",
-  "SK-5521 · BER → AMS · ON ROUTE",
-  "SK-9044 · DXB → MUM · HANDOFF",
-  "SK-3108 · MIA → BOG · SCANNED",
-  "SK-6720 · PAR → ROM · SORTED",
-  "SK-4491 · SEA → YVR · DISPATCH",
+  "Заявка принята",
+  "Маршрут рассчитан",
+  "Курьер назначен",
+  "Забор выполнен",
+  "Доставка в пути",
+  "Получатель уведомлен",
+  "Подпись получена",
+  "Отчет отправлен",
 ];
 
 export default function MarqueeTicker() {

@@ -3,21 +3,26 @@
 import Link from "next/link";
 import { ArrowUpRight, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import Image from "next/image"
 
 const links = [
-  { href: "/tracking", label: "Track" },
-  { href: "/#services", label: "Services" },
-  { href: "/#why", label: "Method" },
-  { href: "/#reviews", label: "Voices" },
+  { href: "/#services", label: "Услуги" },
+  { href: "/#tariffs", label: "Тарифы" },
+  { href: "/#abons", label: "Абонементы" },
+  { href: "/#cooperation", label: "О работе с нами" },
+  { href: "/#contact", label: "Контакты" }
 ];
 
 type Audience = "personal" | "business";
 
 export default function Navbar() {
+  const pathname = usePathname()
+  const audience : Audience = pathname.startsWith("/personal")
+    ? "personal"
+    : "business";
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [audience, setAudience] = useState<Audience>("personal");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -41,27 +46,28 @@ export default function Navbar() {
 
       <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-6 pl-2 pr-5 py-4 md:pl-4 md:pr-10 md:py-5">
         {/* Audience toggle — holds the slot where the logo used to sit in flex */}
-        <div className="hidden items-center rounded-full border border-hairline-strong bg-bg-soft/60 p-1 font-mono text-[10px] uppercase tracking-label md:flex">
-          <button
-            onClick={() => setAudience("personal")}
-            className={`rounded-full px-3.5 py-1.5 transition ${
-              audience === "personal"
-                ? "bg-ink text-bg"
-                : "text-ink-muted hover:text-ink"
-            }`}
-          >
-            Для физлиц
-          </button>
-          <button
-            onClick={() => setAudience("business")}
-            className={`rounded-full px-3.5 py-1.5 transition ${
+        <div className="hidden items-center rounded-full border border-hairline-strong bg-bg-soft/60 p-1 md:flex">
+          
+          <Link href="/"
+            className={`inline-flex h-7 items-center justify-center rounded-full px-3.5 font-mono text-[10px] leading-none tracking-[0.08em] transition ${
               audience === "business"
                 ? "bg-ink text-bg"
                 : "text-ink-muted hover:text-ink"
             }`}
           >
             Для бизнеса
-          </button>
+          </Link>
+          
+          <Link href="/personal"
+            className={`inline-flex h-7 items-center justify-center rounded-full px-3.5 font-mono text-[10px] leading-none tracking-[0.08em] transition ${
+              audience === "personal"
+                ? "bg-ink text-bg"
+                : "text-ink-muted hover:text-ink"
+            }`}
+          >
+            Для физлиц
+          </Link>
+
         </div>
         {/* Mobile spacer — keeps layout balanced when toggle is hidden */}
         <div aria-hidden className="h-10 w-[150px] md:hidden" />

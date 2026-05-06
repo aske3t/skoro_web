@@ -69,9 +69,9 @@ export default function Reviews() {
               Voices · from our ledger
             </div>
             <h2 className="mt-5 font-display text-[clamp(2.25rem,6vw,4.5rem)] font-normal leading-[1] tracking-[-0.02em] text-bg">
-              Couriered,
+              Доставлено
               <br />
-              <span className="italic">not shipped.</span>
+              <span className="italic">с качеством.</span>
             </h2>
           </div>
 
@@ -84,7 +84,7 @@ export default function Reviews() {
             </NavButton>
           </div>
         </div>
-
+        
         {/* Feature quote */}
         <div className="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-[1.4fr_1fr]">
           {/* Main quote */}

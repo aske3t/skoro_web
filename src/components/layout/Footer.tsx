@@ -9,25 +9,21 @@ const columns = [
       { label: "Same-day", href: "/#services" },
       { label: "Express", href: "/#services" },
       { label: "Scheduled", href: "/#services" },
-      { label: "Bespoke routing", href: "/#services" },
+      { label: "Cross city delivery", href: "/#services" },
     ],
   },
   {
-    heading: "Operations",
+    heading: "Info",
     links: [
-      { label: "Track parcel", href: "/tracking" },
-      { label: "Dispatch center", href: "/dashboard" },
-      { label: "API & integrations", href: "#" },
-      { label: "Service status", href: "#" },
+      { label: "Cross city delivery", href: "/tracking" },
     ],
   },
   {
     heading: "Our partners",
     links: [
-      { label: "Our method", href: "/#why" },
-      { label: "Voices", href: "/#reviews" },
-      { label: "Careers", href: "#" },
-      { label: "Press kit", href: "#" },
+      { label: "Secret Flowers", href: "https://www.secretflowers.eu/en/" },
+      { label: "Only Quality", href: "/#reviews" },
+      { label: "Urban Car Detailing", href: "https://urbandetailing.cz/" },
     ],
   },
 ];

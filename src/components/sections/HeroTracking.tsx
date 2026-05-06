@@ -37,7 +37,7 @@ export default function HeroTracking() {
           {/* Manifest tag */}
           <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
             <span className="inline-block h-px w-8 bg-ink-muted" />
-            Manifest · Vol. 04
+            Главное · доставка для бизнеса
             <span className="rounded-full border border-hairline-strong px-2.5 py-0.5 text-brand-glow">
               Live
             </span>
@@ -55,8 +55,9 @@ export default function HeroTracking() {
           {/* Sub-copy */}
           <p className="mt-8 max-w-md text-lg leading-relaxed text-ink-muted md:text-xl">
             Курьерская служба с ориентиром на ваш бизнес&nbsp;
-            <span className="text-ink">и интересы</span>.<p>
-              </p>Занимайтесь фирмой - сервис оставьте на нас.
+            <span className="text-ink">и интересы</span>.
+            <br />
+            Занимайтесь фирмой - сервис оставьте на нас.
           </p>
 
           {/* Console tracking input */}

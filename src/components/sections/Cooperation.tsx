@@ -129,7 +129,7 @@ export default function Cooperation() {
           <div>
             <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
               <span className="inline-block h-px w-8 bg-ink-muted" />
-              Manifest · Vol. 05
+              Сотрудничество · 5 шагов
             </div>
             <h2 className="mt-6 max-w-3xl font-display text-[clamp(2.25rem,6vw,4.75rem)] font-normal leading-[1] tracking-[-0.02em] text-ink">
               Как выглядит{" "}

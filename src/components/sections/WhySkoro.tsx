@@ -1,7 +1,15 @@
 "use client";
 
 import { useReveal } from "@/lib/useReveal";
-import { History, ShieldCheck, UserRound, type LucideIcon } from "lucide-react";
+import {
+  CircleChevronDown,
+  ShieldCheck,
+  FileCheck,
+  Zap,
+  ShoppingBasket,
+  Truck,
+  type LucideIcon,
+} from "lucide-react";
 import Calculator from "@/components/calculator/Calculator";
 
 type Feature = {
@@ -16,7 +24,7 @@ const features: Feature[] = [
   {
     number: "I",
     ordinal: "01",
-    icon: History,
+    icon: FileCheck,
     title: "Доставка документов",
     description:
       "Подпишем за вас документы, представим ваши интересы в возможной форме и доставим на указанный адрес.",
@@ -24,7 +32,7 @@ const features: Feature[] = [
   {
     number: "II",
     ordinal: "02",
-    icon: UserRound,
+    icon: Zap,
     title: "Экспресс-доставка",
     description:
       "Довезем ваши заказы до получателя, примем оплату и настроии работу с вашей системой.",
@@ -32,7 +40,7 @@ const features: Feature[] = [
   {
     number: "III",
     ordinal: "03",
-    icon: ShieldCheck,
+    icon: ShoppingBasket,
     title: "Закупки и снабжение",
     description:
       "Предоставим регулярные и разовые пополнения расходных материалов под нужды вашего бизнеса в согласованным с вами графиком.\nКупить кофе в офис? Докупить материалы в строительном и привезти через полчаса?\n\nНе проблема!",
@@ -40,7 +48,7 @@ const features: Feature[] = [
   {
     number: "IV",
     ordinal: "04",
-    icon: ShieldCheck,
+    icon: Truck,
     title: "Переезды и крупногабарит",
     description:
       "Организуем переезд и перевозку крупногабаритного груза.\nПереезд офиса, поставка мебели.",
@@ -71,7 +79,7 @@ export default function WhySkoro() {
           <div>
             <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
               <span className="inline-block h-px w-8 bg-ink-muted" />
-              Method · why&nbsp;Skoro
+              Решение · почему&nbsp;мы?
             </div>
             <h2 className="mt-6 max-w-2xl font-display text-[clamp(2.25rem,6vw,4.75rem)] font-normal leading-[1] tracking-[-0.02em] text-ink">
               Нет нужды искать курьера под каждую задачу.
@@ -84,8 +92,23 @@ export default function WhySkoro() {
             <p className="mt-7 max-w-lg text-base leading-relaxed text-ink-muted md:text-lg">
               Мы подойдем как развиющимся предприятиям, так и уже собранному бизнесу.
               Создаем логистику и заменяем уже существующую в случае форс-мажора.
-              Ознакомьтесь с нашим спектром услуг более детально. {/*добавить стрелку сбоку*/}
+              Ознакомьтесь с нашим спектром услуг более детально.
             </p>
+
+            {/* Скролл-хинт к секции тарифов */}
+            <a
+              href="#tariffs"
+              aria-label="К тарифам"
+              className="group mt-12 inline-block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-glow focus-visible:ring-offset-4 focus-visible:ring-offset-bg"
+            >
+              <span className="block animate-float-slow">
+                <CircleChevronDown
+                  size={64}
+                  strokeWidth={1.25}
+                  className="text-ink-muted transition duration-500 ease-out group-hover:translate-y-1 group-hover:scale-110 group-hover:text-brand-glow"
+                />
+              </span>
+            </a>
           </div>
 
           {/* Calculator (заменил блок статистики) */}
