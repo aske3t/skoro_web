@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import AddressLookupInput from "./AddressLookupInput";
 import { loadCalculatorData } from "@/lib/calculator/data";
 import { compare } from "@/lib/calculator/pricing";
 import type {
@@ -18,14 +19,48 @@ const czkFormatter = new Intl.NumberFormat("cs-CZ", {
 });
 const formatCzk = (n: number) => czkFormatter.format(n);
 
+type CalculatorMode = "compare" | "route";
+type RouteDetailId = "size" | "buyout" | "stops";
+type RouteStop = {
+  address: string;
+  details: Record<RouteDetailId, boolean>;
+};
+
+const MAX_ROUTE_STOPS = 3;
+const supportPhone = "+420 795 402 571";
+const supportPhoneHref = "tel:+420795402571";
+
+const routeDetails: { id: RouteDetailId; label: string }[] = [
+  { id: "size", label: "Вес свыше 15кг" },
+  { id: "buyout", label: "Позиции по выкупу" },
+  { id: "stops", label: "Необходима доверенность" },
+];
+
+function createRouteStop(): RouteStop {
+  return {
+    address: "",
+    details: {
+      size: false,
+      buyout: false,
+      stops: true,
+    },
+  };
+}
+
 export default function Calculator() {
   const [data, setData] = useState<CalculatorData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<CalculatorMode>("compare");
 
   // Form state
   const [pickupIds, setPickupIds] = useState<string[]>([]);
   const [zoneId, setZoneId] = useState<string>("");
   const [address, setAddress] = useState<string>("");
+  const [routeAddress, setRouteAddress] = useState<string>("");
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([
+    createRouteStop(),
+  ]);
+  const [showIndividualDeal, setShowIndividualDeal] = useState(false);
 
   // Загрузка справочников + выбор первой зоны как дефолта.
   useEffect(() => {
@@ -55,6 +90,49 @@ export default function Calculator() {
     );
   }
 
+  function updateRouteStop(index: number, value: string) {
+    setRouteStops(prev =>
+      prev.map((stop, i) =>
+        i === index ? { ...stop, address: value } : stop,
+      ),
+    );
+  }
+
+  function addRouteStop() {
+    if (routeStops.length >= MAX_ROUTE_STOPS) {
+      setShowIndividualDeal(true);
+      return;
+    }
+
+    setRouteStops(prev => [...prev, createRouteStop()]);
+
+    if (routeStops.length + 1 >= MAX_ROUTE_STOPS) {
+      setShowIndividualDeal(true);
+    }
+  }
+
+  function removeRouteStop(index: number) {
+    setRouteStops(prev =>
+      prev.length === 1 ? prev : prev.filter((_, i) => i !== index),
+    );
+  }
+
+  function toggleRouteDetail(stopIndex: number, id: RouteDetailId) {
+    setRouteStops(prev =>
+      prev.map((stop, index) =>
+        index === stopIndex
+          ? {
+              ...stop,
+              details: {
+                ...stop.details,
+                [id]: !stop.details?.[id],
+              },
+            }
+          : stop,
+      ),
+    );
+  }
+
   // Пересчитываем сравнение только когда меняются вход или данные.
   const result = useMemo<CalculatorResult | null>(() => {
     if (!data || !zoneId || pickupIds.length === 0) return null;
@@ -80,7 +158,7 @@ export default function Calculator() {
             Калькулятор для мультизадач
           </div>
           <h3 className="mt-1.5 font-display text-xl leading-tight text-ink">
-            Сколько стоит доставка
+            {mode === "compare" ? "Сколько стоит доставка" : "Соберите свою доставку"}
           </h3>
         </div>
         <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-label text-ink-dim">
@@ -89,15 +167,110 @@ export default function Calculator() {
         </div>
       </div>
 
+      <ModeSwitch mode={mode} onChange={setMode} />
+
       <div className="my-4 h-px w-full bg-hairline-strong" />
 
+      {mode === "compare" ? (
+        <CompareMode
+          address={address}
+          data={data}
+          pointsByZone={pointsByZone}
+          pickupIds={pickupIds}
+          result={result}
+          zoneId={zoneId}
+          onAddressChange={setAddress}
+          onPickupToggle={togglePickup}
+          onZoneChange={setZoneId}
+        />
+      ) : (
+        <RouteBuilderMode
+          address={routeAddress}
+          stops={routeStops}
+          onAddStop={addRouteStop}
+          onAddressChange={setRouteAddress}
+          onRemoveStop={removeRouteStop}
+          onStopChange={updateRouteStop}
+          onToggleDetail={toggleRouteDetail}
+        />
+      )}
+
+      {showIndividualDeal && (
+        <IndividualDealDialog onClose={() => setShowIndividualDeal(false)} />
+      )}
+    </div>
+  );
+}
+
+// ───────────────────────────────────────────────────────────────────
+
+const inputClass =
+  "w-full rounded-xl border border-hairline-strong bg-bg/40 px-3.5 py-2.5 font-mono text-sm text-ink placeholder:text-ink-dim transition focus:border-brand/60 focus:outline-none";
+
+function ModeSwitch({
+  mode,
+  onChange,
+}: {
+  mode: CalculatorMode;
+  onChange: (mode: CalculatorMode) => void;
+}) {
+  return (
+    <div className="mt-4 grid grid-cols-1 rounded-[1.25rem] border border-hairline-strong bg-bg/40 p-1 sm:grid-cols-2 sm:rounded-full">
+      <button
+        type="button"
+        onClick={() => onChange("compare")}
+        className={`rounded-full px-4 py-3 font-mono text-[10px] uppercase tracking-label transition ${
+          mode === "compare"
+            ? "bg-ink text-bg"
+            : "text-ink-dim hover:bg-ink/5 hover:text-ink"
+        }`}
+      >
+        Сравнить стоимость
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("route")}
+        className={`rounded-full px-4 py-3 font-mono text-[10px] uppercase tracking-label transition ${
+          mode === "route"
+            ? "bg-ink text-bg"
+            : "text-ink-dim hover:bg-ink/5 hover:text-ink"
+        }`}
+      >
+        Собрать маршрут
+      </button>
+    </div>
+  );
+}
+
+function CompareMode({
+  address,
+  data,
+  pointsByZone,
+  pickupIds,
+  result,
+  zoneId,
+  onAddressChange,
+  onPickupToggle,
+  onZoneChange,
+}: {
+  address: string;
+  data: CalculatorData;
+  pointsByZone: Map<string, RetailPoint[]>;
+  pickupIds: string[];
+  result: CalculatorResult | null;
+  zoneId: string;
+  onAddressChange: (value: string) => void;
+  onPickupToggle: (id: string) => void;
+  onZoneChange: (value: string) => void;
+}) {
+  return (
+    <>
       {/* Адрес доставки */}
       <Field label="Адрес доставки" htmlFor="calc-address">
-        <input
+        <AddressLookupInput
           id="calc-address"
-          type="text"
           value={address}
-          onChange={e => setAddress(e.target.value)}
+          onChange={onAddressChange}
           placeholder="Masarykova 34/413, 602 00 Brno"
           className={inputClass}
         />
@@ -109,7 +282,7 @@ export default function Calculator() {
           <select
             id="calc-zone"
             value={zoneId}
-            onChange={e => setZoneId(e.target.value)}
+            onChange={e => onZoneChange(e.target.value)}
             className={`${inputClass} cursor-pointer pr-10`}
           >
             {data.zones.map(z => (
@@ -142,7 +315,7 @@ export default function Calculator() {
                 zone={zone}
                 points={points}
                 selectedIds={pickupIds}
-                onToggle={togglePickup}
+                onToggle={onPickupToggle}
               />
             );
           })}
@@ -152,15 +325,182 @@ export default function Calculator() {
       {/* Result panel */}
       <div className="my-4 h-px w-full bg-hairline-strong" />
 
-      {result ? <ResultPanel result={result} /> : <ResultPlaceholder />}
+      {result ? (
+        <>
+          <ResultPanel result={result} />
+          <PricingNotice />
+        </>
+      ) : (
+        <ResultPlaceholder />
+      )}
+    </>
+  );
+}
+
+function RouteBuilderMode({
+  address,
+  stops,
+  onAddStop,
+  onAddressChange,
+  onRemoveStop,
+  onStopChange,
+  onToggleDetail,
+}: {
+  address: string;
+  stops: RouteStop[];
+  onAddStop: () => void;
+  onAddressChange: (value: string) => void;
+  onRemoveStop: (index: number) => void;
+  onStopChange: (index: number, value: string) => void;
+  onToggleDetail: (index: number, id: RouteDetailId) => void;
+}) {
+  const selectedDetailsCount = stops.reduce(
+    (total, stop) =>
+      total + routeDetails.filter(detail => stop.details?.[detail.id]).length,
+    0,
+  );
+
+  return (
+    <div>
+      <Field label="Адрес получения" htmlFor="route-address">
+        <AddressLookupInput
+          id="route-address"
+          value={address}
+          onChange={onAddressChange}
+          placeholder="Куда доставить: адрес, имя получателя, телефон"
+          className={inputClass}
+        />
+      </Field>
+
+      <div className="mt-4">
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-label text-ink-muted">
+            Точки забора
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+            {stops.length}/{MAX_ROUTE_STOPS}
+          </span>
+        </div>
+
+        <div className="space-y-3">
+          {stops.map((stop, index) => (
+            <div
+              key={index}
+              className="rounded-xl border border-hairline-strong bg-bg/30 p-3"
+            >
+              <div className="flex gap-2">
+                <div className="min-w-0 flex-1">
+                  <AddressLookupInput
+                    value={stop.address ?? ""}
+                    onChange={value => onStopChange(index, value)}
+                    placeholder={`Точка ${index + 1}: магазин, склад, офис`}
+                    className={inputClass}
+                  />
+                </div>
+                {stops.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => onRemoveStop(index)}
+                    aria-label="Удалить точку"
+                    className="shrink-0 rounded-xl border border-hairline-strong bg-bg/40 px-3 font-mono text-xs text-ink-dim transition hover:border-brand/50 hover:text-ink"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+
+              <div className="mt-3">
+                <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+                  Детали точки {index + 1}
+                </div>
+                <div className="mt-2 grid grid-cols-1 gap-1.5">
+                  {routeDetails.map(detail => {
+                    const selected = Boolean(stop.details?.[detail.id]);
+                    return (
+                      <button
+                        key={detail.id}
+                        type="button"
+                        onClick={() => onToggleDetail(index, detail.id)}
+                        className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition ${
+                          selected
+                            ? "border-brand/60 bg-brand/15 text-ink"
+                            : "border-hairline bg-bg/30 text-ink-muted hover:border-brand/40 hover:text-ink"
+                        }`}
+                      >
+                        <span
+                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border font-mono text-[9px] ${
+                            selected
+                              ? "border-brand bg-brand text-ink"
+                              : "border-hairline-strong text-transparent"
+                          }`}
+                        >
+                          ✓
+                        </span>
+                        {detail.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={onAddStop}
+          className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-brand/40 bg-brand/10 px-3 py-2.5 font-mono text-[10px] uppercase tracking-label text-brand-glow transition hover:border-brand hover:bg-brand/20"
+        >
+          {stops.length >= MAX_ROUTE_STOPS
+            ? "Нужна индивидуальная договоренность"
+            : "Добавить точку забора"}
+        </button>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-brand/30 bg-brand/10 p-3 text-xs leading-relaxed text-ink-muted">
+        <div className="font-mono text-[10px] uppercase tracking-label text-brand-glow">
+          Базовая заявка
+        </div>
+        <p className="mt-1.5">
+          Сейчас можно собрать маршрут до {MAX_ROUTE_STOPS} точек забора.
+          Выбрано деталей: {selectedDetailsCount}. Финальный расчет подтвердим
+          после уточнения адресов и операций на остановках.
+        </p>
+      </div>
     </div>
   );
 }
 
-// ───────────────────────────────────────────────────────────────────
-
-const inputClass =
-  "w-full rounded-xl border border-hairline-strong bg-bg/40 px-3.5 py-2.5 font-mono text-sm text-ink placeholder:text-ink-dim transition focus:border-brand/60 focus:outline-none";
+function IndividualDealDialog({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-bg/75 px-5 backdrop-blur-sm">
+      <div className="w-full max-w-sm rounded-2xl border border-brand/40 bg-bg-soft p-5 shadow-lifted">
+        <div className="font-mono text-[10px] uppercase tracking-label text-brand-glow">
+          Индивидуальная договоренность
+        </div>
+        <h4 className="mt-3 font-display text-2xl leading-none text-ink">
+          Маршрут на 3+ точки лучше согласовать лично.
+        </h4>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+          Позвоните нам, и мы быстро подберем формат, цену и порядок выполнения.
+        </p>
+        <a
+          href={supportPhoneHref}
+          className="mt-5 flex w-full items-center justify-center rounded-full bg-ink px-5 py-3 font-mono text-[11px] uppercase tracking-label text-bg transition hover:bg-brand hover:text-ink"
+        >
+          Позвонить {supportPhone}
+        </a>
+        <button
+          type="button"
+          onClick={onClose}
+          className="mt-3 w-full rounded-full border border-hairline-strong px-5 py-3 font-mono text-[11px] uppercase tracking-label text-ink-muted transition hover:text-ink"
+        >
+          Вернуться к заявке
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function Field({
   label,
@@ -306,6 +646,26 @@ function ResultPanel({ result }: { result: CalculatorResult }) {
           />
         </div>
       </details>
+    </div>
+  );
+}
+
+function PricingNotice() {
+  return (
+    <div className="mt-3 rounded-xl border border-brand/30 bg-brand/10 p-3 text-xs leading-relaxed text-ink-muted">
+      <div className="font-mono text-[10px] uppercase tracking-label text-brand-glow">
+        Важно по расчету
+      </div>
+      <p className="mt-1.5">
+        Прайс multi-stop Skoro рассчитан для готовых к забору заказов.
+        Операционные работы оплачиваются отдельно по тарифу.{" "}
+        <a
+          href="#tariffs"
+          className="text-ink underline decoration-brand-glow/60 underline-offset-4 transition hover:text-brand-glow"
+        >
+          Ознакомиться
+        </a>
+      </p>
     </div>
   );
 }

@@ -8,8 +8,8 @@ import Image from "next/image"
 
 const links = [
   { href: "/#services", label: "Услуги" },
-  { href: "/#tariffs", label: "Тарифы" },
-  { href: "/#abons", label: "Абонементы" },
+  { href: "/#tariffs", label: "Под задачу" },
+  { href: "/#abons", label: "Тарифы" },
   { href: "/#cooperation", label: "О работе с нами" },
   { href: "/#contact", label: "Контакты" }
 ];
