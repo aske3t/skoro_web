@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      delivery_slots: {
+        Row: {
+          base_price: number
+          display_order: number
+          id: string
+          label: string
+          slug: string
+          sub_label: string | null
+        }
+        Insert: {
+          base_price: number
+          display_order?: number
+          id?: string
+          label: string
+          slug: string
+          sub_label?: string | null
+        }
+        Update: {
+          base_price?: number
+          display_order?: number
+          id?: string
+          label?: string
+          slug?: string
+          sub_label?: string | null
+        }
+        Relationships: []
+      }
       retail_points: {
         Row: {
           base_price: number

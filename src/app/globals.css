@@ -149,4 +149,71 @@
     -webkit-text-stroke: 1px var(--hairline-strong);
     letter-spacing: -0.06em;
   }
+
+}
+
+/* ——— Google Places autocomplete ———————————————— */
+/* Вынесено из @layer — иначе Google-инжект бьёт по каскаду. */
+.pac-container {
+  margin-top: 8px !important;
+  padding: 6px !important;
+  background: color-mix(in oklab, var(--bg-soft) 94%, transparent) !important;
+  border: 1px solid var(--hairline-strong) !important;
+  border-radius: 14px !important;
+  box-shadow:
+    0 24px 48px -24px rgb(0 0 0 / 0.7),
+    0 0 0 1px rgb(146 90 244 / 0.05) !important;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  font-family: var(--font-mono), ui-monospace, monospace !important;
+  overflow: hidden !important;
+}
+
+/* «powered by Google» — убираем */
+.pac-logo::after,
+.pac-container::after,
+.hdpi.pac-logo::after {
+  display: none !important;
+  height: 0 !important;
+  padding: 0 !important;
+  background-image: none !important;
+}
+
+.pac-item {
+  padding: 9px 10px !important;
+  border-top: 1px solid var(--hairline) !important;
+  border-radius: 8px !important;
+  color: var(--ink-muted) !important;
+  font-size: 13px !important;
+  line-height: 1.35 !important;
+  cursor: pointer;
+  transition: background 160ms ease, color 160ms ease;
+}
+.pac-item:first-child { border-top: none !important; }
+
+.pac-item:hover,
+.pac-item-selected {
+  background: rgb(146 90 244 / 0.15) !important;
+  color: var(--ink) !important;
+}
+
+.pac-item-query {
+  color: var(--ink) !important;
+  font-size: 13px !important;
+  padding-right: 6px !important;
+}
+.pac-matched {
+  color: var(--brand-glow) !important;
+}
+
+/* Pin-иконка — лиловый маркер вместо чёрного дефолта */
+.pac-icon,
+.pac-icon-marker {
+  background-image: none !important;
+  background-color: var(--brand) !important;
+  mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z'/><circle cx='12' cy='10' r='3'/></svg>") center / 14px no-repeat;
+  -webkit-mask: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z'/><circle cx='12' cy='10' r='3'/></svg>") center / 14px no-repeat;
+  width: 18px !important;
+  height: 18px !important;
+  margin-top: 2px !important;
 }

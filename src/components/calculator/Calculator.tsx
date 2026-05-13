@@ -1,15 +1,24 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import AddressLookupInput from "./AddressLookupInput";
+import AddressAutocomplete from "../googleautocomplete";
 import { loadCalculatorData } from "@/lib/calculator/data";
-import { compare } from "@/lib/calculator/pricing";
+import { compare, calcRoute, isBatchEligible } from "@/lib/calculator/pricing";
+import { BUYOUT_TIERS, DOC_TIERS } from "@/lib/calculator/surcharges";
+import { findClosestZone } from "@/lib/maps/zones";
 import type {
   CalculatorData,
   CalculatorResult,
   RetailPoint,
   Zone,
+  StopSurcharge,
+  BuyoutTierId,
+  DocWorkTier,
+  RouteRecipient,
+  RouteStop,
+  ServiceCost,
 } from "@/lib/calculator/types";
+import { AddressLocation } from "@/lib/maps/adressAutocomplete";
 
 // Чешские кроны: режим `currency` сам подставит "Kč" и расставит разделители.
 const czkFormatter = new Intl.NumberFormat("cs-CZ", {
@@ -20,31 +29,25 @@ const czkFormatter = new Intl.NumberFormat("cs-CZ", {
 const formatCzk = (n: number) => czkFormatter.format(n);
 
 type CalculatorMode = "compare" | "route";
-type RouteDetailId = "size" | "buyout" | "stops";
-type RouteStop = {
-  address: string;
-  details: Record<RouteDetailId, boolean>;
-};
 
-const MAX_ROUTE_STOPS = 3;
+const MAX_PICKUP_STOPS = 3;
+const MAX_RECIPIENTS = 3;
+const BATCH_PER_EXTRA_STOP = 100;
 const supportPhone = "+420 795 402 571";
 const supportPhoneHref = "tel:+420795402571";
 
-const routeDetails: { id: RouteDetailId; label: string }[] = [
-  { id: "size", label: "Вес свыше 15кг" },
-  { id: "buyout", label: "Позиции по выкупу" },
-  { id: "stops", label: "Необходима доверенность" },
-];
-
-function createRouteStop(): RouteStop {
+function createRouteStop(defaultSlotId: string): RouteStop {
   return {
     address: "",
-    details: {
-      size: false,
-      buyout: false,
-      stops: true,
-    },
+    location: null,
+    zoneId: null,
+    slotId: defaultSlotId,
+    surcharge: { weight15: false, buyoutTier: "none", docTier: "none" },
   };
+}
+
+function createRouteRecipient(): RouteRecipient {
+  return { address: "", location: null };
 }
 
 export default function Calculator() {
@@ -56,11 +59,15 @@ export default function Calculator() {
   const [pickupIds, setPickupIds] = useState<string[]>([]);
   const [zoneId, setZoneId] = useState<string>("");
   const [address, setAddress] = useState<string>("");
-  const [routeAddress, setRouteAddress] = useState<string>("");
-  const [routeStops, setRouteStops] = useState<RouteStop[]>([
-    createRouteStop(),
+  const [location, setLocation] = useState<AddressLocation | null>(null);
+  const [slotId, setSlotId] = useState<string>("");
+  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
+  const [recipients, setRecipients] = useState<RouteRecipient[]>([
+    createRouteRecipient(),
   ]);
+  const [batchEnabled, setBatchEnabled] = useState(false);
   const [showIndividualDeal, setShowIndividualDeal] = useState(false);
+  const [showRecipientLimitDialog, setShowRecipientLimitDialog] = useState(false);
 
   // Загрузка справочников + выбор первой зоны как дефолта.
   useEffect(() => {
@@ -68,6 +75,10 @@ export default function Calculator() {
       .then(d => {
         setData(d);
         setZoneId(d.zones[0]?.id ?? "");
+        const defaultSlot =
+          d.slots.find(s => s.slug === "slot_3h")?.id ?? d.slots[0]?.id ?? "";
+        setSlotId(defaultSlot);
+        setRouteStops([createRouteStop(defaultSlot)]);
       })
       .catch((e: unknown) => {
         setError(e instanceof Error ? e.message : "Не удалось загрузить данные");
@@ -90,23 +101,48 @@ export default function Calculator() {
     );
   }
 
-  function updateRouteStop(index: number, value: string) {
+  function updateRouteStopField<K extends keyof RouteStop>(
+    index: number, field: K, value: RouteStop[K],
+  ) {
     setRouteStops(prev =>
-      prev.map((stop, i) =>
-        i === index ? { ...stop, address: value } : stop,
+      prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)),
+    );
+  }
+
+  function updateStopAddress(
+    index: number, addr: string, loc: AddressLocation | null,
+  ) {
+    if (!data) return;
+    const zoneId = loc ? findClosestZone(loc, data.zones) : null;
+    setRouteStops(prev =>
+      prev.map((s, i) =>
+        i === index ? { ...s, address: addr, location: loc, zoneId } : s,
+      ),
+    );
+  }
+
+  function updateStopSurcharge<K extends keyof StopSurcharge>(
+    stopIndex: number, field: K, value: StopSurcharge[K],
+  ) {
+    setRouteStops(prev =>
+      prev.map((s, i) =>
+        i === stopIndex
+          ? { ...s, surcharge: { ...s.surcharge, [field]: value } }
+          : s,
       ),
     );
   }
 
   function addRouteStop() {
-    if (routeStops.length >= MAX_ROUTE_STOPS) {
+    if (routeStops.length >= MAX_PICKUP_STOPS) {
       setShowIndividualDeal(true);
       return;
     }
-
-    setRouteStops(prev => [...prev, createRouteStop()]);
-
-    if (routeStops.length + 1 >= MAX_ROUTE_STOPS) {
+    setRouteStops(prev => [
+      ...prev,
+      createRouteStop(prev[prev.length - 1]?.slotId ?? slotId),
+    ]);
+    if (routeStops.length + 1 >= MAX_PICKUP_STOPS) {
       setShowIndividualDeal(true);
     }
   }
@@ -117,27 +153,56 @@ export default function Calculator() {
     );
   }
 
-  function toggleRouteDetail(stopIndex: number, id: RouteDetailId) {
-    setRouteStops(prev =>
-      prev.map((stop, index) =>
-        index === stopIndex
-          ? {
-              ...stop,
-              details: {
-                ...stop.details,
-                [id]: !stop.details?.[id],
-              },
-            }
-          : stop,
-      ),
+  function addRecipient() {
+    if (recipients.length >= MAX_RECIPIENTS) {
+      setShowRecipientLimitDialog(true);
+      return;
+    }
+    setRecipients(prev => [...prev, createRouteRecipient()]);
+  }
+
+  function removeRecipient(index: number) {
+    setRecipients(prev =>
+      prev.length === 1 ? prev : prev.filter((_, i) => i !== index),
     );
   }
 
-  // Пересчитываем сравнение только когда меняются вход или данные.
+  function updateRecipient(index: number, patch: Partial<RouteRecipient>) {
+    setRecipients(prev =>
+      prev.map((r, i) => (i === index ? { ...r, ...patch } : r)),
+    );
+  }
+
+  // Compare result
   const result = useMemo<CalculatorResult | null>(() => {
-    if (!data || !zoneId || pickupIds.length === 0) return null;
-    return compare(data, { pickupPointIds: pickupIds, deliveryZoneId: zoneId });
-  }, [data, zoneId, pickupIds]);
+    if (!data || !zoneId || pickupIds.length === 0 || !slotId) return null;
+    return compare(data, {
+      pickupPointIds: pickupIds,
+      deliveryZoneId: zoneId,
+      deliveryLocation: location,
+      slotId,
+    });
+  }, [data, zoneId, pickupIds, slotId, location]);
+
+  // Route eligibility и расчёт
+  const batchEligible = useMemo(
+    () => isBatchEligible(routeStops),
+    [routeStops],
+  );
+
+  // Авто-сброс batch если потеряли eligibility
+  useEffect(() => {
+    if (!batchEligible && batchEnabled) setBatchEnabled(false);
+  }, [batchEligible, batchEnabled]);
+
+  const routeResult = useMemo<ServiceCost | null>(() => {
+    if (!data || routeStops.every(s => !s.address)) return null;
+    return calcRoute(data, {
+      stops: routeStops,
+      batch: batchEnabled,
+      recipients,
+    });
+  }, [data, routeStops, batchEnabled, recipients]);
 
   if (error) {
     return (
@@ -173,6 +238,8 @@ export default function Calculator() {
 
       {mode === "compare" ? (
         <CompareMode
+          slotId={slotId}
+          onSlotChange={setSlotId}
           address={address}
           data={data}
           pointsByZone={pointsByZone}
@@ -185,18 +252,40 @@ export default function Calculator() {
         />
       ) : (
         <RouteBuilderMode
-          address={routeAddress}
+          slots={data.slots}
           stops={routeStops}
+          recipients={recipients}
+          batchEnabled={batchEnabled}
+          batchEligible={batchEligible}
+          result={routeResult}
           onAddStop={addRouteStop}
-          onAddressChange={setRouteAddress}
           onRemoveStop={removeRouteStop}
-          onStopChange={updateRouteStop}
-          onToggleDetail={toggleRouteDetail}
+          onStopAddressChange={updateStopAddress}
+          onStopSlotChange={(i, slotId) =>
+            updateRouteStopField(i, "slotId", slotId)
+          }
+          onStopSurchargeChange={updateStopSurcharge}
+          onAddRecipient={addRecipient}
+          onRemoveRecipient={removeRecipient}
+          onUpdateRecipient={updateRecipient}
+          onBatchChange={setBatchEnabled}
         />
       )}
 
       {showIndividualDeal && (
-        <IndividualDealDialog onClose={() => setShowIndividualDeal(false)} />
+        <IndividualDealDialog
+          title="Маршрут на 3+ точки"
+          body="Маршрут с большим числом точек забора удобнее согласовать лично — подберём порядок и оптимальный темп."
+          onClose={() => setShowIndividualDeal(false)}
+        />
+      )}
+
+      {showRecipientLimitDialog && (
+        <IndividualDealDialog
+          title="Доставка на 3+ адресов"
+          body="Маршрут с несколькими получателями лучше согласовать лично — поможем со сроками и приоритетами."
+          onClose={() => setShowRecipientLimitDialog(false)}
+        />
       )}
     </div>
   );
@@ -243,6 +332,8 @@ function ModeSwitch({
 }
 
 function CompareMode({
+  slotId,
+  onSlotChange,
   address,
   data,
   pointsByZone,
@@ -253,6 +344,8 @@ function CompareMode({
   onPickupToggle,
   onZoneChange,
 }: {
+  slotId: string;
+  onSlotChange: (id: string) => void;
   address: string;
   data: CalculatorData;
   pointsByZone: Map<string, RetailPoint[]>;
@@ -267,7 +360,7 @@ function CompareMode({
     <>
       {/* Адрес доставки */}
       <Field label="Адрес доставки" htmlFor="calc-address">
-        <AddressLookupInput
+        <AddressAutocomplete
           id="calc-address"
           value={address}
           onChange={onAddressChange}
@@ -292,6 +385,52 @@ function CompareMode({
             ))}
           </select>
         </Field>
+      </div>
+
+      {/* Слот доставки */}
+      <div className="mt-3">
+        <span className="mb-1.5 block font-mono text-[10px] uppercase tracking-label text-ink-muted">
+          Когда доставить
+        </span>
+        <div
+          role="radiogroup"
+          aria-label="Слот доставки"
+          className="grid grid-cols-3 gap-1 rounded-xl border border-hairline-strong bg-bg/40 p-1"
+        >
+          {data.slots.map(s => {
+            const selected = slotId === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => onSlotChange(s.id)}
+                title={s.sub_label ?? undefined}
+                className={`flex flex-col items-center gap-0.5 rounded-lg px-2 py-2 text-center font-mono text-[10px] uppercase tracking-label transition ${
+                  selected
+                    ? "bg-brand text-ink shadow-brand"
+                    : "text-ink-dim hover:bg-ink/5 hover:text-ink"
+                }`}
+              >
+                <span className="leading-tight">{s.label}</span>
+                <span
+                  className={`text-[9px] tabular-nums ${
+                    selected ? "text-ink/80" : "text-ink-dim"
+                  }`}
+                >
+                  {formatCzk(s.base_price)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <p className="mt-2 flex items-start gap-1.5 font-mono text-[10px] leading-snug text-ink-dim">
+          <span aria-hidden className="mt-0.5 text-brand-glow">*</span>
+          Часть конкурентов не доставляет в день заказа — фактическая выдача
+          может прийтись на следующий день.
+        </p>
       </div>
 
       {/* Точки забора, сгруппированные по зонам */}
@@ -337,112 +476,73 @@ function CompareMode({
   );
 }
 
-function RouteBuilderMode({
-  address,
-  stops,
-  onAddStop,
-  onAddressChange,
-  onRemoveStop,
-  onStopChange,
-  onToggleDetail,
-}: {
-  address: string;
+type RouteBuilderProps = {
+  slots: CalculatorData["slots"];
   stops: RouteStop[];
+  recipients: RouteRecipient[];
+  batchEnabled: boolean;
+  batchEligible: boolean;
+  result: ServiceCost | null;
   onAddStop: () => void;
-  onAddressChange: (value: string) => void;
   onRemoveStop: (index: number) => void;
-  onStopChange: (index: number, value: string) => void;
-  onToggleDetail: (index: number, id: RouteDetailId) => void;
-}) {
-  const selectedDetailsCount = stops.reduce(
-    (total, stop) =>
-      total + routeDetails.filter(detail => stop.details?.[detail.id]).length,
-    0,
-  );
+  onStopAddressChange: (
+    index: number, addr: string, loc: AddressLocation | null,
+  ) => void;
+  onStopSlotChange: (index: number, slotId: string) => void;
+  onStopSurchargeChange: <K extends keyof StopSurcharge>(
+    stopIndex: number, field: K, value: StopSurcharge[K],
+  ) => void;
+  onAddRecipient: () => void;
+  onRemoveRecipient: (index: number) => void;
+  onUpdateRecipient: (index: number, patch: Partial<RouteRecipient>) => void;
+  onBatchChange: (value: boolean) => void;
+};
 
+function RouteBuilderMode({
+  slots,
+  stops,
+  recipients,
+  batchEnabled,
+  batchEligible,
+  result,
+  onAddStop,
+  onRemoveStop,
+  onStopAddressChange,
+  onStopSlotChange,
+  onStopSurchargeChange,
+  onAddRecipient,
+  onRemoveRecipient,
+  onUpdateRecipient,
+  onBatchChange,
+}: RouteBuilderProps) {
   return (
     <div>
-      <Field label="Адрес получения" htmlFor="route-address">
-        <AddressLookupInput
-          id="route-address"
-          value={address}
-          onChange={onAddressChange}
-          placeholder="Куда доставить: адрес, имя получателя, телефон"
-          className={inputClass}
-        />
-      </Field>
-
-      <div className="mt-4">
+      {/* Точки забора */}
+      <div>
         <div className="mb-2 flex items-baseline justify-between gap-3">
           <span className="font-mono text-[10px] uppercase tracking-label text-ink-muted">
             Точки забора
           </span>
           <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
-            {stops.length}/{MAX_ROUTE_STOPS}
+            {stops.length}/{MAX_PICKUP_STOPS}
           </span>
         </div>
 
         <div className="space-y-3">
           {stops.map((stop, index) => (
-            <div
+            <RouteStopCard
               key={index}
-              className="rounded-xl border border-hairline-strong bg-bg/30 p-3"
-            >
-              <div className="flex gap-2">
-                <div className="min-w-0 flex-1">
-                  <AddressLookupInput
-                    value={stop.address ?? ""}
-                    onChange={value => onStopChange(index, value)}
-                    placeholder={`Точка ${index + 1}: магазин, склад, офис`}
-                    className={inputClass}
-                  />
-                </div>
-                {stops.length > 1 && (
-                  <button
-                    type="button"
-                    onClick={() => onRemoveStop(index)}
-                    aria-label="Удалить точку"
-                    className="shrink-0 rounded-xl border border-hairline-strong bg-bg/40 px-3 font-mono text-xs text-ink-dim transition hover:border-brand/50 hover:text-ink"
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-
-              <div className="mt-3">
-                <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
-                  Детали точки {index + 1}
-                </div>
-                <div className="mt-2 grid grid-cols-1 gap-1.5">
-                  {routeDetails.map(detail => {
-                    const selected = Boolean(stop.details?.[detail.id]);
-                    return (
-                      <button
-                        key={detail.id}
-                        type="button"
-                        onClick={() => onToggleDetail(index, detail.id)}
-                        className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition ${
-                          selected
-                            ? "border-brand/60 bg-brand/15 text-ink"
-                            : "border-hairline bg-bg/30 text-ink-muted hover:border-brand/40 hover:text-ink"
-                        }`}
-                      >
-                        <span
-                          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border font-mono text-[9px] ${
-                            selected
-                              ? "border-brand bg-brand text-ink"
-                              : "border-hairline-strong text-transparent"
-                          }`}
-                        >
-                          ✓
-                        </span>
-                        {detail.label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
+              index={index}
+              stop={stop}
+              slots={slots}
+              isOnly={stops.length === 1}
+              onAddressChange={(addr, loc) => onStopAddressChange(index, addr, loc)}
+              onSlotChange={slotId => onStopSlotChange(index, slotId)}
+              onSurchargeChange={(field, value) =>
+                onStopSurchargeChange(index, field, value)
+              }
+              onRemove={() => onRemoveStop(index)}
+            />
           ))}
         </div>
 
@@ -451,27 +551,347 @@ function RouteBuilderMode({
           onClick={onAddStop}
           className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-brand/40 bg-brand/10 px-3 py-2.5 font-mono text-[10px] uppercase tracking-label text-brand-glow transition hover:border-brand hover:bg-brand/20"
         >
-          {stops.length >= MAX_ROUTE_STOPS
+          {stops.length >= MAX_PICKUP_STOPS
             ? "Нужна индивидуальная договоренность"
             : "Добавить точку забора"}
         </button>
       </div>
 
-      <div className="mt-4 rounded-xl border border-brand/30 bg-brand/10 p-3 text-xs leading-relaxed text-ink-muted">
-        <div className="font-mono text-[10px] uppercase tracking-label text-brand-glow">
-          Базовая заявка
+      {/* Адреса доставки */}
+      <div className="mt-5">
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <span className="font-mono text-[10px] uppercase tracking-label text-ink-muted">
+            Адреса доставки
+          </span>
+          <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+            {recipients.length}/{MAX_RECIPIENTS}
+          </span>
         </div>
-        <p className="mt-1.5">
-          Сейчас можно собрать маршрут до {MAX_ROUTE_STOPS} точек забора.
-          Выбрано деталей: {selectedDetailsCount}. Финальный расчет подтвердим
-          после уточнения адресов и операций на остановках.
+
+        <div className="space-y-2">
+          {recipients.map((r, i) => (
+            <div key={i} className="flex gap-2">
+              <div className="min-w-0 flex-1">
+                <AddressAutocomplete
+                  value={r.address}
+                  onChange={(addr, loc) =>
+                    onUpdateRecipient(i, { address: addr, location: loc })
+                  }
+                  placeholder={`Получатель ${i + 1}: адрес, имя, телефон`}
+                  className={inputClass}
+                />
+              </div>
+              {recipients.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => onRemoveRecipient(i)}
+                  aria-label="Удалить получателя"
+                  className="shrink-0 rounded-xl border border-hairline-strong bg-bg/40 px-3 font-mono text-xs text-ink-dim transition hover:border-brand/50 hover:text-ink"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={onAddRecipient}
+          className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-brand/40 bg-brand/10 px-3 py-2.5 font-mono text-[10px] uppercase tracking-label text-brand-glow transition hover:border-brand hover:bg-brand/20"
+        >
+          {recipients.length >= MAX_RECIPIENTS
+            ? "Нужна индивидуальная договоренность"
+            : "Добавить получателя"}
+        </button>
+      </div>
+
+      {/* Batch toggle / hint */}
+      {batchEligible ? (
+        <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-brand/40 bg-brand/10 p-3 transition hover:bg-brand/15">
+          <input
+            type="checkbox"
+            checked={batchEnabled}
+            onChange={e => onBatchChange(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-brand"
+          />
+          <div>
+            <div className="font-mono text-[10px] uppercase tracking-label text-brand-glow">
+              Объединить в batch
+            </div>
+            <p className="mt-1 text-xs leading-snug text-ink-muted">
+              База одного слота + {BATCH_PER_EXTRA_STOP}&nbsp;Kč за каждую
+              дополнительную точку забора. Применимо, когда все точки в одном
+              районе и с одинаковым слотом.
+            </p>
+          </div>
+        </label>
+      ) : stops.length >= 2 ? (
+        <p className="mt-3 flex items-start gap-1.5 font-mono text-[10px] leading-snug text-ink-dim">
+          <span aria-hidden className="mt-0.5 text-brand-glow">*</span>
+          Batch-расчёт станет доступен, когда все точки забора окажутся в одной
+          зоне и с одинаковым слотом.
         </p>
+      ) : null}
+
+      {/* Result */}
+      <div className="my-4 h-px w-full bg-hairline-strong" />
+      {result && result.total > 0 ? (
+        <RouteResultPanel result={result} />
+      ) : (
+        <ResultPlaceholder />
+      )}
+    </div>
+  );
+}
+
+function RouteStopCard({
+  index,
+  stop,
+  slots,
+  isOnly,
+  onAddressChange,
+  onSlotChange,
+  onSurchargeChange,
+  onRemove,
+}: {
+  index: number;
+  stop: RouteStop;
+  slots: CalculatorData["slots"];
+  isOnly: boolean;
+  onAddressChange: (addr: string, loc: AddressLocation | null) => void;
+  onSlotChange: (slotId: string) => void;
+  onSurchargeChange: <K extends keyof StopSurcharge>(
+    field: K, value: StopSurcharge[K],
+  ) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="rounded-xl border border-hairline-strong bg-bg/30 p-3">
+      {/* address */}
+      <div className="flex gap-2">
+        <div className="min-w-0 flex-1">
+          <AddressAutocomplete
+            value={stop.address}
+            onChange={onAddressChange}
+            placeholder={`Точка ${index + 1}: магазин, склад, офис`}
+            className={inputClass}
+          />
+        </div>
+        {!isOnly && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label="Удалить точку"
+            className="shrink-0 rounded-xl border border-hairline-strong bg-bg/40 px-3 font-mono text-xs text-ink-dim transition hover:border-brand/50 hover:text-ink"
+          >
+            ×
+          </button>
+        )}
+      </div>
+
+      {/* per-stop slot */}
+      <div className="mt-3">
+        <div className="mb-1.5 font-mono text-[10px] uppercase tracking-label text-ink-dim">
+          Слот для этой точки
+        </div>
+        <div
+          role="radiogroup"
+          aria-label="Слот точки"
+          className="grid grid-cols-3 gap-1 rounded-lg border border-hairline-strong bg-bg/40 p-1"
+        >
+          {slots.map(s => {
+            const selected = stop.slotId === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => onSlotChange(s.id)}
+                className={`rounded-md px-2 py-1.5 text-center font-mono text-[9px] uppercase leading-tight tracking-label transition ${
+                  selected
+                    ? "bg-brand text-ink"
+                    : "text-ink-dim hover:bg-ink/5 hover:text-ink"
+                }`}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* surcharges */}
+      <div className="mt-3 space-y-2">
+        <SurchargeToggle
+          active={stop.surcharge.weight15}
+          label="Вес свыше 15 кг"
+          priceLabel="+50 Kč"
+          onToggle={() =>
+            onSurchargeChange("weight15", !stop.surcharge.weight15)
+          }
+        />
+        <SurchargeTierPicker
+          title="Позиции по выкупу"
+          tiers={BUYOUT_TIERS}
+          currentId={stop.surcharge.buyoutTier}
+          onChange={id => onSurchargeChange("buyoutTier", id)}
+        />
+        <SurchargeTierPicker
+          title="Доверенность"
+          tiers={DOC_TIERS}
+          currentId={stop.surcharge.docTier}
+          onChange={id => onSurchargeChange("docTier", id)}
+        />
       </div>
     </div>
   );
 }
 
-function IndividualDealDialog({ onClose }: { onClose: () => void }) {
+function SurchargeToggle({
+  active, label, priceLabel, onToggle,
+}: {
+  active: boolean;
+  label: string;
+  priceLabel: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-pressed={active}
+      className={`flex w-full items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-left text-xs transition ${
+        active
+          ? "border-brand/60 bg-brand/15 text-ink"
+          : "border-hairline bg-bg/30 text-ink-muted hover:border-brand/40 hover:text-ink"
+      }`}
+    >
+      <span className="flex items-center gap-2">
+        <span
+          className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border font-mono text-[9px] ${
+            active
+              ? "border-brand bg-brand text-ink"
+              : "border-hairline-strong text-transparent"
+          }`}
+        >
+          ✓
+        </span>
+        {label}
+      </span>
+      <span className="font-mono text-[10px] tabular-nums text-ink-dim">
+        {priceLabel}
+      </span>
+    </button>
+  );
+}
+
+function SurchargeTierPicker<T extends string>({
+  title, tiers, currentId, onChange,
+}: {
+  title: string;
+  tiers: { id: T; label: string; price: number }[];
+  currentId: T;
+  onChange: (id: T) => void;
+}) {
+  const current = tiers.find(t => t.id === currentId) ?? tiers[0];
+  const isActive = current.price > 0;
+
+  return (
+    <details className="group rounded-lg border border-hairline bg-bg/30 open:border-brand/40">
+      <summary
+        className={`flex cursor-pointer items-center justify-between gap-2 px-2.5 py-2 text-xs transition ${
+          isActive ? "text-ink" : "text-ink-muted hover:text-ink"
+        }`}
+      >
+        <span className="flex items-center gap-2">
+          <span
+            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border font-mono text-[9px] ${
+              isActive
+                ? "border-brand bg-brand text-ink"
+                : "border-hairline-strong text-transparent"
+            }`}
+          >
+            ✓
+          </span>
+          {title}
+        </span>
+        <span className="flex items-center gap-1.5 font-mono text-[10px] tabular-nums text-ink-dim">
+          {isActive ? `+${current.price} Kč` : "—"}
+          <span className="inline-block transition group-open:rotate-90">▸</span>
+        </span>
+      </summary>
+      <div className="grid grid-cols-1 gap-1 border-t border-hairline p-2">
+        {tiers.map(t => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => onChange(t.id)}
+            className={`flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-xs transition ${
+              t.id === currentId
+                ? "bg-brand/15 text-ink"
+                : "text-ink-muted hover:bg-ink/5 hover:text-ink"
+            }`}
+          >
+            <span>{t.label}</span>
+            <span className="font-mono text-[10px] tabular-nums text-ink-dim">
+              {t.price > 0 ? `+${t.price} Kč` : "—"}
+            </span>
+          </button>
+        ))}
+      </div>
+    </details>
+  );
+}
+
+function RouteResultPanel({ result }: { result: ServiceCost }) {
+  return (
+    <div>
+      <div className="overflow-hidden rounded-xl border border-hairline-strong bg-bg/40 p-4">
+        <div className="flex items-baseline justify-between gap-3">
+          <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+            Skoro · маршрут
+          </div>
+          <div className="font-display text-2xl leading-none text-brand-glow md:text-3xl">
+            {formatCzk(result.total)}
+          </div>
+        </div>
+
+        <details className="mt-3 group">
+          <summary className="cursor-pointer list-none font-mono text-[10px] uppercase tracking-label text-ink-dim transition hover:text-ink-muted">
+            <span className="inline-block transition group-open:rotate-90">▸</span>{" "}
+            Подробности
+          </summary>
+          <ul className="mt-2 space-y-1 text-xs text-ink-muted">
+            {result.breakdown.map((it, i) => (
+              <li key={i} className="flex items-baseline justify-between gap-3">
+                <span className="truncate">{it.label}</span>
+                <span className="shrink-0 font-mono tabular-nums text-ink">
+                  {formatCzk(it.amount)}
+                </span>
+              </li>
+            ))}
+            <li className="mt-1.5 flex items-baseline justify-between border-t border-hairline pt-1.5 font-mono text-[10px] uppercase tracking-label text-ink">
+              <span>Итого</span>
+              <span className="tabular-nums">{formatCzk(result.total)}</span>
+            </li>
+          </ul>
+        </details>
+      </div>
+    </div>
+  );
+}
+
+function IndividualDealDialog({
+  title,
+  body,
+  onClose,
+}: {
+  title: string;
+  body: string;
+  onClose: () => void;
+}) {
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-bg/75 px-5 backdrop-blur-sm">
       <div className="w-full max-w-sm rounded-2xl border border-brand/40 bg-bg-soft p-5 shadow-lifted">
@@ -479,10 +899,10 @@ function IndividualDealDialog({ onClose }: { onClose: () => void }) {
           Индивидуальная договоренность
         </div>
         <h4 className="mt-3 font-display text-2xl leading-none text-ink">
-          Маршрут на 3+ точки лучше согласовать лично.
+          {title}
         </h4>
         <p className="mt-3 text-sm leading-relaxed text-ink-muted">
-          Позвоните нам, и мы быстро подберем формат, цену и порядок выполнения.
+          {body}
         </p>
         <a
           href={supportPhoneHref}
