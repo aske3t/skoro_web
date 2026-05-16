@@ -14,9 +14,8 @@ import type {
   StopSurcharge,
   BuyoutTierId,
   DocWorkTier,
-  RouteRecipient,
-  RouteStop,
   ServiceCost,
+  RouteUnit,
 } from "@/lib/calculator/types";
 import { AddressLocation } from "@/lib/maps/adressAutocomplete";
 
@@ -30,24 +29,24 @@ const formatCzk = (n: number) => czkFormatter.format(n);
 
 type CalculatorMode = "compare" | "route";
 
-const MAX_PICKUP_STOPS = 3;
-const MAX_RECIPIENTS = 3;
+const MAX_UNITS = 3
 const BATCH_PER_EXTRA_STOP = 100;
 const supportPhone = "+420 795 402 571";
 const supportPhoneHref = "tel:+420795402571";
 
-function createRouteStop(defaultSlotId: string): RouteStop {
+//создание юнита
+function createRouteUnit(defaultSlotId: string): RouteUnit {
   return {
-    address: "",
-    location: null,
-    zoneId: null,
-    slotId: defaultSlotId,
-    surcharge: { weight15: false, buyoutTier: "none", docTier: "none" },
+    pickup: {
+      address: "",
+      location: null,
+      zoneId: null,
+      slotId: defaultSlotId,
+      surcharge: { weight15: false, buyoutTier: "none", docTier: "none" },
+    },
+    recipient: { address: "", location: null },
+    recipientSameAs: null,
   };
-}
-
-function createRouteRecipient(): RouteRecipient {
-  return { address: "", location: null };
 }
 
 export default function Calculator() {
@@ -61,13 +60,9 @@ export default function Calculator() {
   const [address, setAddress] = useState<string>("");
   const [location, setLocation] = useState<AddressLocation | null>(null);
   const [slotId, setSlotId] = useState<string>("");
-  const [routeStops, setRouteStops] = useState<RouteStop[]>([]);
-  const [recipients, setRecipients] = useState<RouteRecipient[]>([
-    createRouteRecipient(),
-  ]);
+  const [units, setUnits] = useState<RouteUnit[]>([]);
   const [batchEnabled, setBatchEnabled] = useState(false);
   const [showIndividualDeal, setShowIndividualDeal] = useState(false);
-  const [showRecipientLimitDialog, setShowRecipientLimitDialog] = useState(false);
 
   // Загрузка справочников + выбор первой зоны как дефолта.
   useEffect(() => {
@@ -78,7 +73,7 @@ export default function Calculator() {
         const defaultSlot =
           d.slots.find(s => s.slug === "slot_3h")?.id ?? d.slots[0]?.id ?? "";
         setSlotId(defaultSlot);
-        setRouteStops([createRouteStop(defaultSlot)]);
+        setUnits([createRouteUnit(defaultSlot)]);
       })
       .catch((e: unknown) => {
         setError(e instanceof Error ? e.message : "Не удалось загрузить данные");
@@ -101,76 +96,84 @@ export default function Calculator() {
     );
   }
 
-  function updateRouteStopField<K extends keyof RouteStop>(
-    index: number, field: K, value: RouteStop[K],
-  ) {
-    setRouteStops(prev =>
-      prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)),
-    );
+  function addUnit() {
+    if (units.length >= MAX_UNITS) {
+      setShowIndividualDeal(true);
+      return;
+    }
+    setUnits(prev => [
+      ...prev,
+      createRouteUnit(prev[prev.length - 1]?.pickup.slotId ?? slotId),
+    ]);
   }
 
-  function updateStopAddress(
+  function removeUnit(index: number) {
+    setUnits(prev => {
+      if (prev.length === 1) return prev;
+      const next = prev.filter((_, i) => i !== index);
+      // чистим висячие/сдвинутые ссылки recipientSameAs
+      return next.map(u => {
+        if (u.recipientSameAs === null) return u;
+        if (u.recipientSameAs === index) return { ...u, recipientSameAs: null };
+        if (u.recipientSameAs > index)
+          return { ...u, recipientSameAs: u.recipientSameAs - 1 };
+        return u;
+      });
+    });
+  }
+
+  function updatePickupAddress(
     index: number, addr: string, loc: AddressLocation | null,
   ) {
     if (!data) return;
     const zoneId = loc ? findClosestZone(loc, data.zones) : null;
-    setRouteStops(prev =>
-      prev.map((s, i) =>
-        i === index ? { ...s, address: addr, location: loc, zoneId } : s,
-      ),
-    );
+    setUnits(prev => prev.map((u, i) =>
+      i === index
+        ? { ...u, pickup: { ...u.pickup, address: addr, location: loc, zoneId } }
+        : u
+    ));
   }
 
-  function updateStopSurcharge<K extends keyof StopSurcharge>(
-    stopIndex: number, field: K, value: StopSurcharge[K],
+  function updatePickupSlot(index: number, newSlotId: string) {
+    setUnits(prev => prev.map((u, i) =>
+      i === index ? { ...u, pickup: { ...u.pickup, slotId: newSlotId } } : u
+    ));
+  }
+
+  function updatePickupSurcharge<K extends keyof StopSurcharge>(
+    index: number, field: K, value: StopSurcharge[K],
   ) {
-    setRouteStops(prev =>
-      prev.map((s, i) =>
-        i === stopIndex
-          ? { ...s, surcharge: { ...s.surcharge, [field]: value } }
-          : s,
-      ),
-    );
+    setUnits(prev => prev.map((u, i) =>
+      i === index
+        ? { ...u, pickup: {
+            ...u.pickup,
+            surcharge: { ...u.pickup.surcharge, [field]: value }
+          } }
+        : u
+    ));
   }
 
-  function addRouteStop() {
-    if (routeStops.length >= MAX_PICKUP_STOPS) {
-      setShowIndividualDeal(true);
-      return;
-    }
-    setRouteStops(prev => [
-      ...prev,
-      createRouteStop(prev[prev.length - 1]?.slotId ?? slotId),
-    ]);
-    if (routeStops.length + 1 >= MAX_PICKUP_STOPS) {
-      setShowIndividualDeal(true);
-    }
+  function updateRecipient(
+    index: number, addr: string, loc: AddressLocation | null,
+  ) {
+    setUnits(prev => prev.map((u, i) =>
+      i === index ? { ...u, recipient: { address: addr, location: loc } } : u
+    ));
   }
 
-  function removeRouteStop(index: number) {
-    setRouteStops(prev =>
-      prev.length === 1 ? prev : prev.filter((_, i) => i !== index),
-    );
-  }
-
-  function addRecipient() {
-    if (recipients.length >= MAX_RECIPIENTS) {
-      setShowRecipientLimitDialog(true);
-      return;
-    }
-    setRecipients(prev => [...prev, createRouteRecipient()]);
-  }
-
-  function removeRecipient(index: number) {
-    setRecipients(prev =>
-      prev.length === 1 ? prev : prev.filter((_, i) => i !== index),
-    );
-  }
-
-  function updateRecipient(index: number, patch: Partial<RouteRecipient>) {
-    setRecipients(prev =>
-      prev.map((r, i) => (i === index ? { ...r, ...patch } : r)),
-    );
+  // Чекбокс «тот же адрес как у юнита N»: копируем recipient из юнита-донора.
+  function toggleSameAddress(index: number, sameAs: number | null) {
+    setUnits(prev => prev.map((u, i) => {
+      if (i !== index) return u;
+      if (sameAs === null) return { ...u, recipientSameAs: null };
+      const donor = prev[sameAs];
+      if (!donor) return u;
+      return {
+        ...u,
+        recipient: { ...donor.recipient },
+        recipientSameAs: sameAs,
+      };
+    }));
   }
 
   // Compare result
@@ -186,8 +189,8 @@ export default function Calculator() {
 
   // Route eligibility и расчёт
   const batchEligible = useMemo(
-    () => isBatchEligible(routeStops),
-    [routeStops],
+    () => isBatchEligible(units),
+    [units],
   );
 
   // Авто-сброс batch если потеряли eligibility
@@ -196,13 +199,9 @@ export default function Calculator() {
   }, [batchEligible, batchEnabled]);
 
   const routeResult = useMemo<ServiceCost | null>(() => {
-    if (!data || routeStops.every(s => !s.address)) return null;
-    return calcRoute(data, {
-      stops: routeStops,
-      batch: batchEnabled,
-      recipients,
-    });
-  }, [data, routeStops, batchEnabled, recipients]);
+    if (!data || units.every(u => !u.pickup.address)) return null;
+    return calcRoute(data, { units, batch: batchEnabled });
+  }, [data, units, batchEnabled]);
 
   if (error) {
     return (
@@ -253,38 +252,26 @@ export default function Calculator() {
       ) : (
         <RouteBuilderMode
           slots={data.slots}
-          stops={routeStops}
-          recipients={recipients}
+          units={units}
           batchEnabled={batchEnabled}
           batchEligible={batchEligible}
           result={routeResult}
-          onAddStop={addRouteStop}
-          onRemoveStop={removeRouteStop}
-          onStopAddressChange={updateStopAddress}
-          onStopSlotChange={(i, slotId) =>
-            updateRouteStopField(i, "slotId", slotId)
-          }
-          onStopSurchargeChange={updateStopSurcharge}
-          onAddRecipient={addRecipient}
-          onRemoveRecipient={removeRecipient}
-          onUpdateRecipient={updateRecipient}
+          onAddUnit={addUnit}
+          onRemoveUnit={removeUnit}
+          onPickupAddressChange={updatePickupAddress}
+          onPickupSlotChange={updatePickupSlot}
+          onPickupSurchargeChange={updatePickupSurcharge}
+          onRecipientChange={updateRecipient}
+          onSameAddressToggle={toggleSameAddress}
           onBatchChange={setBatchEnabled}
         />
       )}
 
       {showIndividualDeal && (
         <IndividualDealDialog
-          title="Маршрут на 3+ точки"
-          body="Маршрут с большим числом точек забора удобнее согласовать лично — подберём порядок и оптимальный темп."
+          title="Маршрут на 3+ юнита"
+          body="Маршрут с большим числом юнитов удобнее согласовать лично — подберём порядок и оптимальный темп."
           onClose={() => setShowIndividualDeal(false)}
-        />
-      )}
-
-      {showRecipientLimitDialog && (
-        <IndividualDealDialog
-          title="Доставка на 3+ адресов"
-          body="Маршрут с несколькими получателями лучше согласовать лично — поможем со сроками и приоритетами."
-          onClose={() => setShowRecipientLimitDialog(false)}
         />
       )}
     </div>
@@ -478,133 +465,89 @@ function CompareMode({
 
 type RouteBuilderProps = {
   slots: CalculatorData["slots"];
-  stops: RouteStop[];
-  recipients: RouteRecipient[];
+  units: RouteUnit[];
   batchEnabled: boolean;
   batchEligible: boolean;
   result: ServiceCost | null;
-  onAddStop: () => void;
-  onRemoveStop: (index: number) => void;
-  onStopAddressChange: (
+  onAddUnit: () => void;
+  onRemoveUnit: (index: number) => void;
+  onPickupAddressChange: (
     index: number, addr: string, loc: AddressLocation | null,
   ) => void;
-  onStopSlotChange: (index: number, slotId: string) => void;
-  onStopSurchargeChange: <K extends keyof StopSurcharge>(
-    stopIndex: number, field: K, value: StopSurcharge[K],
+  onPickupSlotChange: (index: number, slotId: string) => void;
+  onPickupSurchargeChange: <K extends keyof StopSurcharge>(
+    index: number, field: K, value: StopSurcharge[K],
   ) => void;
-  onAddRecipient: () => void;
-  onRemoveRecipient: (index: number) => void;
-  onUpdateRecipient: (index: number, patch: Partial<RouteRecipient>) => void;
+  onRecipientChange: (
+    index: number, addr: string, loc: AddressLocation | null,
+  ) => void;
+  onSameAddressToggle: (index: number, sameAs: number | null) => void;
   onBatchChange: (value: boolean) => void;
 };
 
 function RouteBuilderMode({
   slots,
-  stops,
-  recipients,
+  units,
   batchEnabled,
   batchEligible,
   result,
-  onAddStop,
-  onRemoveStop,
-  onStopAddressChange,
-  onStopSlotChange,
-  onStopSurchargeChange,
-  onAddRecipient,
-  onRemoveRecipient,
-  onUpdateRecipient,
+  onAddUnit,
+  onRemoveUnit,
+  onPickupAddressChange,
+  onPickupSlotChange,
+  onPickupSurchargeChange,
+  onRecipientChange,
+  onSameAddressToggle,
   onBatchChange,
 }: RouteBuilderProps) {
   return (
     <div>
-      {/* Точки забора */}
-      <div>
-        <div className="mb-2 flex items-baseline justify-between gap-3">
-          <span className="font-mono text-[10px] uppercase tracking-label text-ink-muted">
-            Точки забора
-          </span>
-          <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
-            {stops.length}/{MAX_PICKUP_STOPS}
-          </span>
-        </div>
-
-        <div className="space-y-3">
-          {stops.map((stop, index) => (
-            <RouteStopCard
-              key={index}
-              index={index}
-              stop={stop}
-              slots={slots}
-              isOnly={stops.length === 1}
-              onAddressChange={(addr, loc) => onStopAddressChange(index, addr, loc)}
-              onSlotChange={slotId => onStopSlotChange(index, slotId)}
-              onSurchargeChange={(field, value) =>
-                onStopSurchargeChange(index, field, value)
-              }
-              onRemove={() => onRemoveStop(index)}
-            />
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={onAddStop}
-          className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-brand/40 bg-brand/10 px-3 py-2.5 font-mono text-[10px] uppercase tracking-label text-brand-glow transition hover:border-brand hover:bg-brand/20"
-        >
-          {stops.length >= MAX_PICKUP_STOPS
-            ? "Нужна индивидуальная договоренность"
-            : "Добавить точку забора"}
-        </button>
+      {/* Юниты */}
+      <div className="mb-2 flex items-baseline justify-between gap-3">
+        <span className="font-mono text-[10px] uppercase tracking-label text-ink-muted">
+          Юниты доставки
+        </span>
+        <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+          {units.length}/{MAX_UNITS}
+        </span>
       </div>
 
-      {/* Адреса доставки */}
-      <div className="mt-5">
-        <div className="mb-2 flex items-baseline justify-between gap-3">
-          <span className="font-mono text-[10px] uppercase tracking-label text-ink-muted">
-            Адреса доставки
-          </span>
-          <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
-            {recipients.length}/{MAX_RECIPIENTS}
-          </span>
-        </div>
-
-        <div className="space-y-2">
-          {recipients.map((r, i) => (
-            <div key={i} className="flex gap-2">
-              <div className="min-w-0 flex-1">
-                <AddressAutocomplete
-                  value={r.address}
-                  onChange={(addr, loc) =>
-                    onUpdateRecipient(i, { address: addr, location: loc })
-                  }
-                  placeholder={`Получатель ${i + 1}: адрес, имя, телефон`}
-                  className={inputClass}
-                />
-              </div>
-              {recipients.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => onRemoveRecipient(i)}
-                  aria-label="Удалить получателя"
-                  className="shrink-0 rounded-xl border border-hairline-strong bg-bg/40 px-3 font-mono text-xs text-ink-dim transition hover:border-brand/50 hover:text-ink"
-                >
-                  ×
-                </button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <button
-          type="button"
-          onClick={onAddRecipient}
-          className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-brand/40 bg-brand/10 px-3 py-2.5 font-mono text-[10px] uppercase tracking-label text-brand-glow transition hover:border-brand hover:bg-brand/20"
-        >
-          {recipients.length >= MAX_RECIPIENTS
-            ? "Нужна индивидуальная договоренность"
-            : "Добавить получателя"}
-        </button>
+      <div className="space-y-3">
+        {units.map((unit, index) => (
+          <RouteUnitCard
+            key={index}
+            index={index}
+            unit={unit}
+            units={units}
+            slots={slots}
+            isOnly={units.length === 1}
+            onPickupAddressChange={(addr, loc) =>
+              onPickupAddressChange(index, addr, loc)
+            }
+            onPickupSlotChange={slotId => onPickupSlotChange(index, slotId)}
+            onPickupSurchargeChange={(field, value) =>
+              onPickupSurchargeChange(index, field, value)
+            }
+            onRecipientChange={(addr, loc) =>
+              onRecipientChange(index, addr, loc)
+            }
+            onSameAddressToggle={sameAs =>
+              onSameAddressToggle(index, sameAs)
+            }
+            onRemove={() => onRemoveUnit(index)}
+          />
+        ))}
       </div>
+
+      <button
+        type="button"
+        onClick={onAddUnit}
+        className="mt-2 inline-flex w-full items-center justify-center rounded-xl border border-brand/40 bg-brand/10 px-3 py-2.5 font-mono text-[10px] uppercase tracking-label text-brand-glow transition hover:border-brand hover:bg-brand/20"
+      >
+        {units.length >= MAX_UNITS
+          ? "Нужна индивидуальная договоренность"
+          : "Добавить юнит"}
+      </button>
 
       {/* Batch toggle / hint */}
       {batchEligible ? (
@@ -626,7 +569,7 @@ function RouteBuilderMode({
             </p>
           </div>
         </label>
-      ) : stops.length >= 2 ? (
+      ) : units.length >= 2 ? (
         <p className="mt-3 flex items-start gap-1.5 font-mono text-[10px] leading-snug text-ink-dim">
           <span aria-hidden className="mt-0.5 text-brand-glow">*</span>
           Batch-расчёт станет доступен, когда все точки забора окажутся в одной
@@ -645,105 +588,154 @@ function RouteBuilderMode({
   );
 }
 
-function RouteStopCard({
+function RouteUnitCard({
   index,
-  stop,
+  unit,
+  units,
   slots,
   isOnly,
-  onAddressChange,
-  onSlotChange,
-  onSurchargeChange,
+  onPickupAddressChange,
+  onPickupSlotChange,
+  onPickupSurchargeChange,
+  onRecipientChange,
+  onSameAddressToggle,
   onRemove,
 }: {
   index: number;
-  stop: RouteStop;
+  unit: RouteUnit;
+  units: RouteUnit[];
   slots: CalculatorData["slots"];
   isOnly: boolean;
-  onAddressChange: (addr: string, loc: AddressLocation | null) => void;
-  onSlotChange: (slotId: string) => void;
-  onSurchargeChange: <K extends keyof StopSurcharge>(
+  onPickupAddressChange: (addr: string, loc: AddressLocation | null) => void;
+  onPickupSlotChange: (slotId: string) => void;
+  onPickupSurchargeChange: <K extends keyof StopSurcharge>(
     field: K, value: StopSurcharge[K],
   ) => void;
+  onRecipientChange: (addr: string, loc: AddressLocation | null) => void;
+  onSameAddressToggle: (sameAs: number | null) => void;
   onRemove: () => void;
 }) {
+  const canShareRecipient = index > 0;
+  const sharing = unit.recipientSameAs !== null;
+
   return (
     <div className="rounded-xl border border-hairline-strong bg-bg/30 p-3">
-      {/* address */}
-      <div className="flex gap-2">
-        <div className="min-w-0 flex-1">
-          <AddressAutocomplete
-            value={stop.address}
-            onChange={onAddressChange}
-            placeholder={`Точка ${index + 1}: магазин, склад, офис`}
-            className={inputClass}
-          />
-        </div>
+      {/* Unit header */}
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-[10px] uppercase tracking-label text-ink-muted">
+          Юнит {index + 1}
+        </span>
         {!isOnly && (
           <button
             type="button"
             onClick={onRemove}
-            aria-label="Удалить точку"
-            className="shrink-0 rounded-xl border border-hairline-strong bg-bg/40 px-3 font-mono text-xs text-ink-dim transition hover:border-brand/50 hover:text-ink"
+            aria-label="Удалить юнит"
+            className="rounded-md border border-hairline-strong bg-bg/40 px-2 font-mono text-xs text-ink-dim transition hover:border-brand/50 hover:text-ink"
           >
             ×
           </button>
         )}
       </div>
 
-      {/* per-stop slot */}
+      {/* ① Откуда забрать */}
       <div className="mt-3">
         <div className="mb-1.5 font-mono text-[10px] uppercase tracking-label text-ink-dim">
-          Слот для этой точки
+          ① Откуда забрать
         </div>
-        <div
-          role="radiogroup"
-          aria-label="Слот точки"
-          className="grid grid-cols-3 gap-1 rounded-lg border border-hairline-strong bg-bg/40 p-1"
-        >
-          {slots.map(s => {
-            const selected = stop.slotId === s.id;
-            return (
-              <button
-                key={s.id}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => onSlotChange(s.id)}
-                className={`rounded-md px-2 py-1.5 text-center font-mono text-[9px] uppercase leading-tight tracking-label transition ${
-                  selected
-                    ? "bg-brand text-ink"
-                    : "text-ink-dim hover:bg-ink/5 hover:text-ink"
-                }`}
-              >
-                {s.label}
-              </button>
-            );
-          })}
+        <AddressAutocomplete
+          value={unit.pickup.address}
+          onChange={onPickupAddressChange}
+          placeholder={`Точка забора ${index + 1}: магазин, склад`}
+          className={inputClass}
+        />
+
+        {/* slot picker */}
+        <div className="mt-2.5">
+          <div className="mb-1.5 font-mono text-[10px] uppercase tracking-label text-ink-dim">
+            Слот для этой точки
+          </div>
+          <div
+            role="radiogroup"
+            aria-label="Слот точки"
+            className="grid grid-cols-3 gap-1 rounded-lg border border-hairline-strong bg-bg/40 p-1"
+          >
+            {slots.map(s => {
+              const selected = unit.pickup.slotId === s.id;
+              return (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => onPickupSlotChange(s.id)}
+                  className={`rounded-md px-2 py-1.5 text-center font-mono text-[9px] uppercase leading-tight tracking-label transition ${
+                    selected
+                      ? "bg-brand text-ink"
+                      : "text-ink-dim hover:bg-ink/5 hover:text-ink"
+                  }`}
+                >
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* surcharges */}
+        <div className="mt-3 space-y-2">
+          <SurchargeToggle
+            active={unit.pickup.surcharge.weight15}
+            label="Вес свыше 15 кг"
+            priceLabel="+50 Kč"
+            onToggle={() =>
+              onPickupSurchargeChange("weight15", !unit.pickup.surcharge.weight15)
+            }
+          />
+          <SurchargeTierPicker
+            title="Позиции по выкупу"
+            tiers={BUYOUT_TIERS}
+            currentId={unit.pickup.surcharge.buyoutTier}
+            onChange={id => onPickupSurchargeChange("buyoutTier", id)}
+          />
+          <SurchargeTierPicker
+            title="Доверенность"
+            tiers={DOC_TIERS}
+            currentId={unit.pickup.surcharge.docTier}
+            onChange={id => onPickupSurchargeChange("docTier", id)}
+          />
         </div>
       </div>
 
-      {/* surcharges */}
-      <div className="mt-3 space-y-2">
-        <SurchargeToggle
-          active={stop.surcharge.weight15}
-          label="Вес свыше 15 кг"
-          priceLabel="+50 Kč"
-          onToggle={() =>
-            onSurchargeChange("weight15", !stop.surcharge.weight15)
-          }
+      {/* ② Куда доставить */}
+      <div className="mt-4 border-t border-hairline pt-3">
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+            ② Куда доставить
+          </span>
+          {canShareRecipient && (
+            <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-ink-muted transition hover:text-ink">
+              <input
+                type="checkbox"
+                checked={sharing}
+                onChange={e => onSameAddressToggle(e.target.checked ? 0 : null)}
+                className="h-3.5 w-3.5 accent-brand"
+              />
+              как у юнита 1
+            </label>
+          )}
+        </div>
+
+        <AddressAutocomplete
+          value={unit.recipient.address}
+          onChange={onRecipientChange}
+          placeholder={`Получатель ${index + 1}: адрес, имя, телефон`}
+          className={inputClass}
         />
-        <SurchargeTierPicker
-          title="Позиции по выкупу"
-          tiers={BUYOUT_TIERS}
-          currentId={stop.surcharge.buyoutTier}
-          onChange={id => onSurchargeChange("buyoutTier", id)}
-        />
-        <SurchargeTierPicker
-          title="Доверенность"
-          tiers={DOC_TIERS}
-          currentId={stop.surcharge.docTier}
-          onChange={id => onSurchargeChange("docTier", id)}
-        />
+        {sharing && units[unit.recipientSameAs!] && (
+          <p className="mt-1.5 font-mono text-[10px] text-ink-dim">
+            Скопировано из юнита 1.
+          </p>
+        )}
       </div>
     </div>
   );

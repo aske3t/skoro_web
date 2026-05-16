@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Barlow_Condensed, Space_Grotesk, IBM_Plex_Mono, Oswald } from "next/font/google";
+import { Barlow_Condensed, Space_Grotesk, IBM_Plex_Mono, Oswald, Inter} from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import "./globals.css";
@@ -18,7 +18,7 @@ const body = Space_Grotesk({
   display: "swap",
 });
 
-const mono = IBM_Plex_Mono({
+const mono = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
   variable: "--font-mono",

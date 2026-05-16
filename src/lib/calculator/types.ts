@@ -66,4 +66,19 @@ export type RouteRecipient = {
   address: string;
   location: AddressLocation | null;
 }
-
+//юнит маршрута, вместо отдельных сущностей
+export type RouteUnit = {
+  pickup: {
+    address: string;
+    location: AddressLocation | null;
+    zoneId: string | null;
+    slotId: string;
+    surcharge: StopSurcharge;
+  };
+  recipient: {
+    address: string;
+    location: AddressLocation | null;
+  };
+  // null = собственный адрес; число = индекс юнита, у которого заимствуем recipient
+  recipientSameAs: number | null;
+}

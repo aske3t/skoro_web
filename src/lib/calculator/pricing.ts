@@ -4,8 +4,7 @@ import type {
   PricingInput,
   ServiceCost,
   ZoneDistance,
-  RouteStop,
-  RouteRecipient,
+  RouteUnit,
 } from "./types";
 import { calcStopSurcharge } from "./surcharges";
 
@@ -79,19 +78,18 @@ export function calcSkoro(data: CalculatorData, input: PricingInput): ServiceCos
 }
 
 export type RouteInput = {
-  stops: RouteStop[],
+  units: RouteUnit[],
   batch: boolean,
-  recipients: RouteRecipient[];
 }
 //калькуляция кастомного маршрута
 export function calcRoute(data: CalculatorData, input: RouteInput): ServiceCost {
-  const validStops = input.stops.filter(s => s.slotId);
-  if (validStops.length === 0) {
+  const validPickups = input.units.map(u => u.pickup).filter(p => p.slotId)
+  if (validPickups.length === 0) {
     return { serviceSlug: "skoro-route", serviceName: "Skoro · маршрут",
              total: 0, breakdown: [] };
   }
 
-  const eligible = isBatchEligible(validStops);
+  const eligible = isBatchEligible(input.units);
   const useBatch = input.batch && eligible;
 
   const breakdown: ServiceCost["breakdown"] = [];
@@ -99,11 +97,11 @@ export function calcRoute(data: CalculatorData, input: RouteInput): ServiceCost 
 
   if (useBatch) {
     // База одного слота + 100 за каждую доп. точку
-    const slot = data.slots.find(s => s.id === validStops[0].slotId)!;
+    const slot = data.slots.find(s => s.id === validPickups[0].slotId)!;
     breakdown.push({ label: `Batch · ${slot.label}`, amount: slot.base_price });
     total += slot.base_price;
 
-    const extra = validStops.length - 1;
+    const extra = validPickups.length - 1;
     if (extra > 0) {
       const extraCost = extra * BATCH_PER_EXTRA_STOP;
       breakdown.push({ label: `Доп. точки в batch (${extra})`, amount: extraCost });
@@ -111,7 +109,7 @@ export function calcRoute(data: CalculatorData, input: RouteInput): ServiceCost 
     }
   } else {
     // Полная цена слота за каждую точку
-    for (const s of validStops) {
+    for (const s of validPickups) {
       const slot = data.slots.find(x => x.id === s.slotId)!;
       breakdown.push({
         label: `Точка · ${s.address || "—"} (${slot.label})`,
@@ -122,8 +120,8 @@ export function calcRoute(data: CalculatorData, input: RouteInput): ServiceCost 
   }
 
   // Доплаты за детали — независимо от batch
-  for (let i = 0; i < validStops.length; i++) {
-    const sur = calcStopSurcharge(validStops[i].surcharge);
+  for (let i = 0; i < validPickups.length; i++) {
+    const sur = calcStopSurcharge(validPickups[i].surcharge);
     for (const it of sur.items) {
       breakdown.push({ label: `Точка ${i + 1} · ${it.label}`, amount: it.amount });
     }
@@ -134,12 +132,14 @@ export function calcRoute(data: CalculatorData, input: RouteInput): ServiceCost 
            total, breakdown };
 }
 
-export function isBatchEligible(stops: RouteStop[]): boolean {
-  if (stops.length < 2) return false;
-  const firstZone = stops[0].zoneId;
-  const firstSlot = stops[0].slotId;
+export function isBatchEligible(units: RouteUnit[]): boolean {
+  if (units.length < 2) return false;
+  const firstZone = units[0].pickup.zoneId;
+  const firstSlot = units[0].pickup.slotId;
   if (!firstZone || !firstSlot) return false;
-  return stops.every(s => s.zoneId === firstZone && s.slotId === firstSlot);
+  return units.every(u =>
+    u.pickup.zoneId === firstZone && u.pickup.slotId === firstSlot
+  );
 }
 
 export function compare(
