@@ -42,7 +42,12 @@ export function calcCompetitors(
     total += cost;
   }
 
-  return { total, breakdown };
+    return {
+    serviceSlug: "competitors",
+    serviceName: "Их доставка",
+    total,
+    breakdown,
+};
 }
 
 /**
