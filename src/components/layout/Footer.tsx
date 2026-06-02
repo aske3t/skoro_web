@@ -29,9 +29,9 @@ const columns = [
 ];
 
 const social = [
-  { label: "Instagram", href: "#" },
-  { label: "Facebook", href: "#" },
-  { label: "LinkedIn", href: "#" },
+  { label: "Instagram", href: "https://www.instagram.com/skoro.u.vas?igsh=Znp5ejlwbmk1ZHcy" },
+  { label: "Facebook", href: "https://www.facebook.com/share/1Rty6EAmJt/?mibextid=wwXIfr" },
+  { label: "Telegram", href: "#" },
 ];
 
 export default function Footer() {
@@ -137,8 +137,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="flex flex-col-reverse items-start justify-between gap-6 border-t border-hairline py-8 md:flex-row md:items-center">
           <p className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
-            © 2026 Skoro Couriers Ltd. All rights reserved. ·
-            <span className="text-ink-muted"> Made along the M11 corridor</span>
+            © 2026 Skoro Couriers Ltd. All rights reserved
           </p>
 
           <ul className="flex items-center gap-5 font-mono text-[11px] uppercase tracking-label text-ink-muted">

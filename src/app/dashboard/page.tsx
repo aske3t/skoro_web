@@ -1,28 +1,38 @@
 import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
+import Link from "next/link";
+import {
+  getActiveOrders,
+  getActiveSubscription,
+} from "@/lib/account/queries";
+import SubscriptionCard from "@/components/account/SubscriptionCard";
+import OrdersList from "@/components/account/OrdersList";
 
-export default async function DashboardPage() {
+export default async function DashboardOverviewPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user) redirect("/login");
+  const [subscription, activeOrders] = await Promise.all([
+    getActiveSubscription(supabase),
+    getActiveOrders(supabase),
+  ]);
 
-  return (
-    <div className="mx-auto max-w-3xl px-6 py-20">
-      <h1 className="text-3xl font-bold text-white">Dashboard</h1>
-      <p className="mt-4 text-white/80">
-        Signed in as <span className="text-brand">{user.email}</span>.
-      </p>
-      <form action="/auth/signout" method="post" className="mt-6">
-        <button
-          type="submit"
-          className="rounded-full bg-brand px-6 py-3 font-semibold text-white transition hover:bg-brand-hover"
+    return (
+    <div className="space-y-8">
+      <header className="flex items-center justify-between">
+        <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+          Обзор
+        </span>
+        <Link
+          href="/dashboard/orders/new"
+          className="inline-flex items-center rounded-full bg-brand px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink transition hover:bg-brand-hover"
         >
-          Sign out
-        </button>
-      </form>
+          Новый заказ
+        </Link>
+      </header>
+
+      <div className="grid gap-8 lg:grid-cols-[1fr_1.5fr]">
+        <SubscriptionCard subscription={subscription} />
+        <OrdersList title="Активные заказы" orders={activeOrders} />
+      </div>
     </div>
   );
 }

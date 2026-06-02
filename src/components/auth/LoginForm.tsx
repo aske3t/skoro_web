@@ -52,12 +52,6 @@ export default function LoginForm() {
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? "Signing in…" : "Sign in"}
       </Button>
-      <p className="text-center text-sm text-white/70">
-        No account?{" "}
-        <Link href="/signup" className="text-brand hover:underline">
-          Sign up
-        </Link>
-      </p>
     </form>
   );
 }
