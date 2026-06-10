@@ -14,13 +14,15 @@ const STATUS_STYLE: Record<Order["status"], string> = {
   cancelled: "border-red-400/40 bg-red-400/10 text-red-300",
 };
 
-const fmtDate = (iso: string) =>
-  new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(iso));
+const fmtDate = (iso: string | null) =>
+  iso == null
+    ? "—"
+    : new Intl.DateTimeFormat("ru-RU", {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date(iso));
 
 const fmtMoney = (amount: number | null) =>
   amount == null

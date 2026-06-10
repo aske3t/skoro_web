@@ -1,27 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createOrder } from "@/lib/account/createOrder";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import type { Tables } from "@/types/database";
 import type { Subscription } from "@/lib/account/queries"
+import { pickSlot, type ServiceConfig } from "@/lib/calculator/slotpicker";
 
 type Props = {
     slots: Tables<"delivery_slots">[];
     subscription: Subscription | null;
+    service: ServiceConfig;
 };
 
-export default function OrderCreateForm({ slots, subscription }: Props) {
+export default function OrderCreateForm({ slots, subscription, service }: Props) {
     const router = useRouter();
 // По одному useState на каждое поле — простой и явный способ
   const [fromAddress, setFromAddress] = useState("");
   const [toAddress, setToAddress] = useState("");
-  const [slotId, setSlotId] = useState(slots[0]?.id ?? "");
-  const [scheduledFor, setScheduledFor] = useState("");
+  const [now, setNow] = useState(() => new Date());
+  const [deliveryAt, setDeliveryAt] = useState<Date | null>(null);
   const [recipientContact, setRecipientContact] = useState("");
   const [comment, setComment] = useState("");
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000);
+    return() => clearInterval(id)
+  }, []);
+
+  const picked = deliveryAt ? pickSlot(now, deliveryAt, slots, service) : null
 
   // Отдельно — техническое состояние формы
   const [loading, setLoading] = useState(false);
@@ -29,14 +38,18 @@ export default function OrderCreateForm({ slots, subscription }: Props) {
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!picked?.ok || !deliveryAt) {
+      setError("Выберите корректное время доставки")
+      return
+    }
     setLoading(true);
     setError(null);
     try {
       await createOrder({
         fromAddress,
         toAddress,
-        slotId,
-        scheduledFor: new Date(scheduledFor).toISOString(),
+        slotId: picked.slot.id,
+        scheduledFor: deliveryAt.toISOString(),
         recipientContact,
         comment: comment.trim() || null,
       });
@@ -86,26 +99,24 @@ export default function OrderCreateForm({ slots, subscription }: Props) {
         <Input
           type="datetime-local"
           required
-          value={scheduledFor}
-          onChange={(e) => setScheduledFor(e.target.value)}
+          step={300}
+          onChange={(e) =>
+            setDeliveryAt(e.target.value ? new Date(e.target.value) : null)
+          }
         />
-      </FieldGroup>
-
-      <FieldGroup label="Слот">
-        <select
-          required
-          value={slotId}
-          onChange={(e) => setSlotId(e.target.value)}
-          className="w-full rounded-full border border-white/20 bg-white/5 px-5 py-3 text-white focus:border-brand focus:outline-none"
-        >
-          {slots.map((s) => (
-            <option key={s.id} value={s.id} className="bg-bg text-ink">
-              {s.label}
-              {s.sub_label ? ` · ${s.sub_label}` : ""}
-              {!subscription ? ` — ${s.base_price} Kč` : ""}
-            </option>
-          ))}
-        </select>
+        {picked?.ok && (
+          <p className="mt-2 font-mono text-[11px] uppercase tracking-label text-brand-glow">
+            Слот: {picked.slot.label} · запас {picked.leadMinutes} мин
+            {!subscription && ` · ${picked.slot.base_price} Kč`}
+          </p>
+        )}
+        {picked && !picked.ok && (
+          <p className="mt-2 text-sm text-red-400">
+            {picked.reason === "past"
+              ? "Вне временного диапазона."
+              : "Вне рабочих часов (06:00–00:00)."}
+          </p>
+        )}
       </FieldGroup>
 
       <FieldGroup label="Контакт получателя">
@@ -122,14 +133,14 @@ export default function OrderCreateForm({ slots, subscription }: Props) {
           value={comment}
           onChange={(e) => setComment(e.target.value)}
           rows={3}
-          placeholder="Код домофона, этаж, особые инструкции…"
+          placeholder="Имя получателя, этаж, особые инструкции…"
           className="w-full rounded-2xl border border-white/20 bg-white/5 px-5 py-3 text-white placeholder:text-white/40 focus:border-brand focus:outline-none"
         />
       </FieldGroup>
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
-      <Button type="submit" disabled={loading} className="w-full">
+      <Button type="submit" disabled={loading || !picked?.ok} className="w-full">
         {loading ? "Создаём…" : "Создать заказ"}
       </Button>
     </form>

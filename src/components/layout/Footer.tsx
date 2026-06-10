@@ -52,10 +52,6 @@ export default function Footer() {
         {/* Newsletter / CTA row */}
         <div className="grid grid-cols-1 items-start gap-10 border-b border-hairline pb-16 lg:grid-cols-[1.3fr_1fr]">
           <div>
-            <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
-              <span className="inline-block h-px w-8 bg-ink-muted" />
-              The Dispatch · weekly bulletin
-            </div>
             <h3 className="mt-5 max-w-2xl font-display text-[clamp(2rem,5vw,3.5rem)] leading-[1] tracking-[-0.02em] text-ink">
               Thanks for making it
               <br />

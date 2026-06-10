@@ -5,9 +5,10 @@ import OrderCreateForm from "@/components/account/OrderCreateForm";
 export default async function NewOrderPage() {
   const supabase = await createClient();
 
-  // Грузим параллельно: слоты для select + абонемент для превью
-  const [slotsRes, subscription] = await Promise.all([
+  // Грузим параллельно: слоты + конфиг рабочих часов + абонемент для превью
+  const [slotsRes, serviceRes, subscription] = await Promise.all([
     supabase.from("delivery_slots").select("*").order("display_order"),
+    supabase.from("service_config").select("*").single(),
     getActiveSubscription(supabase),
   ]);
 
@@ -18,6 +19,7 @@ export default async function NewOrderPage() {
       <div className="mt-6">
         <OrderCreateForm
           slots={slotsRes.data ?? []}
+          service={serviceRes.data!}
           subscription={subscription}
         />
       </div>

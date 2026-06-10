@@ -20,6 +20,7 @@ export type Database = {
           display_order: number
           id: string
           label: string
+          max_lead_minutes: number | null
           slug: string
           sub_label: string | null
         }
@@ -28,6 +29,7 @@ export type Database = {
           display_order?: number
           id?: string
           label: string
+          max_lead_minutes?: number | null
           slug: string
           sub_label?: string | null
         }
@@ -36,6 +38,7 @@ export type Database = {
           display_order?: number
           id?: string
           label?: string
+          max_lead_minutes?: number | null
           slug?: string
           sub_label?: string | null
         }
@@ -222,6 +225,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      service_config: {
+        Row: {
+          id: number
+          operating_end_minute: number
+          operating_start_minute: number
+        }
+        Insert: {
+          id?: number
+          operating_end_minute: number
+          operating_start_minute: number
+        }
+        Update: {
+          id?: number
+          operating_end_minute?: number
+          operating_start_minute?: number
+        }
+        Relationships: []
       }
       skoro_pricing: {
         Row: {
