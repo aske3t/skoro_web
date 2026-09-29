@@ -9,10 +9,12 @@ import {
   NAME_MAX,
   PHONE_INPUT_MAX,
   UTM_KEYS,
-  type FieldErrorCode,
-  type LeadField,
-  type LeadFormState,
-  type LeadKind,
+} from "@/lib/leads/constants";
+import type {
+  FieldErrorCode,
+  LeadField,
+  LeadFormState,
+  LeadKind,
 } from "@/lib/leads/schema";
 
 const inputClass =
