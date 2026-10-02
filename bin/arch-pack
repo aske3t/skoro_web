@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Собирает пакет для чата архитектора: состояние git + документы из docs/.
+# По умолчанию копирует в буфер обмена (pbcopy). --stdout — вывести в терминал.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+section() {
+  local title="$1" file="$2"
+  printf '\n\n===== %s (%s) =====\n\n' "$title" "$file"
+  cat "$file"
+}
+
+build() {
+  echo "# Пакет для архитектора — Skoro"
+  echo "Дата: $(date '+%Y-%m-%d %H:%M')"
+  echo "Ветка: $(git branch --show-current)"
+  echo
+  echo "## Последние коммиты"
+  git --no-pager log --oneline -10
+  echo
+  echo "## Незакоммиченные изменения"
+  git status --short || true
+
+  [ -f docs/STATE.md ] && section "STATE" docs/STATE.md
+
+  if [ -f docs/architecture/CURRENT.md ]; then
+    section "CURRENT" docs/architecture/CURRENT.md
+  elif [ -f docs/architecture/AS-IS.md ]; then
+    section "AS-IS (CURRENT.md ещё нет)" docs/architecture/AS-IS.md
+  fi
+
+  if compgen -G "docs/architecture/adr/*.md" > /dev/null; then
+    printf '\n\n===== ADR (заголовки) =====\n\n'
+    for f in docs/architecture/adr/*.md; do
+      printf -- '- %s: %s\n' "$(basename "$f")" "$(grep -m1 '^#' "$f" | sed 's/^#* *//')"
+    done
+  fi
+
+  [ -f docs/architecture/PROPOSALS.md ] && section "PROPOSALS" docs/architecture/PROPOSALS.md
+  echo
+}
+
+if [ "${1:-}" = "--stdout" ]; then
+  build
+else
+  out="$(build)"
+  printf '%s\n' "$out" | pbcopy
+  echo "Скопировано в буфер: $(printf '%s' "$out" | wc -c | tr -d ' ') байт. Вставьте в чат архитектора."
+fi
