@@ -27,7 +27,6 @@ Tests: `npm test` (vitest).
 | `NEXT_PUBLIC_SUPABASE_URL` | public | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | public | Publishable (`sb_publishable_…`) or legacy anon key |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | public | Google Maps Places (calculator address autocomplete) |
-| `NOMINATIM_USER_AGENT` | server | User-Agent for `/api/geocode/search` |
 | `SUPABASE_SECRET_KEY` | server | Secret key (`sb_secret_…`) or legacy `service_role`. Bypasses RLS; used only in `src/lib/supabase/admin.ts` to write contact form leads |
 | `TELEGRAM_BOT_TOKEN` | server | Bot token from @BotFather for new lead notifications |
 | `TELEGRAM_CHAT_ID` | server | Chat or group that receives lead notifications |
