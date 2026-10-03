@@ -22,13 +22,13 @@ export function getClientIp(headers: Headers): string | null {
 
 /**
  * Форма заполнена быстрее, чем может человек.
- * Нет метки (JS выключен) или метка из будущего (часы клиента спешат) — не блокируем.
+ * elapsedMs — длительность от монтирования до отправки по часам самого клиента,
+ * поэтому расхождение часов клиента и сервера не влияет. Нет поля (JS выключен) — не блокируем.
  */
-export function isFilledTooFast(startedAt: string, now: number): boolean {
-  const started = Number(startedAt);
-  if (!startedAt || !Number.isFinite(started)) return false;
-  const elapsed = now - started;
-  return elapsed >= 0 && elapsed < MIN_FILL_TIME_MS;
+export function isFilledTooFast(elapsedMs: string): boolean {
+  if (!elapsedMs) return false;
+  const elapsed = Number(elapsedMs);
+  return Number.isFinite(elapsed) && elapsed < MIN_FILL_TIME_MS;
 }
 
 /** Лимит считается по БД: in-memory счётчики на serverless не глобальны. */

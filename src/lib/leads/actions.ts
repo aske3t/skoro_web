@@ -39,7 +39,7 @@ export async function submitLead(
 ): Promise<LeadFormState> {
   // Боту отвечаем успехом, чтобы он не подбирал обход.
   if (field(formData, "website")) return { status: "success" };
-  if (isFilledTooFast(field(formData, "startedAt"), Date.now())) {
+  if (isFilledTooFast(field(formData, "elapsedMs"))) {
     return { status: "success" };
   }
 
