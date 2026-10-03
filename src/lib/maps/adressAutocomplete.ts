@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { loadGoogleMaps } from "./loader";
 
 export type AddressLocation = { lat: number; lng: number };
@@ -22,6 +22,11 @@ export function useAddressAutocomplete({
   country = "cz",
   strictBounds = true,
 }: Options) {
+  // Колбэк приходит новым на каждом рендере (inline-стрелка у вызывающего).
+  // Держим его в ref, чтобы эффект не пересоздавал Autocomplete и .pac-container.
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
+
   useEffect(() => {
     let cancelled = false;
     let listener: google.maps.MapsEventListener | null = null;
@@ -41,11 +46,11 @@ export function useAddressAutocomplete({
         const place = ac.getPlace();
         const loc = place.geometry?.location;
         if (place.formatted_address && loc) {
-          onSelect(place.formatted_address, { lat: loc.lat(), lng: loc.lng() });
+          onSelectRef.current(place.formatted_address, { lat: loc.lat(), lng: loc.lng() });
         }
       });
     });
 
     return () => { cancelled = true; listener?.remove(); };
-  }, [inputRef, onSelect, bounds, country, strictBounds]);
+  }, [inputRef, bounds, country, strictBounds]);
 }
