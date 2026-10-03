@@ -1,248 +1,147 @@
-# TASK-001: обработка контактной формы (лиды)
+# TASK-002: фундамент — схема БД в репозитории, quality gate, гигиена
 
-> Контекст проекта: [../STATE.md](../STATE.md), [../architecture/AS-IS.md](../architecture/AS-IS.md).
-> Базовая ветка: `dev`. Рабочая ветка: `feature/contact-form`.
-> Статус: к исполнению. Архитектурные решения ниже зафиксированы. Если какое-то из них
-> мешает, остановись и опиши проблему, не меняй его самостоятельно.
+> Архитектура: [architecture/CURRENT.md](architecture/CURRENT.md), ADR [0001](architecture/adr/0001-branches-and-deploy.md)–[0004](architecture/adr/0004-pricing-single-source.md).
+> Базовая ветка: `dev` (после влития TASK-001). Рабочая ветка: `chore/foundation`, запушить сразу.
+> Решения зафиксированы. Если какое-то мешает, остановись и опиши проблему в PROPOSALS, не меняй его самостоятельно.
 
-## 1. Проблема
+## 1. Зачем
 
-`src/components/sections/ContactForm.tsx` — главная точка конверсии B2B-сайта, но заявки из неё никуда не уходят:
+Следующие задачи — цены, заказ на сервере, оплата — меняют логику, которая сейчас спрятана в удалённой БД (RPC, RLS). Пока схемы нет в репозитории, их нельзя спроектировать и проверить.
 
-- `onSubmit={(e) => e.preventDefault()}` — отправки нет;
-- у полей нет атрибутов `name`, поэтому `FormData` пустая даже при наличии обработчика;
-- обязательность полей (Email*, Сообщение*) только визуальная, `required` не выставлен;
+Эта задача:
+- выгружает схему;
+- описывает фактический доступ к данным;
+- ставит минимальный quality gate, который проверяет каждый следующий PR агента;
+- убирает мусор.
 
-Работа ведётся только в `dev`. Прод (`variant1`) в этой задаче не трогаем.
+Функциональность для пользователя не меняется, за исключением двух мелких дефектов из п. 7.
 
-## 2. Цель
+## 2. Предусловия
 
-Каждая корректная заявка из контактной формы:
+- [ ] TASK-001 влит в `dev`. Next откачен на 15.5.x: незакоммиченное обновление до 16 отброшено.
+- [ ] Docker запущен — нужен для `supabase db pull` и `db diff`. Если Docker недоступен, используй fallback из п. 3.
+- [ ] Владелец рядом: `supabase link` спросит пароль БД.
 
-1. надёжно сохраняется в Supabase;
-2. приводит к уведомлению владельца в Telegram;
-3. даёт пользователю понятную обратную связь (отправка, успех, ошибка).
+## 3. Схема БД (ADR-0002)
 
-Спам не должен доходить до базы и уведомлений.
+1. `npx supabase link --project-ref <ref>` (ref — из URL проекта в Dashboard).
+2. `npx supabase migration repair 20260929205817 --status applied`. Это пишет только в таблицу истории миграций. **Перед выполнением покажи команду владельцу.**
+3. `npx supabase db pull`. Получившуюся миграцию `<ts>_remote_schema.sql` не редактировать.
+4. Триггеры на `auth.users`:
+   ```sql
+   select tgname, pg_get_triggerdef(t.oid)
+   from pg_trigger t
+   where t.tgrelid = 'auth.users'::regclass and not t.tgisinternal;
+   ```
+   Если они есть, оформи отдельную миграцию только с `create trigger` (функции триггеров уже попали в baseline из `public`). Если миграция окажется пустой, не создавай её и напиши об этом в отчёте.
+5. Проверки:
+   - `npx supabase migration list` — обе версии есть и в Local, и в Remote;
+   - `npx supabase db diff --linked` — пусто.
+6. **Fallback без Docker.** `pg_dump --schema-only --schema=public` из libpq по connection string (Session pooler из Dashboard), **с** привилегиями. Результат сохранить как `<ts>_baseline.sql`, затем выполнить `migration repair <ts> --status applied`. Отклонение описать в отчёте.
+7. **Удалённую схему не менять.** Никаких `db push`, `db reset --linked`, правок RLS.
 
-## 3. Архитектурные решения
+## 4. Аудит доступа → `docs/architecture/db-security.md`
 
-| # | Решение | Почему |
-|---|---|---|
-| A1 | **Server Action** + `useActionState` (React 19). Форма работает и без JS (progressive enhancement). | Не нужен отдельный API-роут, валидация и запись происходят на сервере, путь минимальный. |
-| A2 | **Таблица `public.leads`**, RLS включён **без политик**. Запись только с сервера Next.js через secret key в модуле с `import "server-only"`. | Anon key публичный. Если открыть anon insert-политику, спамер будет писать в таблицу напрямую через PostgREST в обход наших проверок. |
-| A3 | **Одна zod-схема** в `lib/leads/schema.ts`, сервер — единственный источник истины. На клиенте только HTML-атрибуты (`required`, `maxLength`, `type`). | Правила не дублируются, клиентская валидация не является защитой. |
-| A4 | **Антиспам**: honeypot, time-trap и rate-limit по `ip_hash` **через БД**. | In-memory лимиты на serverless не глобальны (см. `/api/geocode/search` в AS-IS). |
-| A5 | **Уведомление в Telegram** через `after()` из `next/server`, за интерфейсом `notifyNewLead()`. Сбой уведомления лид **не теряет**. | Сначала сохраняем в БД, потом уведомляем. Ответ пользователю не ждёт Telegram. Позже можно добавить email-адаптер. |
-| A6 | **Ошибки — это коды**, а не тексты. Русские тексты живут в компоненте. | Готовность к будущей i18n (cs/en/ru). |
-| A7 | **Env читаются лениво**, в момент вызова, а не при импорте модуля. | Отсутствие ключа ломает только отправку формы, а не рендер страницы и не сборку (см. проблему с HTTP 500 в STATE). |
+Собрать по baseline-миграции (запросы в БД — только `select`):
 
-## 4. Модель данных
+1. **Матрица доступа.** Таблица × роль (`anon`, `authenticated`) × операция (`select`/`insert`/`update`/`delete`): RLS вкл./выкл., политики и их условия, grants.
+2. **Функции.** Для каждой: `security definer` или `invoker`, есть ли `set search_path`, кому выдан `execute`.
+3. **`create_order_for_user` по шагам, словами.** Нужно ответить на вопросы:
+   - откуда берётся `user_id`;
+   - считается ли цена и по какой формуле;
+   - как списывается абонемент;
+   - что пишется в `payment_status`;
+   - что происходит при двух активных абонементах.
+4. **Сравнение с целевой матрицей** из [CURRENT.md §5](architecture/CURRENT.md). Каждое отклонение — находка с приоритетом 🔴/🟠/🟢 и предложением исправления, продублированная в PROPOSALS.
 
-Файл `supabase/migrations/<YYYYMMDDHHMMSS>_create_leads.sql`:
+**Ничего не исправлять.** Исправления RLS пойдут отдельными миграциями после решения архитектора.
 
-```sql
-create table public.leads (
-  id          uuid primary key default gen_random_uuid(),
-  created_at  timestamptz not null default now(),
-  kind        text not null check (kind in ('delivery', 'question')),
-  first_name  text check (char_length(first_name) <= 100),
-  last_name   text check (char_length(last_name) <= 100),
-  email       text not null check (char_length(email) <= 254),
-  phone       text check (char_length(phone) <= 20),
-  message     text not null check (char_length(message) between 1 and 4000),
-  utm         jsonb,
-  ip_hash     text,
-  status      text not null default 'new'
-              check (status in ('new', 'in_progress', 'done', 'spam'))
-);
+## 5. Платформа (P-03, P-04)
 
-create index leads_ip_hash_created_at_idx on public.leads (ip_hash, created_at desc);
-create index leads_status_created_at_idx  on public.leads (status, created_at desc);
+- `package.json`:
+  - `"engines": { "node": ">=22.12" }`;
+  - `"next": "^15.5.27"` (или новее в рамках 15.5.x).
+- `.nvmrc` со значением `22`.
+- `npm audit fix` без `--force`. После него `npm audit` не должен показывать critical и high. Если что-то закрывается только мажорным обновлением, оставить и перечислить в отчёте.
 
-alter table public.leads enable row level security;
--- Политик нет намеренно: anon и authenticated не читают и не пишут.
--- Запись только с сервера Next.js через secret key (обходит RLS).
-revoke all on public.leads from anon, authenticated;
+## 6. Quality gate (P-11)
 
-comment on table  public.leads         is 'Заявки с контактной формы сайта';
-comment on column public.leads.ip_hash is 'sha256(ip + LEAD_IP_SALT); только для rate-limit';
-comment on column public.leads.utm     is 'utm_source / utm_medium / utm_campaign / utm_term / utm_content со страницы';
-```
+1. **ESLint 9, flat config:**
+   - `eslint.config.mjs` + `eslint-config-next` той же версии, что `next`, через `FlatCompat`, как в шаблоне create-next-app 15: `next/core-web-vitals`, `next/typescript`;
+   - скрипт `"lint": "eslint ."` вместо `next lint`.
+2. **`npm run lint` → 0 ошибок.**
+   - В старом коде разрешены только механические правки: неиспользуемые импорты, `let` → `const` и т. п.
+   - Если правка меняет поведение, ставь `// eslint-disable-next-line <rule> -- TODO(TASK-00X)` и перечисли все такие места в отчёте.
+   - `react-hooks/exhaustive-deps` — уровень `warn`.
+3. **`.github/workflows/ci.yml`:**
+   - триггеры: `pull_request` в `dev` и `main`, `push` в `dev`;
+   - актуальные мажорные версии `actions/checkout` и `actions/setup-node`, `node-version-file: .nvmrc`, кэш npm;
+   - шаги: `npm ci` → `npx tsc --noEmit` → `npm run lint` → `npm test` → `npm run build`;
+   - для build — фиктивные `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` в `env` workflow; серверные секреты не нужны (A7).
 
-Тип `leads` добавь в `src/types/database.ts` вручную, в формате сгенерированного файла (`Row` / `Insert` / `Update`). Владелец перегенерирует типы после применения миграции. Разница должна быть нулевой, поэтому отметь это в отчёте.
+## 7. Мелкие дефекты
 
-## 5. Структура файлов
+1. **Google Autocomplete пересоздаётся на каждый рендер.**
+   - Причина: в `src/lib/maps/adressAutocomplete.ts` `onSelect` стоит в зависимостях эффекта, а `googleautocomplete.tsx` передаёт его inline-стрелкой.
+   - Исправление: хранить колбэк в `useRef` (обновлять `ref.current` в каждом рендере) и убрать его из deps.
+   - Проверка: после ввода 10 символов в DOM ровно по одному `.pac-container` на поле.
+   - Логику калькулятора не трогать.
+2. **Time-trap лидов (P-10).**
+   - Заменить сравнение абсолютной метки клиента с часами сервера на длительность по часам клиента.
+   - Клиент: время монтирования хранится в ref. В `onSubmit` формы записать в скрытое поле `elapsedMs` значение `Date.now() − mountedAt`. React 19 вызывает `onSubmit` до сбора `FormData` для action — проверь это вручную.
+   - Сервер: `elapsedMs < 3000` → тихий «успех» без записи. Поля нет (JS выключен) → пропустить.
+   - Обновить тесты схемы.
 
-```
-src/lib/supabase/admin.ts          server-only; createAdminClient() — ленивое чтение env
-src/lib/leads/schema.ts            zod-схема, normalizePhone(), типы LeadFormValues / LeadFormState
-src/lib/leads/spam.ts              hashIp(), getClientIp(headers), isRateLimited(client, ipHash)
-src/lib/leads/notify.ts            notifyNewLead(lead), formatLeadMessage(lead), Telegram-адаптер
-src/lib/leads/actions.ts           "use server"; submitLead(prevState, formData)
-src/components/sections/ContactForm.tsx   подключение action, состояния UI
-supabase/migrations/<ts>_create_leads.sql
-src/lib/leads/*.test.ts            unit-тесты (vitest)
-```
+## 8. Гигиена (P-09, P-12)
 
-## 6. Контракт Server Action
+- **`.gitignore` + `git rm --cached`:** `supabase/.temp/`, `.claude/settings.local.json`.
+- **Удалить `sr`.** PNG-макеты из корня перенести в `docs/design/`.
+- **Удалить мёртвый код:**
+  - `components/calculator/AddressLookupInput.tsx`;
+  - `app/api/geocode/search/`;
+  - `NOMINATIM_USER_AGENT` из `.env.example` и README;
+  - `components/sections/Reviews.tsx`;
+  - `resolveRecipient()`;
+  - `getProfile()`;
+  - пустой `app/personal/personal.tsx`.
 
-```ts
-type LeadField = "firstName" | "lastName" | "email" | "phone" | "message";
-type FieldErrorCode = "required" | "invalid" | "too_long";
+  Ссылку `/personal` в Navbar не трогать, это TASK-003. Перед удалением подтверди через `grep`, что импортов нет.
+- **Типизировать клиенты:** `createBrowserClient<Database>`, `createServerClient<Database>`.
+  - Ошибки типов в существующих запросах исправлять без изменения поведения.
+  - Если без изменения поведения не получается, перечислить в отчёте.
+- **Документы:**
+  - TASK-001 перенести в `docs/tasks/001-contact-form.md` и починить в нём ссылки;
+  - этот файл по завершении перенести в `docs/tasks/002-foundation.md`;
+  - в шапку `AS-IS.md` добавить: «Заменён [CURRENT.md](CURRENT.md) 2026-10-02»;
+  - в PROPOSALS перенести P-01…P-12 в «Решено» со ссылками на ADR и задачи (журнал — [CURRENT.md §11](architecture/CURRENT.md)); P-08 (трекинг) оставить открытым;
+  - обновить STATE.
 
-type LeadFormValues = {
-  kind: "delivery" | "question";
-  firstName: string; lastName: string; email: string; phone: string; message: string;
-};
+## 9. Ограничения
 
-type LeadFormState =
-  | { status: "idle" }
-  | { status: "success" }
-  | {
-      status: "error";
-      code: "validation" | "rate_limited" | "server_error";
-      fieldErrors?: Partial<Record<LeadField, FieldErrorCode>>;
-      values: LeadFormValues; // чтобы форма не теряла ввод
-    };
+- **Схема удалённой БД:** допускается только `migration repair` из п. 3.2 (после показа владельцу). Больше никаких изменений.
+- **Не трогать:** Navbar, layout, middleware, лендинг (это TASK-003); логику калькулятора и цен (TASK-004); форму заказа (TASK-005).
+- **Новые зависимости:** только `eslint`, `eslint-config-next`, `@eslint/eslintrc`. Любые другие — спросить.
+- **Юридические тексты не трогать.**
+- **Один блок (пп. 3–8) — один или несколько осмысленных коммитов.** Не смешивать блоки в одном коммите.
 
-export async function submitLead(prev: LeadFormState, formData: FormData): Promise<LeadFormState>;
-```
+## 10. Критерии приёмки
 
-**Поток `submitLead`:**
+- [ ] `supabase/migrations/` содержит baseline и `create_leads`; `migration list` синхронен; `db diff --linked` пуст.
+- [ ] `docs/architecture/db-security.md` описывает матрицу, функции и `create_order_for_user`; находки продублированы в PROPOSALS.
+- [ ] `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run build` проходят локально.
+- [ ] CI на PR `chore/foundation` → `dev` зелёный.
+- [ ] `npm audit`: нет critical и high, либо остаток перечислен с причиной.
+- [ ] В git нет `supabase/.temp/`, `.claude/settings.local.json`, `sr`.
+- [ ] `grep -r "geocode/search\|AddressLookupInput\|NOMINATIM" src` пуст.
+- [ ] Autocomplete: один `.pac-container` на поле после ввода; калькулятор считает как раньше (ручной смоук обоих режимов).
+- [ ] Контактная форма: заявка, отправленная через 5+ секунд, сохраняется; заявка быстрее 3 секунд тихо отбрасывается; без JS форма работает.
 
-1. Honeypot `website` заполнен → вернуть `{ status: "success" }` и **ничего не делать**. Боту не сообщаем об отказе.
-2. `startedAt` присутствует и прошло < 3 с → то же, что в п. 1. Если `startedAt` отсутствует (JS выключен), не блокировать.
-3. Распарсить поля zod-схемой. При ошибке → `validation` + `fieldErrors` + `values`.
-4. `ip_hash = sha256(ip + LEAD_IP_SALT)`. IP берётся из первого значения `x-forwarded-for`, запасной вариант — `x-real-ip`. Если IP нет, `ip_hash = null` и rate-limit пропускается.
-5. Rate-limit: ≥ 3 лида с тем же `ip_hash` за 10 минут → `rate_limited`. Константы вынести наверх модуля.
-6. `insert` в `leads`. Ошибка → `console.error` + `server_error` + `values`.
-7. `after(() => notifyNewLead(lead))` → вернуть `{ status: "success" }`.
+## 11. Отчёт
 
-**Правила полей (zod):**
-
-| Поле | Правило |
-|---|---|
-| `kind` | `delivery` \| `question`, по умолчанию `delivery` |
-| `firstName`, `lastName` | trim, ≤ 100, необязательные |
-| `email` | trim, lowercase, валидный email, ≤ 254, обязательный |
-| `phone` | необязательный; `normalizePhone()`: убрать пробелы, `-`, `(`, `)`; `00…` → `+…`; без `+` → префикс `+420`; итог должен соответствовать `^\+[1-9]\d{7,14}$` |
-| `message` | trim, 1…4000, обязательный |
-| `utm` | необязательный JSON только с разрешёнными ключами `utm_*`, каждое значение ≤ 200; невалидный JSON молча отбросить |
-
-## 7. Уведомление (Telegram)
-
-- `POST https://api.telegram.org/bot<TOKEN>/sendMessage`, `parse_mode: "HTML"`, таймаут 5 с (`AbortSignal.timeout`).
-- `formatLeadMessage()`:
-  - экранирует `& < >` во всех пользовательских полях;
-  - обрезает сообщение до 3500 символов (лимит Telegram — 4096);
-  - выводит тип заявки, имя, email, телефон (кликабельный `tel:`), текст, utm, время в `Europe/Prague`.
-- Если нет `TELEGRAM_BOT_TOKEN` или `TELEGRAM_CHAT_ID` → `console.warn` и выход без ошибки.
-- Ошибка или таймаут Telegram → `console.error`. Лид уже сохранён, пользователь видит успех.
-
-## 8. Изменения в `ContactForm.tsx`
-
-Дизайн, классы и тексты не меняются. Добавляется только поведение.
-
-- **Подключение action.** `useActionState(submitLead, { status: "idle" })`, `<form action={formAction}>`, убрать `onSubmit`.
-- **Атрибуты полей:**
-  - `name` на каждом поле;
-  - `required` на email и сообщении;
-  - `maxLength` по схеме;
-  - `autoComplete`: `given-name`, `family-name`, `email`, `tel`;
-  - `inputMode="tel"` у телефона.
-- Существующий `<input type="hidden" name="requestType">` переименовать в `name="kind"`.
-- **Ловушка React 19.** После завершения action React сбрасывает неуправляемые поля к их `defaultValue`. Поэтому `defaultValue` каждого поля берётся из `state.values`, если он есть. Иначе при ошибке валидации ввод пропадёт. Тумблер `kind` — это React-state, его сброс не затрагивает. При ошибке переключатель восстанавливается из `state.values.kind`.
-- **Honeypot.** Поле `website` в обёртке вне экрана (`absolute -left-[9999px]`, `aria-hidden`), с `tabIndex={-1}` и `autoComplete="off"`. Не использовать `display:none`.
-- **`startedAt`.** Скрытое поле, значение `Date.now()` выставляется в `useEffect` при монтировании.
-- **UTM.** Скрытое поле `utm`: в `useEffect` читать `window.location.search`, собрать `utm_*` в JSON. **Не использовать `useSearchParams`**: без Suspense он ломает статическую генерацию страницы, а её мы планируем вернуть.
-- **Состояния:**
-  - `pending`: кнопка `disabled`, `aria-busy`, текст «Отправляем…».
-  - `success`: вместо полей панель с `role="status"` («Заявка отправлена, ответим в течение рабочего дня») и кнопка «Отправить ещё одну». Кнопка заново монтирует форму через смену `key`.
-  - `error` + `fieldErrors`: текст ошибки под полем, `aria-invalid`, `aria-describedby`.
-  - `rate_limited` / `server_error`: общий блок с `role="alert"` и ссылкой на телефон `+420 795 402 571` как запасной канал.
-- Тексты ошибок — словарь `code → текст` внутри компонента.
-- Текст согласия под формой оставить как есть, без изменений.
-
-## 9. Переменные окружения
-
-Все серверные, **без** префикса `NEXT_PUBLIC_`. Добавить в `.env.example` с плейсхолдерами и описать в README.
-
-| Переменная | Назначение |
-|---|---|
-| `SUPABASE_SECRET_KEY` | Secret key проекта (`sb_secret_…`) или legacy `service_role`. Используется только в `lib/supabase/admin.ts` |
-| `TELEGRAM_BOT_TOKEN` | Токен бота от @BotFather |
-| `TELEGRAM_CHAT_ID` | Чат или группа для уведомлений |
-| `LEAD_IP_SALT` | Случайная строка ≥ 32 символов для хэширования IP |
-
-## 10. Тесты
-
-Добавить `vitest` (devDependency), скрипт `"test": "vitest run"` и alias `@` → `src` в `vitest.config.ts`. Покрыть:
-
-- **schema**:
-  - валидная заявка;
-  - пустой email или сообщение;
-  - превышение длины;
-  - `kind` вне списка.
-- **`normalizePhone`**:
-  - `777 123 456` → `+420777123456`;
-  - `00420…` → `+420…`;
-  - `+49 30 1234567` без изменений;
-  - мусор → ошибка.
-- **`formatLeadMessage`**:
-  - экранирование `<script>`;
-  - обрезка длинного сообщения;
-  - время в `Europe/Prague`.
-- **utm-парсер**:
-  - лишние ключи отбрасываются;
-  - невалидный JSON → `null`.
-
-Server Action и сеть unit-тестами не покрываются, их проверяет ручной сценарий из п. 12.
-
-## 11. Ограничения для агента
-
-- Не трогать другие компоненты, калькулятор, Navbar, стили, `tailwind.config.ts`.
-- **Не применять миграции к удалённой БД.** Не запускать `supabase db push`, `db reset` и `migration up` для linked-проекта. Миграцию применяет владелец.
-- Не коммитить секреты, `.env.local` не трогать.
-- Новые зависимости: только `zod`, `server-only`, `vitest`. Любые другие — сначала спросить.
-- Коммиты мелкие и осмысленные. Изменения только в файлах из п. 5, плюс `package.json`, `package-lock.json`, `.env.example`, `README.md`, `src/types/database.ts`.
-- Юридические тексты (политика, согласия) не писать и не менять.
-- Если требование противоречит коду или неоднозначно, остановись и спроси. Не додумывай.
-
-## 12. Критерии приёмки
-
-**Проверяет агент:**
-
-- [ ] `npx tsc --noEmit`, `npm test`, `npm run build` проходят.
-- [ ] `lib/supabase/admin.ts` содержит `import "server-only"`. Новые ключи нигде не имеют префикса `NEXT_PUBLIC_`. `grep` по клиентскому бандлу `.next/static` не находит имён `SUPABASE_SECRET_KEY` и `TELEGRAM_BOT_TOKEN`.
-- [ ] Без серверных env сборка проходит, а страница рендерится.
-
-**Проверяет владелец после применения миграции и env** (агент включает этот список в отчёт):
-
-- [ ] Валидная заявка → строка в `leads`, сообщение в Telegram, панель успеха.
-- [ ] Пустое сообщение или кривой email → ошибка у поля, введённые данные на месте.
-- [ ] Honeypot заполнен через DevTools → панель успеха, строки в БД нет.
-- [ ] 4-я заявка за 10 минут с одного IP → сообщение `rate_limited` с телефоном.
-- [ ] Без `TELEGRAM_*` → лид сохраняется, в логах warning, пользователь видит успех.
-- [ ] Запрос к `/rest/v1/leads` с anon key: `select` и `insert` отклоняются.
-- [ ] С выключенным JS форма отправляется, заявка доходит.
-- [ ] Визуально форма в покое не изменилась.
-
-## 13. Вне скоупа (отдельные задачи)
-
-- Подписка в Footer («The Dispatch · weekly bulletin») — отдельная задача.
-- Юридическая часть (политика конфиденциальности, согласия, сроки хранения) — по отдельной команде владельца.
-- CAPTCHA / Cloudflare Turnstile — только если honeypot и rate-limit не справятся.
-- Автоответ клиенту на email, админка для лидов, i18n.
-- Поле телефона с выбором кода страны (сейчас бейдж `+420` статичный; международные номера поддерживаются через ввод `+…`).
-
-## 14. Отчёт агента по завершении
-
-1. Список коммитов и изменённых файлов.
-2. Отклонения от задачи и их причины.
-3. Шаги для владельца:
-   - применить миграцию;
-   - заполнить env локально и в Vercel (Production + Preview);
-   - создать бота;
-   - перегенерировать типы и сверить diff.
-4. Чек-лист ручной проверки из п. 12.
+1. Коммиты и изменённые файлы по блокам.
+2. Отклонения от задачи и их причины (в том числе fallback без Docker, если был).
+3. Список `eslint-disable` с TODO.
+4. Краткая выжимка находок `db-security.md` — 🔴 первыми.
+5. Шаги для владельца:
+   - настройки Vercel и GitHub из ADR-0001;
+   - защита веток после появления CI.
