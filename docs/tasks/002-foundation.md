@@ -1,6 +1,6 @@
 # TASK-002: фундамент — схема БД в репозитории, quality gate, гигиена
 
-> Архитектура: [architecture/CURRENT.md](architecture/CURRENT.md), ADR [0001](architecture/adr/0001-branches-and-deploy.md)–[0004](architecture/adr/0004-pricing-single-source.md).
+> Архитектура: [architecture/CURRENT.md](../architecture/CURRENT.md), ADR [0001](../architecture/adr/0001-branches-and-deploy.md)–[0004](../architecture/adr/0004-pricing-single-source.md).
 > Базовая ветка: `dev` (после влития TASK-001). Рабочая ветка: `chore/foundation`, запушить сразу.
 > Решения зафиксированы. Если какое-то мешает, остановись и опиши проблему в PROPOSALS, не меняй его самостоятельно.
 
@@ -52,7 +52,7 @@
    - как списывается абонемент;
    - что пишется в `payment_status`;
    - что происходит при двух активных абонементах.
-4. **Сравнение с целевой матрицей** из [CURRENT.md §5](architecture/CURRENT.md). Каждое отклонение — находка с приоритетом 🔴/🟠/🟢 и предложением исправления, продублированная в PROPOSALS.
+4. **Сравнение с целевой матрицей** из [CURRENT.md §5](../architecture/CURRENT.md). Каждое отклонение — находка с приоритетом 🔴/🟠/🟢 и предложением исправления, продублированная в PROPOSALS.
 
 **Ничего не исправлять.** Исправления RLS пойдут отдельными миграциями после решения архитектора.
 
@@ -113,7 +113,7 @@
   - TASK-001 перенести в `docs/tasks/001-contact-form.md` и починить в нём ссылки;
   - этот файл по завершении перенести в `docs/tasks/002-foundation.md`;
   - в шапку `AS-IS.md` добавить: «Заменён [CURRENT.md](CURRENT.md) 2026-10-02»;
-  - в PROPOSALS перенести P-01…P-12 в «Решено» со ссылками на ADR и задачи (журнал — [CURRENT.md §11](architecture/CURRENT.md)); P-08 (трекинг) оставить открытым;
+  - в PROPOSALS перенести P-01…P-12 в «Решено» со ссылками на ADR и задачи (журнал — [CURRENT.md §11](../architecture/CURRENT.md)); P-08 (трекинг) оставить открытым;
   - обновить STATE.
 
 ## 9. Ограничения

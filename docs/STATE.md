@@ -1,119 +1,101 @@
 # STATE — состояние проекта Skoro (skoro-web)
 
-> Снимок на 2026-09-30, ветка `feature/contact-form` @ `c314e50` (от `dev` @ `ce1cd21`).
-> **[Факт]** — видно в коде/истории. **[Предп.]** — вывод, требует проверки.
-> Архитектура: `CURRENT.md` пока нет, справочно — [architecture/AS-IS.md](architecture/AS-IS.md) (реконструкция от 2026-09-29).
-> Вопросы к архитектору: [architecture/PROPOSALS.md](architecture/PROPOSALS.md). Текущая задача: [TASK.md](TASK.md).
+> Снимок на 2026-10-06, ветка `chore/foundation` (TASK-002), от `dev` @ `cae9cbe`.
+> **[Факт]** — видно в коде, истории или подтверждено проверкой. **[Предп.]** — вывод, требует проверки.
+> Архитектура: [architecture/CURRENT.md](architecture/CURRENT.md), ADR в [architecture/adr/](architecture/adr/). Вопросы к архитектору: [architecture/PROPOSALS.md](architecture/PROPOSALS.md).
+> Аудит БД: [architecture/db-security.md](architecture/db-security.md). Выполненные задачи: [tasks/](tasks/).
 
 ## Кратко
 
-Сайт курьерской службы Skoro (Брно, CZ): лендинг с калькулятором доставки, контактная форма и личный кабинет клиента (заказы, платежи, абонемент).
-Стек: Next.js 15 (закоммичено; в рабочей копии Next 16, см. «В работе»), React 19, TypeScript, Tailwind 3, Supabase (Auth + Postgres), zod, vitest, Google Maps Places.
-После простоя с 2026-06-10 работа возобновлена 2026-09-29: аудит, восстановление доступа к Supabase, TASK-001 (контактная форма).
+Сайт курьерской службы Skoro (Брно, CZ): лендинг с калькулятором, контактная форма (лиды) и личный кабинет B2B-клиента.
+Стек: Next.js 15.5.27, React 19, TypeScript, Tailwind 3, Supabase, zod, vitest 5, ESLint 9. Node 22 LTS.
+Дорожная карта — [CURRENT.md §10](architecture/CURRENT.md). TASK-001 влит в `dev`. TASK-002 выполнен агентом и ждёт PR в `dev`.
 
 ## Сделано
 
-**Аудит (2026-09-29)** — `docs/STATE.md` (эта версия заменяет первую), `docs/architecture/AS-IS.md`.
+**TASK-001 — контактная форма → лиды** ([tasks/001-contact-form.md](tasks/001-contact-form.md)).
+Влит в `dev` (PR #1, `cae9cbe`). Владелец прошёл ручной чек-лист.
 
-**Доступ к Supabase** — проект `skoro_web` активен. В `.env.local` владелец вписал реальные URL и publishable key (раньше там были плейсхолдеры).
+**TASK-002 — фундамент** ([tasks/002-foundation.md](tasks/002-foundation.md)), ветка `chore/foundation`.
 
-**TASK-001: контактная форма → лиды** — ветка `feature/contact-form`, 8 коммитов (`f5f8583`…`c314e50`), в `dev` не влита.
+| Блок | Коммиты | Итог |
+|---|---|---|
+| Документы архитектора | `5b8f3b4` | CURRENT, ADR 0001–0004, TASK-002; TASK-001 перенесён в `docs/tasks/` |
+| §5 Платформа | `c6fb7e5` | `engines >=22.12`, `.nvmrc`, `next` 15.5.27, `npm audit fix` без `--force` |
+| §6 Линтер и CI | `5c6bcc7`, `679e167` | ESLint 9 (flat, `eslint-config-next` 15.5.27): 0 ошибок; `.github/workflows/ci.yml` |
+| §7 Дефекты | `9864a5e`, `852d91a` | Autocomplete не пересоздаётся; time-trap по `elapsedMs` (часы клиента) |
+| §8 Гигиена | `ecc1835`, `69ac69c`, `bd22ab8`, `bf2965b`, `f806fd8` | `.gitignore` (`supabase/.temp/`, `.claude/settings.local.json`); удалены `sr`, Nominatim, `Reviews`, `resolveRecipient`, `getProfile`, `personal.tsx`; макеты в `docs/design/` |
+| §3 Схема БД | `4c86401` | Baseline `20261005224233_remote_schema.sql`; `leads` отмечена применённой. Триггеров на `auth.users` нет |
+| §4 Аудит доступа | `9ee76b5` | `db-security.md`: матрица, функции, разбор `create_order_for_user`, 14 находок → PROPOSALS P-14…P-21 |
 
-- **[Факт]** Таблица `public.leads`:
-  - миграция `supabase/migrations/20260929205817_create_leads.sql`;
-  - RLS включён без политик, права `anon` и `authenticated` отозваны;
-  - владелец применил её через SQL Editor. Проверено: запрос с anon key → `42501 permission denied for table leads`.
-- **[Факт]** Server Action `submitLead` (`src/lib/leads/actions.ts`):
-  - honeypot и time-trap;
-  - zod-валидация (`schema.ts`);
-  - rate-limit по `ip_hash` через БД (`spam.ts`);
-  - запись через admin-клиент (`src/lib/supabase/admin.ts`, `server-only`);
-  - уведомление в Telegram через `after()` (`notify.ts`).
-- **[Факт]** `ContactForm.tsx`: `useActionState`; `name`/`required`/`maxLength`/`autoComplete` на полях; скрытые поля `kind`/`startedAt`/`utm`/`website`; состояния pending/success/error. Форма работает и без JS.
-- **[Факт]** Константы формы вынесены в `src/lib/leads/constants.ts`, поэтому zod не попадает в клиентский бандл. First Load `/`: 210 → 185 кБ.
-- **[Факт]** Unit-тесты: `schema.test.ts`, `notify.test.ts`. vitest настроен (`vitest.config.ts`, `npm test`).
-- **[Факт]** Проверки на момент коммитов (Next 15.5.18, Node 20.12):
-  - `tsc --noEmit` ✅;
-  - `npm run build` ✅;
-  - секретов в `.next/static` нет ✅;
-  - без серверных env главная отдаёт 200 ✅.
-- **[Факт]** Типы `leads` в `src/types/database.ts` сверены перегенерацией (`supabase gen types`): расхождений в таблицах нет. Отличаются только BOM и форма хелперов в новом CLI; с новым файлом `tsc` ✅.
-
-**Процесс работы с архитектором** (не закоммичено):
-- `CLAUDE.md`;
-- команды `.claude/commands/{arch,handoff,analyze}.md`;
-- скрипт `bin/arch-pack`;
-- `docs/architecture/PROPOSALS.md`, папка `docs/architecture/adr/`.
+**[Факт]** Локально проходят: `npx tsc --noEmit`, `npm run lint` (0 ошибок, 8 предупреждений), `npm test` (29 тестов), `npm run build`.
 
 ## В работе
 
-- **[Факт]** Незакоммичено в рабочей копии `feature/contact-form`:
-  - `src/types/database.ts` — перегенерированные типы (готово к коммиту);
-  - `package.json`, `package-lock.json` — `next` `^15.1.3` → `^16.3.7`. **[Предп.]** Это результат `npm audit fix --force`. Next 16.3.7 уже установлен в `node_modules`;
-  - `tsconfig.json` — переписан Next 16 при запуске (`jsx: react-jsx`, `.next/dev/types/**/*.ts`);
-  - `supabase/.temp/cli-latest` — служебный файл CLI (v2.102.0 → v2.118.0);
-  - `CLAUDE.md`, `.claude/commands/`, `bin/`, `docs/` — новые, не отслеживаются.
-- **[Факт]** Серверные переменные (`SUPABASE_SECRET_KEY`, `LEAD_IP_SALT`, `TELEGRAM_*`) при последней проверке в `.env.local` отсутствовали. Пока их нет, форма возвращает `server_error`.
-- **[Факт]** Локальный Node обновлён до 22.23.3 (`~/.local/node`), в `node_modules` есть бинарник `@rolldown/binding-darwin-arm64`.
+- **PR `chore/foundation` → `dev`** не открыт: `gh` не установлен, открывает владелец. CI ещё ни разу не запускался — он стартует на этом PR.
+- **Ожидают проверки владельцем:**
+  - синхронность миграций: `migration list`, `db diff`;
+  - `count(*)` в `service_config` и `zone_distances`;
+  - `proacl` функции `create_order_for_user`.
+
+  Запросы — в [db-security.md §5](architecture/db-security.md).
+- **Не сделано из TASK-002:** типизация Supabase-клиентов `<Database>`. Блокирует старый `@supabase/ssr` 0.5.2 (P-13).
 
 ## Следующие шаги
 
-1. **Решить судьбу Next 16** (PROPOSALS P-04):
-   - либо откатить `package*.json` и `tsconfig.json` и сделать `npm audit fix` без `--force`;
-   - либо оформить миграцию на 16 отдельной задачей.
-2. **Прогнать `npm test`** — тесты ещё ни разу не запускались. Затем `npm run build` на выбранной версии Next.
-3. **Закоммитить:**
-   - процесс (`CLAUDE.md`, `.claude/commands/`, `bin/`, `docs/`);
-   - типы (`src/types/database.ts`).
-4. **Заполнить `.env.local`:** `SUPABASE_SECRET_KEY`, `LEAD_IP_SALT`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
-5. **Пройти ручной чек-лист TASK-001** (п. 12 [TASK.md](TASK.md)), затем влить `feature/contact-form` в `dev`.
-6. **Отметить миграцию как применённую** (PROPOSALS P-02): `npx supabase migration repair --status applied 20260929205817`.
-7. **Передать пакет архитектору** (`./bin/arch-pack`) и получить `CURRENT.md`.
+1. **Владелец:**
+   - открыть PR `chore/foundation` → `dev`, дождаться зелёного CI, влить;
+   - выполнить проверки из «В работе».
+2. **Владелец — настройки из ADR-0001:**
+   - Vercel: Production Branch = `main`, env по Production и Preview, Node 22.x;
+   - GitHub: default branch `main`, защита `dev` и `main`.
+
+   Затем создать `main` от `ec05ede` с тегом `prod-2026-05-17`, удалить `master` и `variant1`.
+3. **Архитектор:**
+   - решить P-13 (обновление `@supabase/ssr`);
+   - решить 🔴 P-14 (`service_config` — форма заказа сломана);
+   - решить P-15…P-21;
+   - дать TASK-003.
+4. **Ротация токена.** Удалить временный Supabase Access Token и старый `cli_…` (legacy) в Dashboard → Account → Access Tokens.
 
 ## Отклонения и вопросы
 
-**Отклонения TASK-001 от задачи** (подробно — в отчёте по задаче):
-- **Новый файл `constants.ts`** — вне списка п. 5, согласовано с владельцем.
-- **Телефон:** сырой ввод ограничен 32 символами; `+49 30 1234567` → `+49301234567` (разделители удаляются).
-- **UTM:** значение длиннее 200 символов отбрасывается, а не обрезается.
-- **Time-trap:** метка `startedAt` из будущего не блокирует отправку.
-- **Без `LEAD_IP_SALT`** форма возвращает `server_error`.
-- **`.env.example`:** в коммит `3dbe8db` вошли старые незакоммиченные плейсхолдеры Google Maps и Nominatim.
-
-**Известные проблемы вне TASK-001** — из аудита, актуальны:
-- **Битые ссылки:** `/tracking` (HeroTracking), `/personal` (Navbar).
-- **Форма подписки в Footer** не отправляется (отдельная задача по TASK-001 §13).
-- **Схемы БД в репозитории нет**, кроме `leads` (P-02).
-- **Цены заданы в трёх местах** (P-07).
-- **Мёртвый код:**
-  - `AddressLookupInput` + `/api/geocode/search`;
-  - `Reviews`;
-  - `resolveRecipient`;
-  - `getProfile`;
-  - пустой `app/personal/personal.tsx`.
-- **Нет ESLint и CI** (P-11). `npm audit`: critical в `next` 15 (P-04).
-- **Все маршруты, включая `/`, рендерятся динамически** из-за `Navbar` в корневом layout (P-06).
-- **Рассинхрон документов:**
-  - TASK.md называет прод-веткой `variant1`, но `origin/variant1` целиком входит в `dev` (P-01);
-  - A7 в TASK.md ссылается на «HTTP 500 в STATE» — в STATE такого описания нет.
+- **§8: типизация клиентов не выполнена** — откачена, P-13.
+- **§3: `db pull` по `--linked` упал** с `EAUTHQUERY unsupported or invalid secret format`. Выгрузка сделана с `--db-url` (Session pooler). Прямой адрес БД доступен только по IPv6, в сети владельца IPv6 нет.
+- **§3: в baseline первой строкой `drop extension if exists "pg_net"`** — артефакт diff, файл не редактировался (P-17).
+- **§5: остаток `npm audit` — 6 high и 1 moderate**, закрываются только мажорными обновлениями:
+  - `braces`, `micromatch`, `chokidar`, `fast-glob` — через Tailwind 3 → нужен Tailwind 4;
+  - `postcss` внутри `next` → нужен Next 16.
+- **§6: ESLint, 8 предупреждений** в зонах TASK-003 и TASK-004 оставлены без `eslint-disable`:
+  - `layout.tsx` — неиспользуемые шрифты;
+  - `WhySkoro` — `ShieldCheck`;
+  - `HeroTracking` — `onSubmit` / `setTrackingNumber` не используются, это P-08;
+  - `Calculator` — неиспользуемые типы и `setLocation`.
+- **§7.1: проверка «один `.pac-container` на поле»** — по коду (зависимости эффекта стабильны). В браузере не проверялась.
+- **§7.2: порядок `onSubmit` → `FormData` в React 19** подтверждён по исходникам `react-dom` 19.2. Ручная проверка в браузере не проводилась.
+- **Вне TASK:** `vitest.config.ts` → `.mts` (предупреждение Vite о ESM).
+- **Рабочая среда владельца:**
+  - Node 22 стоит в `~/.local/node` (fnm недоступен из сети);
+  - Supabase CLI работает через `SUPABASE_ACCESS_TOKEN` в env, потому что Связка ключей macOS не отдаёт сохранённый токен.
 
 ## Как запустить и проверить
-
-Node 22 LTS (≥ 22.12). После смены версии Node: `rm -rf node_modules && npm install`.
 
 ```bash
 npm install
 cp .env.example .env.local   # заполнить, см. README → Environment variables
 npm run dev                  # http://localhost:3000
-npm test                     # vitest: src/lib/leads/*.test.ts
-npx tsc --noEmit
-npm run build
+npx tsc --noEmit && npm run lint && npm test && npm run build   # то же, что CI
 ```
 
-- Для калькулятора и ЛК нужны справочники в Supabase: zones, retail_points, zone_distances, skoro_pricing, delivery_slots, service_config. Сидов в репозитории нет.
-- Для ЛК нужен пользователь в Supabase Auth: регистрации в UI нет.
-- Контактная форма: ручной чек-лист — п. 12 [TASK.md](TASK.md).
-- Не проверено в этой сессии:
-  - `npm test` (ни разу);
-  - `npm run build` на Next 16;
-  - отправка формы с реальными серверными env.
+- Supabase CLI (из сети владельца):
+  ```bash
+  read -s SUPABASE_ACCESS_TOKEN && export SUPABASE_ACCESS_TOKEN
+  read -s DB_URL && export DB_URL   # строка Session pooler с паролем БД
+  npx supabase migration list --db-url "$DB_URL"
+  ```
+- Генерация типов — через временный файл (см. `CLAUDE.md`).
+- Для ЛК нужен пользователь в Supabase Auth: аккаунты создаёт владелец.
+- **Не проверено:**
+  - CI на GitHub;
+  - Autocomplete и time-trap в браузере;
+  - форма нового заказа (P-14).
