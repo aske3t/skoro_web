@@ -15,7 +15,7 @@ const columns = [
   {
     heading: "Info",
     links: [
-      { label: "Cross city delivery", href: "/tracking" },
+      { label: "Cross city delivery", href: "/#services" },
     ],
   },
   {

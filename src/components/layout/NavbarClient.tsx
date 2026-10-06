@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowUpRight, Menu, X, User } from "lucide-react";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,7 +14,6 @@ const links = [
   { href: "/#contact", label: "Контакты" },
 ];
 
-type Audience = "personal" | "business";
 type AuthState = "unknown" | "in" | "out";
 
 /**
@@ -56,10 +54,6 @@ function useAuthState(): AuthState {
 
 export default function NavbarClient() {
   const auth = useAuthState();
-  const pathname = usePathname();
-  const audience: Audience = pathname.startsWith("/personal")
-    ? "personal"
-    : "business";
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -94,27 +88,13 @@ export default function NavbarClient() {
       </Link>
 
       <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-6 pl-2 pr-5 py-4 md:pl-4 md:pr-10 md:py-5">
-        {/* Audience toggle */}
+        {/* Аудитория: сейчас только B2B (CURRENT §12, P-08) */}
         <div className="hidden items-center rounded-full border border-hairline-strong bg-bg-soft/60 p-1 md:flex">
           <Link
             href="/"
-            className={`inline-flex h-7 items-center justify-center rounded-full px-3.5 font-mono text-[10px] leading-none tracking-[0.08em] transition ${
-              audience === "business"
-                ? "bg-ink text-bg"
-                : "text-ink-muted hover:text-ink"
-            }`}
+            className="inline-flex h-7 items-center justify-center rounded-full bg-ink px-3.5 font-mono text-[10px] leading-none tracking-[0.08em] text-bg transition"
           >
             Для бизнеса
-          </Link>
-          <Link
-            href="/personal"
-            className={`inline-flex h-7 items-center justify-center rounded-full px-3.5 font-mono text-[10px] leading-none tracking-[0.08em] transition ${
-              audience === "personal"
-                ? "bg-ink text-bg"
-                : "text-ink-muted hover:text-ink"
-            }`}
-          >
-            Для физлиц
           </Link>
         </div>
 
