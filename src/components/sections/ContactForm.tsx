@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowUpRight, Phone } from "lucide-react";
-import { useActionState, useEffect, useState, type ReactNode } from "react";
+import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { submitLead } from "@/lib/leads/actions";
 import {
   EMAIL_MAX,
@@ -140,12 +140,21 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     if (state.status === "error") setFormType(state.values.kind);
   }
 
-  const [startedAt, setStartedAt] = useState("");
+  // Time-trap: длительность заполнения по часам клиента, пишется в момент отправки.
+  // React 19 вызывает onSubmit до того, как соберёт FormData для action.
+  const mountedAtRef = useRef<number | null>(null);
+  const elapsedRef = useRef<HTMLInputElement>(null);
   const [utm, setUtm] = useState("");
   useEffect(() => {
-    setStartedAt(String(Date.now()));
+    mountedAtRef.current = Date.now();
     setUtm(readUtmFromLocation());
   }, []);
+
+  function recordElapsed() {
+    if (mountedAtRef.current !== null && elapsedRef.current) {
+      elapsedRef.current.value = String(Date.now() - mountedAtRef.current);
+    }
+  }
 
   const isDelivery = formType === "delivery";
   const messagePlaceholder = isDelivery
@@ -170,11 +179,12 @@ function LeadForm({ onReset }: { onReset: () => void }) {
   return (
     <form
       action={formAction}
+      onSubmit={recordElapsed}
       className="relative mt-16 overflow-hidden rounded-[1.75rem] border border-hairline-strong bg-bg-soft/60 p-8 shadow-card backdrop-blur-sm md:p-12"
     >
       <div className="noise-layer rounded-[1.75rem]" />
       <input type="hidden" name="kind" value={formType} />
-      <input type="hidden" name="startedAt" value={startedAt} />
+      <input type="hidden" name="elapsedMs" ref={elapsedRef} defaultValue="" />
       <input type="hidden" name="utm" value={utm} />
 
       {/* Honeypot: скрыт от людей, но не через display:none — его боты пропускают. */}

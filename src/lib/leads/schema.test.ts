@@ -39,8 +39,9 @@ describe("leadSchema", () => {
   });
 
   it("defaults kind to delivery", () => {
-    const { kind: _kind, ...rest } = valid;
-    expect(leadSchema.parse(rest).kind).toBe("delivery");
+    const withoutKind: Record<string, unknown> = { ...valid };
+    delete withoutKind.kind;
+    expect(leadSchema.parse(withoutKind).kind).toBe("delivery");
   });
 
   it("requires email and message", () => {

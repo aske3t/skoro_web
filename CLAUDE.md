@@ -15,6 +15,8 @@
 | `docs/architecture/PROPOSALS.md` | агент | Открытые вопросы и предложения к архитектору |
 | `docs/STATE.md` | агент | Состояние разработки: сделано, в работе, следующие шаги |
 | `docs/TASK.md` | архитектор / владелец | Текущая задача с зафиксированными решениями |
+| `docs/tasks/NNN-*.md` | агент (перенос) | Архив выполненных задач |
+| `docs/architecture/db-security.md` | агент | Аудит доступа к БД (RLS, grants, функции) |
 
 - Архитектуру меняет только архитектор. Агент не правит `CURRENT.md` и `adr/`.
 - Упёрся в архитектурный вопрос или требование противоречит коду: остановись, запиши вопрос в `PROPOSALS.md` и спроси владельца. Не решай сам.
@@ -30,6 +32,7 @@ npm install
 npm run dev           # http://localhost:3000
 npm run build
 npm test              # vitest, тесты в src/**/*.test.ts
+npm run lint          # eslint .
 npx tsc --noEmit
 ```
 
@@ -45,7 +48,7 @@ npx supabase gen types typescript --project-id ukdxpdprxkcslydfobno > /tmp/db.ts
 - `src/components/` — `sections/` (лендинг), `calculator/`, `account/` (ЛК), `layout/`, `ui/`.
 - `src/lib/` — `supabase/` (клиенты: browser, server, middleware, `admin.ts` server-only), `leads/` (контактная форма), `calculator/`, `account/`, `maps/`.
 - `src/types/database.ts` — сгенерированные типы Supabase.
-- `supabase/migrations/` — миграции схемы (пока только `create_leads`, остальная схема живёт только в удалённой БД).
+- `supabase/migrations/` — источник истины схемы (ADR-0002): `create_leads` + baseline `remote_schema`. Аудит доступа — `docs/architecture/db-security.md`.
 
 ## Правила для агента
 
@@ -56,4 +59,4 @@ npx supabase gen types typescript --project-id ukdxpdprxkcslydfobno > /tmp/db.ts
 - Записи в БД из форм — через Server Actions с валидацией zod на сервере (паттерн из `src/lib/leads/`).
 - Тексты интерфейса на русском живут в компонентах, сервер возвращает коды ошибок.
 - Юридические тексты (политика, согласия) не писать и не менять.
-- Перед тем как сказать «готово»: `npx tsc --noEmit`, `npm test`, `npm run build`.
+- Перед тем как сказать «готово»: `npx tsc --noEmit`, `npm run lint`, `npm test`, `npm run build` (то же гоняет CI).

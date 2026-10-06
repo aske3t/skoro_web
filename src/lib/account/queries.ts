@@ -9,17 +9,6 @@ export type Order = Tables<"orders">;
 export type Payment = Tables<"payments">;
 export type Subscription = Tables<"subscriptions">;
 
-/** Профиль компании (1:1 с auth.users). Может отсутствовать, если лид ещё не заполнен. */
-export async function getProfile(supabase: Client, userId: string): Promise<Profile | null> {
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", userId)
-    .maybeSingle();
-  if (error) throw error;
-  return data;
-}
-
 /** Активные заказы — статусы new / in_progress. RLS уже режет чужие строки. */
 export async function getActiveOrders(supabase: Client): Promise<Order[]> {
   const { data, error } = await supabase
