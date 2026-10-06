@@ -5,6 +5,7 @@ import { ArrowUpRight, Menu, X, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
 
 const links = [
   { href: "/#services", label: "Услуги" },
@@ -15,9 +16,46 @@ const links = [
 ];
 
 type Audience = "personal" | "business";
-type NavUser = { email: string } | null;
+type AuthState = "unknown" | "in" | "out";
 
-export default function NavbarClient({ user }: { user: NavUser }) {
+/**
+ * Статус входа только для UI: сессия читается локально в браузере.
+ * Защита ЛК — на сервере в dashboard/layout.tsx.
+ */
+function useAuthState(): AuthState {
+  const [auth, setAuth] = useState<AuthState>("unknown");
+
+  useEffect(() => {
+    if (
+      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
+      setAuth("out");
+      return;
+    }
+
+    const supabase = createClient();
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setAuth(data.session ? "in" : "out");
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuth(session ? "in" : "out");
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  return auth;
+}
+
+export default function NavbarClient() {
+  const auth = useAuthState();
   const pathname = usePathname();
   const audience: Audience = pathname.startsWith("/personal")
     ? "personal"
@@ -101,7 +139,7 @@ export default function NavbarClient({ user }: { user: NavUser }) {
 
         {/* CTA */}
         <div className="flex items-center gap-2">
-          {user ? (
+          {auth === "in" ? (
             <Link
               href="/dashboard"
               className="hidden items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-4 py-2 font-mono text-[11px] uppercase tracking-label text-brand-glow transition hover:border-brand hover:bg-brand/20 md:inline-flex"
@@ -110,9 +148,14 @@ export default function NavbarClient({ user }: { user: NavUser }) {
               Кабинет
             </Link>
           ) : (
+            // Пока статус неизвестен, кнопка держит место невидимой — без сдвига вёрстки.
             <Link
               href="/login"
-              className="hidden rounded-full border border-hairline-strong px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink/85 transition hover:border-ink/40 hover:text-ink md:inline-flex"
+              aria-hidden={auth === "unknown" || undefined}
+              tabIndex={auth === "unknown" ? -1 : undefined}
+              className={`hidden rounded-full border border-hairline-strong px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink/85 transition hover:border-ink/40 hover:text-ink md:inline-flex ${
+                auth === "unknown" ? "invisible" : ""
+              }`}
             >
               Sign in
             </Link>
@@ -155,7 +198,7 @@ export default function NavbarClient({ user }: { user: NavUser }) {
               </li>
             ))}
             <li className="pt-3">
-              {user ? (
+              {auth === "in" ? (
                 <Link
                   href="/dashboard"
                   onClick={() => setOpen(false)}
@@ -167,7 +210,11 @@ export default function NavbarClient({ user }: { user: NavUser }) {
                 <Link
                   href="/login"
                   onClick={() => setOpen(false)}
-                  className="block rounded-full border border-hairline-strong py-3 text-center text-ink"
+                  aria-hidden={auth === "unknown" || undefined}
+                  tabIndex={auth === "unknown" ? -1 : undefined}
+                  className={`block rounded-full border border-hairline-strong py-3 text-center text-ink ${
+                    auth === "unknown" ? "invisible" : ""
+                  }`}
                 >
                   Sign in
                 </Link>

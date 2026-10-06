@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Barlow_Condensed, Space_Grotesk, IBM_Plex_Mono, Oswald, Inter} from "next/font/google";
+import { Space_Grotesk, Oswald, Inter } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import "./globals.css";

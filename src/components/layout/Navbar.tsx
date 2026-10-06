@@ -1,13 +1,7 @@
-import { createClient } from "@/lib/supabase/server";
 import NavbarClient from "./NavbarClient";
 
-export default async function Navbar() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  // Из юзера достаём только то, что нужно UI — чтобы не таскать в клиент
-  // полный объект с метаданными и токенами.
-  return <NavbarClient user={user ? { email: user.email ?? "" } : null} />;
+// Серверная обёртка без данных: корневой layout не обращается к Supabase,
+// поэтому лендинг собирается статически. Статус входа определяет NavbarClient.
+export default function Navbar() {
+  return <NavbarClient />;
 }
