@@ -88,3 +88,16 @@ where n.nspname = 'public';
 ```
 
 Синхронность миграций: `npx supabase migration list --db-url "$DB_URL"` (обе версии в Local и Remote), `npx supabase db diff --db-url "$DB_URL"` (пусто).
+
+## 6. Статус после TASK-003 (миграция `20261006044808_harden_public_access`, применена 2026-10-06)
+
+| Находка | Статус | Проверка (REST, publishable key) |
+|---|---|---|
+| F-1 `service_config` | ✅ закрыта: политика `read service_config` для `anon` и `authenticated` | `GET /service_config` → 1 строка (06:00–24:00) |
+| F-6 `execute` RPC | ✅ частично: отозван у `public` и `anon`, остался у `authenticated` до TASK-005. До миграции `proacl` = `{=X/postgres, …, anon=X, authenticated=X, service_role=X}` | `POST /rpc/create_order_for_user` без сессии → `42501 permission denied for function` |
+| F-10 grants | ✅ закрыта: `insert/update/delete/truncate/references/trigger` отозваны у `anon` и `authenticated` на всех таблицах `public`, включая default privileges | `POST /zones` → `42501 permission denied for table zones`; `GET /zones` → 200 |
+| F-11 политики `to public` | ✅ закрыта: явные роли | — |
+| F-8 `zone_distances` | подтверждено: `count(*) = 0` (TASK-004) | — |
+| F-2…F-5, F-7, F-9, F-12…F-14 | без изменений, см. [CURRENT §9](CURRENT.md) | — |
+
+`migration list` синхронен, `db diff` пуст (проверено владельцем).
