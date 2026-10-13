@@ -9,7 +9,7 @@
 
 Сайт курьерской службы Skoro (Брно, CZ): лендинг с калькулятором, контактная форма (лиды) и личный кабинет B2B-клиента.
 Стек: Next.js 15.5.27, React 19, TypeScript, Tailwind 3, Supabase (`@supabase/ssr` 0.12.7, `supabase-js` 2.117.2), zod, vitest 5, ESLint 9. Node 22 LTS.
-Дорожная карта — [CURRENT.md §10](architecture/CURRENT.md). TASK-001 и TASK-002 влиты в `dev`. TASK-003 влит в `dev` (PR #3, 2026-10-13) и перенесён в [tasks/003-static-landing.md](tasks/003-static-landing.md). Переключение прода на `main` — в процессе.
+Дорожная карта — [CURRENT.md §10](architecture/CURRENT.md). TASK-001 и TASK-002 влиты в `dev`. TASK-003 влит в `dev` (PR #3, 2026-10-13) и перенесён в [tasks/003-static-landing.md](tasks/003-static-landing.md). Прод переключён на `main`.
 
 ## Сделано
 
@@ -38,17 +38,15 @@
 
 ## В работе
 
-**Статус TASK-003 (2026-10-13):** владелец прошёл ручные проверки на Preview `skoro-web-st78`, PR #3 влит в `dev`. GitHub: default branch = `main` (сделано владельцем). Блок 4 не завершён: прод в Vercel ещё на `master`, ветки `master` и `variant1` не удалены.
+**Статус TASK-003 (2026-10-13): закрыт.** Владелец прошёл ручные проверки на Preview `skoro-web-st78`, PR #3 влит в `dev`.
 
-- **Vercel.** Боевой проект — **`skoro-web-st78`** (домен `skorouvas.cz`, Git подключён к `aske3t/skoro_web` с 2026-05-17, собирает Preview на каждый пуш). Лишние проекты `skoro-web`, `skoro-web-zsta` и `project-jl4hd` удалены владельцем. Переменные окружения добавлены (Production + Preview; `SUPABASE_SECRET_KEY`, `LEAD_IP_SALT`, `TELEGRAM_BOT_TOKEN` — как Secret).
-- **Production Branch всё ещё `master`.** Vercel не даёт выбрать `main`, пока она ни разу не собиралась: ветка создана на старом коммите `ec05ede`, а Vercel собирает только новые пуши. Нужно: Deployments → Create Deployment → `main` → затем Environments → Production → Branch Tracking = `main`.
-- **⚠️ Риск для прода.** Код `ec05ede` без `NEXT_PUBLIC_SUPABASE_*` отдаёт 500 на всех страницах: `Navbar` в нём создаёт серверный клиент с `env!`. Переменные уже добавлены, поэтому пересборка прода безопасна.
+- **Vercel.** Боевой проект — **`skoro-web-st78`** (домен `skorouvas.cz`, Git → `aske3t/skoro_web`). Лишние проекты `skoro-web`, `skoro-web-zsta` и `project-jl4hd` удалены владельцем. Переменные окружения заданы для Production и Preview (секреты — как Secret). **Production Branch = `main`**: прод пересобран из `ec05ede` 2026-10-13 03:04 UTC, `skorouvas.cz` отвечает 200.
+- **GitHub.** Default branch = `main`. Ветки `master`, `variant1`, `feature/contact-form`, `chore/foundation` и `feature/static-landing` удалены: всё их содержимое есть в `dev` или `main`. Тег `prod-2026-05-17` → `ec05ede`. Остались `main`, `dev` и ветка текущей работы.
 - **Осталось владельцу:**
-  1. ручной деплой `main` и смена Branch Tracking;
-  2. GitHub: защита `dev` и `main` (default branch уже `main`);
-  3. подтверждение агенту на удаление `master` и `variant1`;
-  4. перевыпуск токена Telegram-бота: он попал на скриншот в чате.
-- **После этого агент:** удаляет `master` и `variant1`, а с согласия владельца — влитые ветки `feature/contact-form`, `chore/foundation`, `feature/static-landing`. Текущей задачи нет: `docs/TASK.md` появится с TASK-004.
+  1. GitHub → Settings → Branches: защита `dev` и `main` (merge только через PR, обязательный `check`);
+  2. перевыпуск токена Telegram-бота: он попал на скриншот в чате;
+  3. первый релиз `dev` → `main` — по готовности, PR `dev` → `main`.
+- **Текущей задачи нет:** `docs/TASK.md` появится с TASK-004.
 
 ## Следующие шаги
 
