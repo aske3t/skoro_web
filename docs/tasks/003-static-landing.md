@@ -1,6 +1,6 @@
 # TASK-003: доступ к БД, статический лендинг, навигация
 
-> Архитектура: [architecture/CURRENT.md](architecture/CURRENT.md) (версия 2026-10-06, решения — §12), ADR [0001](architecture/adr/0001-branches-and-deploy.md)–[0004](architecture/adr/0004-pricing-single-source.md), аудит [db-security.md](architecture/db-security.md).
+> Архитектура: [architecture/CURRENT.md](../architecture/CURRENT.md) (версия 2026-10-06, решения — §12), ADR [0001](../architecture/adr/0001-branches-and-deploy.md)–[0004](../architecture/adr/0004-pricing-single-source.md), аудит [db-security.md](../architecture/db-security.md).
 > Базовая ветка: `dev` (после влития `chore/foundation`). Рабочая ветка: `feature/static-landing`, запушить сразу.
 > Решения зафиксированы. Если какое-то мешает, остановись и опиши проблему в PROPOSALS, не меняй его самостоятельно.
 
