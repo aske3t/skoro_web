@@ -38,6 +38,9 @@
 
 ## В работе
 
+- **Vercel (2026-10-13).** Боевой проект — **`skoro-web-st78`** (домен `skorouvas.cz`, подключён к `aske3t/skoro_web` с 2026-05-17). Лишние проекты `skoro-web`, `skoro-web-zsta` и `project-jl4hd` удалены владельцем. Переменные окружения добавлены владельцем (Production + Preview, секреты — как Secret). Production Branch пока `master`: Vercel не даёт выбрать `main`, пока она ни разу не собиралась, нужен ручной деплой `main`.
+- **Диагноз «вечной загрузки» входа на Preview:** Preview собирались без `NEXT_PUBLIC_SUPABASE_*`, а `LoginForm` не перехватывает исключение `createClient()` — кнопка остаётся в «Signing in…».
+
 - **Владелец, ADR-0001:**
   - Vercel: Production Branch = `main`, env для Production и Preview, Node 22.x;
   - GitHub: default branch `main`, защита `dev` и `main` (PR + CI `check`);
