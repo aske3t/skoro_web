@@ -17,7 +17,7 @@ export async function createOrder(input: CreateOrderInput) {
     p_slot_id: input.slotId,
     p_scheduled_for: input.scheduledFor,
     p_recipient_contact: input.recipientContact,
-    p_comment: input.comment,
+    p_comment: input.comment || undefined,
   });
   if (error) throw error;
   return data;

@@ -1,7 +1,7 @@
 # CURRENT — архитектура Skoro (skoro-web)
 
 > **Источник правды по архитектуре.** Заменяет [AS-IS.md](AS-IS.md), который остаётся как историческая реконструкция.
-> Версия от 2026-10-02. Основа: `dev` @ `ce1cd21` + `feature/contact-form` @ `c314e50` (TASK-001), пакет архитектора от 2026-09-30.
+> Версия от 2026-10-06. Основа: `chore/foundation` @ `9188c8f` (TASK-002, от `dev` @ `cae9cbe`), пакет архитектора от 2026-10-06.
 > Документ меняет только архитектор. Исполнитель предлагает изменения через [PROPOSALS.md](PROPOSALS.md).
 > Текущее состояние работ: [../STATE.md](../STATE.md). Текущая задача: [../TASK.md](../TASK.md).
 
@@ -83,19 +83,19 @@ lib/<domain>/
 | `/` | работает; `ƒ` dynamic из-за `Navbar` в корневом layout | `○` static, данные цен через ISR (TASK-003, TASK-004) |
 | `/login` | работает | — |
 | `/dashboard`, `/orders`, `/payments` | работает; защита в `dashboard/layout.tsx` | — |
-| `/dashboard/orders/new` | RPC из браузера, слот по таймзоне браузера | Server Action, Europe/Prague (TASK-005) |
+| `/dashboard/orders/new` | **падает**: `service_config` не читается (P-14); RPC из браузера, слот по таймзоне браузера | доступ — TASK-003; Server Action, Europe/Prague — TASK-005 |
 | `/dashboard/subscribition` | работает, опечатка в URL | `/subscription` + редирект со старого (TASK-003) |
 | `/auth/callback` | не используется; `next` не проверяется | при возврате регистрации или magic-link принимать только пути с одиночным `/` |
 | `/auth/signout` | работает | — |
-| `/api/geocode/search` | мёртвый код (Nominatim) | удалить (TASK-002) |
+| `/api/geocode/search` | удалён (TASK-002) | — |
 | `/personal` | 404, ссылка в Navbar | убрать ссылку: сейчас только B2B (TASK-003) |
-| `/tracking` | 404, форма в HeroTracking | ждёт решения владельца (P-08) |
+| `/tracking` | 404, форма в HeroTracking | форма заменяется CTA на калькулятор и заявку (TASK-003); трекинг — бэклог |
 
 `middleware.ts` сейчас вызывает `getUser()` на **каждом** запросе, включая лендинг. Целевой matcher (TASK-003): `/dashboard/:path*`, `/login`, `/auth/:path*`.
 
 ## 5. Данные
 
-До TASK-002 схема известна только по сгенерированным типам. После TASK-002 источник истины — миграции (ADR-0002). Результаты аудита доступа будут в `db-security.md` (TASK-002).
+Источник истины — миграции (ADR-0002): baseline `20261005224233_remote_schema.sql` и всё, что после. Фактический доступ и находки аудита — [db-security.md](db-security.md). Расхождения с целевой матрицей закрываются по частям: grants и политики — TASK-003; функция заказа, defaults, FK и `check` — TASK-005 и TASK-006.
 
 | Таблица | Назначение |
 |---|---|
@@ -149,7 +149,7 @@ lib/<domain>/
 | Google Maps Places | Ввод адресов в калькуляторе; **единственный геокодер** (P-09) | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — обязательно ограничить по HTTP referrer | используется |
 | Telegram Bot API | Уведомления о лидах | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | TASK-001 |
 | Антиспам лидов | Хэширование IP | `LEAD_IP_SALT` | TASK-001 |
-| Nominatim | — | `NOMINATIM_USER_AGENT` | удаляется (TASK-002) |
+| Nominatim | — | — | удалён (TASK-002) |
 | Google Fonts | `next/font` | — | у Space Grotesk нет кириллицы (бэклог, дизайн) |
 
 ## 8. Платформа и окружения
@@ -161,36 +161,38 @@ lib/<domain>/
 | Ветки и деплой | ADR-0001 |
 | Supabase | Один проект до TASK-006. Перед оплатой — отдельный staging-проект (ADR-0002) |
 | Качество | `tsc --noEmit`, `eslint .`, `vitest`, `next build` в CI на каждый PR (TASK-002) |
+| Supabase CLI | Из сети владельца `--linked` не работает (новый формат ключей, нет IPv6), поэтому все команды идут с `--db-url` (Session pooler). Миграции применяются так: `npx supabase db push --db-url "$DB_URL"` |
+| `npm audit` | Остаток — 6 high и 1 moderate, все в зависимостях сборки: Tailwind 3 → `chokidar`/`micromatch`, `postcss` внутри `next`. Риск принят. Закроется миграциями на Tailwind 4 и Next 16 (бэклог) |
 
 ## 9. Известные проблемы и где они решаются
 
 | Проблема | Где |
 |---|---|
-| Схема, RLS и RPC не в репозитории | TASK-002 |
-| Google Autocomplete пересоздаётся на каждый рендер: `onSelect` inline в deps эффекта → утечка `.pac-container`, сброс сессий Places | TASK-002 |
-| Time-trap сравнивает часы клиента с серверными (P-10) | TASK-002 |
-| Мёртвый код, мусор в git, нетипизированные клиенты Supabase | TASK-002 |
-| Лендинг dynamic, middleware на каждом запросе, битые `/personal` и опечатка `subscribition` | TASK-003 |
-| Цены в трёх местах, `BATCH_PER_EXTRA_STOP` дважды, монолитный `Calculator.tsx` (дробится по необходимости) | TASK-004 |
-| `pickSlot` по таймзоне браузера; `serviceRes.data!`; `.maybeSingle()` при нескольких активных абонементах (нужен частичный unique index) | TASK-005 |
+| `service_config` без политики чтения → форма заказа падает (P-14) | TASK-003 |
+| У `anon`/`authenticated` полные grants на запись, политики `to public`, RPC заказа доступна `anon` (P-20, P-16 частично) | TASK-003 |
+| Старый `@supabase/ssr`, клиенты без `<Database>` (P-13) | TASK-003 |
+| Лендинг dynamic, middleware на каждом запросе, `/personal`, опечатка `subscribition`, нерабочая форма трекинга | TASK-003 |
+| Цены в трёх местах; цена заказа в RPC = `base_price` слота (P-15); `zone_distances` пуста — калькулятор считает 0 км (P-18); монолитный `Calculator.tsx` | TASK-004 |
+| RPC: слот не сверяется со временем, `valid_until` абонемента не проверяется (P-15); `search_path`, `execute` (P-16); `pickSlot` по таймзоне браузера; `serviceRes.data!`; `.maybeSingle()` при двух активных абонементах | TASK-005 |
+| `orders.payment_status` default `'paid'`, `on delete cascade` от `auth.users`, нет `check` на статусы и `remaining_deliveries >= 0` (P-19, P-20) | TASK-005 (заказы), TASK-006 (`payments`) |
+| `profiles` не создаётся при создании аккаунта (P-21) | онбординг B2B (бэклог) |
 | `<html lang="en">`, метаданные «40+ cities», хардкод Брно в трёх местах | бэклог (контент, i18n, расширение географии) |
 
 ## 10. Дорожная карта
 
-0. **Закрыть TASK-001.** Откатить Next 16, поставить патч 15.5.x, `npm test` + `build`, заполнить env, пройти ручной чек-лист, влить в `dev`.
-1. **TASK-002 — фундамент.** Baseline схемы и аудит доступа, Node и патчи, ESLint и CI, гигиена, два мелких дефекта.
-2. **TASK-003 — статический лендинг и навигация.** Navbar без сессии на сервере, matcher middleware, `/personal`, `/subscription`.
-3. **TASK-004 — единый источник цен** (ADR-0004).
-4. **TASK-005 — создание заказа на сервере** (ADR-0003).
-5. **TASK-006 — гейт оплаты.** Staging, выбор провайдера, вебхуки.
+- ✅ **TASK-001** — контактная форма → лиды.
+- ✅ **TASK-002** — фундамент: baseline схемы, аудит доступа, Node и патчи, ESLint и CI, гигиена.
+1. **TASK-003 — доступ к БД, статический лендинг, навигация.** Срочный фикс `service_config` и grants, обновление `@supabase/ssr` и типизация клиентов, статичный `/`, `/personal`, `/subscription`, CTA вместо трекинга, ветка `main`.
+2. **TASK-004 — единый источник цен** (ADR-0004), включая матрицу `zone_distances`.
+3. **TASK-005 — создание заказа на сервере** (ADR-0003), включая проверки RPC и финансовые defaults.
+4. **TASK-006 — гейт оплаты.** Staging, выбор провайдера, вебхуки, defaults `payments`.
 
 **Бэклог:**
 - подписка в Footer (по паттерну leads);
-- регистрация и онбординг B2B;
-- трекинг (после решения P-08);
-- миграция на Next 16;
+- регистрация и онбординг B2B, включая создание `profiles` (P-21);
+- трекинг заказов: после TASK-005, когда у заказа есть статусы и публичный код;
+- миграция на Next 16 и Tailwind 4 (закроют остаток `npm audit`);
 - Node 24;
-- `@supabase/ssr` до актуальной 0.x;
 - i18n (cs/en/ru);
 - шрифт с кириллицей.
 
@@ -210,3 +212,20 @@ lib/<domain>/
 | P-10 | Вместо абсолютной метки — длительность заполнения по часам клиента: `elapsedMs` = submit − mount, оба значения на одном устройстве. HMAC не нужен, со статическим лендингом совместимо (TASK-002) |
 | P-11 | ESLint 9 (flat config, `eslint-config-next` 15.5.x), скрипт `eslint .` (`next lint` устарел); GitHub Actions на PR (TASK-002) |
 | P-12 | Принято целиком (TASK-002) |
+
+## 12. Журнал решений по PROPOSALS (2026-10-06)
+
+| # | Решение |
+|---|---|
+| P-08 | Форма трекинга в Hero заменяется двумя CTA: «Рассчитать стоимость» → калькулятор, «Оставить заявку» → контактная форма (TASK-003). Сам трекинг — бэклог после TASK-005 |
+| P-13 | В TASK-003: `@supabase/ssr` ^0.12.7 + актуальная `supabase-js` 2.x, `<Database>` на всех клиентах, `p_comment: undefined` вместо `null`. TASK-003 всё равно переписывает работу с сессией в Navbar и middleware |
+| P-14 | 🔴 Первый блок TASK-003: политика чтения `service_config` для `anon` и `authenticated` + защита страницы от отсутствия строки |
+| P-15 | Подтверждено: цена — TASK-004; проверка слота по времени и `valid_until` — TASK-005 |
+| P-16 | TASK-005. `execute` у `public` и `anon` отзывается уже в TASK-003: это бесплатно и закрывает анонимный вызов |
+| P-17 | `pg_net` не нужен: внешние вызовы и вебхуки идут через Route Handlers (ADR-0003). Строка `drop extension` в baseline отражает реальность — на удалённой БД расширения нет, оно есть только в образе для diff. Baseline не трогаем. Закрыто |
+| P-18 | TASK-004: матрица заполняется вместе с переносом тарифов в БД. В TASK-003 только диагностика `count(*)` |
+| P-19 | `orders`: default `'pending_payment'` (значение, которое уже пишет RPC) + `check` по списку статусов, FK на `auth.users` → `restrict` — TASK-005. `payments` — TASK-006 |
+| P-20 | Grants и политики — TASK-003: запись у `anon` и `authenticated` отзывается на всех таблицах `public`, включая default privileges, политики получают явные роли. `check`-ограничения — TASK-005 |
+| P-21 | Бэклог, задача онбординга B2B |
+| — | Остаток `npm audit` принят (§8) |
+| — | Supabase CLI работает через `--db-url` (§8) |

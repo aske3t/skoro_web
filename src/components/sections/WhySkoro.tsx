@@ -3,7 +3,6 @@
 import { useReveal } from "@/lib/useReveal";
 import {
   CircleChevronDown,
-  ShieldCheck,
   FileCheck,
   Zap,
   ShoppingBasket,

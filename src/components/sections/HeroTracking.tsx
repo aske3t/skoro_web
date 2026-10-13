@@ -1,20 +1,8 @@
 "use client";
 
 import { ArrowRight, MapPin } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 
 export default function HeroTracking() {
-  const router = useRouter();
-  const [trackingNumber, setTrackingNumber] = useState("");
-
-  function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const v = trackingNumber.trim();
-    if (!v) return;
-    router.push(`/tracking?id=${encodeURIComponent(v)}`);
-  }
-
   return (
     <section className="clip-bottom-slope relative overflow-hidden bg-bg pb-40 pt-32 md:pt-40">
       {/* Background stack */}
@@ -59,7 +47,6 @@ export default function HeroTracking() {
             Занимайтесь фирмой - сервис оставьте на нас.
           </p>
 
-          {/* Console tracking input */}
           {/*<form
             onSubmit={onSubmit}
             className="group mt-10 flex w-full items-stretch overflow-hidden rounded-2xl border border-hairline-strong bg-bg-deep/80 shadow-card backdrop-blur transition focus-within:border-brand/60 focus-within:shadow-brand"
@@ -77,16 +64,16 @@ export default function HeroTracking() {
               className="min-w-0 flex-1 bg-transparent px-5 py-5 font-mono text-base text-ink placeholder:text-ink-dim focus:outline-none md:text-lg"
             />*/}
 
-          <button
-            type="submit"
-            className="group/btn relative mt-4 flex items-center gap-2 rounded-2xl bg-brand px-6 py-5 font-mono text-[11px] uppercase tracking-label text-ink transition hover:bg-brand-hover md:px-8 "
+          <a
+            href="#contact"
+            className="group/btn relative mt-4 flex w-fit items-center gap-2 rounded-2xl bg-brand px-6 py-5 font-mono text-[11px] uppercase tracking-label text-ink transition hover:bg-brand-hover md:px-8 "
           >
             Связаться с нами
             <ArrowRight
               size={16}
               className="transition group-hover/btn:translate-x-1"
             />
-          </button>
+          </a>
           
           {/* Stat strip */}
           <div className="mt-10 grid grid-cols-3 gap-6 border-t border-hairline pt-6 md:max-w-lg">

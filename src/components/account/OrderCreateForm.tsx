@@ -106,7 +106,7 @@ export default function OrderCreateForm({ slots, subscription, service }: Props)
         />
         {picked?.ok && (
           <p className="mt-2 font-mono text-[11px] uppercase tracking-label text-brand-glow">
-            Слот: {picked.slot.label} · запас {picked.leadMinutes} мин
+            Слот: {picked.slot.label}
             {!subscription && ` · ${picked.slot.base_price} Kč`}
           </p>
         )}

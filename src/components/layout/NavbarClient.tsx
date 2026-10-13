@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { ArrowUpRight, Menu, X, User } from "lucide-react";
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
 
 const links = [
   { href: "/#services", label: "Услуги" },
@@ -14,14 +14,46 @@ const links = [
   { href: "/#contact", label: "Контакты" },
 ];
 
-type Audience = "personal" | "business";
-type NavUser = { email: string } | null;
+type AuthState = "unknown" | "in" | "out";
 
-export default function NavbarClient({ user }: { user: NavUser }) {
-  const pathname = usePathname();
-  const audience: Audience = pathname.startsWith("/personal")
-    ? "personal"
-    : "business";
+/**
+ * Статус входа только для UI: сессия читается локально в браузере.
+ * Защита ЛК — на сервере в dashboard/layout.tsx.
+ */
+function useAuthState(): AuthState {
+  const [auth, setAuth] = useState<AuthState>("unknown");
+
+  useEffect(() => {
+    if (
+      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    ) {
+      setAuth("out");
+      return;
+    }
+
+    const supabase = createClient();
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (active) setAuth(data.session ? "in" : "out");
+    });
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuth(session ? "in" : "out");
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  return auth;
+}
+
+export default function NavbarClient() {
+  const auth = useAuthState();
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -56,27 +88,13 @@ export default function NavbarClient({ user }: { user: NavUser }) {
       </Link>
 
       <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-6 pl-2 pr-5 py-4 md:pl-4 md:pr-10 md:py-5">
-        {/* Audience toggle */}
+        {/* Аудитория: сейчас только B2B (CURRENT §12, P-08) */}
         <div className="hidden items-center rounded-full border border-hairline-strong bg-bg-soft/60 p-1 md:flex">
           <Link
             href="/"
-            className={`inline-flex h-7 items-center justify-center rounded-full px-3.5 font-mono text-[10px] leading-none tracking-[0.08em] transition ${
-              audience === "business"
-                ? "bg-ink text-bg"
-                : "text-ink-muted hover:text-ink"
-            }`}
+            className="inline-flex h-7 items-center justify-center rounded-full bg-ink px-3.5 font-mono text-[10px] leading-none tracking-[0.08em] text-bg transition"
           >
             Для бизнеса
-          </Link>
-          <Link
-            href="/personal"
-            className={`inline-flex h-7 items-center justify-center rounded-full px-3.5 font-mono text-[10px] leading-none tracking-[0.08em] transition ${
-              audience === "personal"
-                ? "bg-ink text-bg"
-                : "text-ink-muted hover:text-ink"
-            }`}
-          >
-            Для физлиц
           </Link>
         </div>
 
@@ -101,7 +119,7 @@ export default function NavbarClient({ user }: { user: NavUser }) {
 
         {/* CTA */}
         <div className="flex items-center gap-2">
-          {user ? (
+          {auth === "in" ? (
             <Link
               href="/dashboard"
               className="hidden items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-4 py-2 font-mono text-[11px] uppercase tracking-label text-brand-glow transition hover:border-brand hover:bg-brand/20 md:inline-flex"
@@ -110,9 +128,14 @@ export default function NavbarClient({ user }: { user: NavUser }) {
               Кабинет
             </Link>
           ) : (
+            // Пока статус неизвестен, кнопка держит место невидимой — без сдвига вёрстки.
             <Link
               href="/login"
-              className="hidden rounded-full border border-hairline-strong px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink/85 transition hover:border-ink/40 hover:text-ink md:inline-flex"
+              aria-hidden={auth === "unknown" || undefined}
+              tabIndex={auth === "unknown" ? -1 : undefined}
+              className={`hidden rounded-full border border-hairline-strong px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink/85 transition hover:border-ink/40 hover:text-ink md:inline-flex ${
+                auth === "unknown" ? "invisible" : ""
+              }`}
             >
               Sign in
             </Link>
@@ -122,7 +145,9 @@ export default function NavbarClient({ user }: { user: NavUser }) {
             href="/#contact"
             className="group inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-bg transition hover:bg-brand hover:text-ink"
           >
-            Ship now
+            {/* На телефоне полный текст не помещается рядом с логотипом и меню */}
+            <span className="md:hidden">Заказать</span>
+            <span className="hidden md:inline">Заказать доставку</span>
             <ArrowUpRight
               size={14}
               className="transition group-hover:rotate-45"
@@ -155,7 +180,7 @@ export default function NavbarClient({ user }: { user: NavUser }) {
               </li>
             ))}
             <li className="pt-3">
-              {user ? (
+              {auth === "in" ? (
                 <Link
                   href="/dashboard"
                   onClick={() => setOpen(false)}
@@ -167,7 +192,11 @@ export default function NavbarClient({ user }: { user: NavUser }) {
                 <Link
                   href="/login"
                   onClick={() => setOpen(false)}
-                  className="block rounded-full border border-hairline-strong py-3 text-center text-ink"
+                  aria-hidden={auth === "unknown" || undefined}
+                  tabIndex={auth === "unknown" ? -1 : undefined}
+                  className={`block rounded-full border border-hairline-strong py-3 text-center text-ink ${
+                    auth === "unknown" ? "invisible" : ""
+                  }`}
                 >
                   Sign in
                 </Link>

@@ -7,7 +7,7 @@ const tabs = [
   { href: "/dashboard", label: "Обзор" },
   { href: "/dashboard/orders", label: "Заказы" },
   { href: "/dashboard/payments", label: "Платежи" },
-  { href: "/dashboard/subscribition", label: "Абонемент" },
+  { href: "/dashboard/subscription", label: "Абонемент" },
 ];
 
 export default function DashboardTabs () {
