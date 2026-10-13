@@ -9,14 +9,14 @@
 
 Сайт курьерской службы Skoro (Брно, CZ): лендинг с калькулятором, контактная форма (лиды) и личный кабинет B2B-клиента.
 Стек: Next.js 15.5.27, React 19, TypeScript, Tailwind 3, Supabase (`@supabase/ssr` 0.12.7, `supabase-js` 2.117.2), zod, vitest 5, ESLint 9. Node 22 LTS.
-Дорожная карта — [CURRENT.md §10](architecture/CURRENT.md). TASK-001 и TASK-002 влиты в `dev`. TASK-003: код готов и проверен владельцем, PR #3 и переключение прода на `main` — в процессе.
+Дорожная карта — [CURRENT.md §10](architecture/CURRENT.md). TASK-001 и TASK-002 влиты в `dev`. TASK-003 влит в `dev` (PR #3, 2026-10-13) и перенесён в [tasks/003-static-landing.md](tasks/003-static-landing.md). Переключение прода на `main` — в процессе.
 
 ## Сделано
 
 **TASK-001** ([tasks/001-contact-form.md](tasks/001-contact-form.md)) — влит (PR #1).
 **TASK-002** ([tasks/002-foundation.md](tasks/002-foundation.md)) — влит (PR #2, CI зелёный).
 
-**TASK-003 — доступ к БД, статический лендинг, навигация** ([TASK.md](TASK.md)), ветка `feature/static-landing`.
+**TASK-003 — доступ к БД, статический лендинг, навигация** ([tasks/003-static-landing.md](tasks/003-static-landing.md)), влит в `dev` (PR #3).
 
 | Блок | Коммиты | Итог |
 |---|---|---|
@@ -38,18 +38,17 @@
 
 ## В работе
 
-**Статус TASK-003 (2026-10-13):** код готов, владелец прошёл ручные проверки на Preview `skoro-web-st78` и доволен результатом. PR #3 (`feature/static-landing` → `dev`) открыт, не влит. Блок 4 (ветка `main`) не завершён.
+**Статус TASK-003 (2026-10-13):** владелец прошёл ручные проверки на Preview `skoro-web-st78`, PR #3 влит в `dev`. GitHub: default branch = `main` (сделано владельцем). Блок 4 не завершён: прод в Vercel ещё на `master`, ветки `master` и `variant1` не удалены.
 
 - **Vercel.** Боевой проект — **`skoro-web-st78`** (домен `skorouvas.cz`, Git подключён к `aske3t/skoro_web` с 2026-05-17, собирает Preview на каждый пуш). Лишние проекты `skoro-web`, `skoro-web-zsta` и `project-jl4hd` удалены владельцем. Переменные окружения добавлены (Production + Preview; `SUPABASE_SECRET_KEY`, `LEAD_IP_SALT`, `TELEGRAM_BOT_TOKEN` — как Secret).
 - **Production Branch всё ещё `master`.** Vercel не даёт выбрать `main`, пока она ни разу не собиралась: ветка создана на старом коммите `ec05ede`, а Vercel собирает только новые пуши. Нужно: Deployments → Create Deployment → `main` → затем Environments → Production → Branch Tracking = `main`.
 - **⚠️ Риск для прода.** Код `ec05ede` без `NEXT_PUBLIC_SUPABASE_*` отдаёт 500 на всех страницах: `Navbar` в нём создаёт серверный клиент с `env!`. Переменные уже добавлены, поэтому пересборка прода безопасна.
 - **Осталось владельцу:**
   1. ручной деплой `main` и смена Branch Tracking;
-  2. GitHub: Default branch = `main`, защита `dev` и `main`;
+  2. GitHub: защита `dev` и `main` (default branch уже `main`);
   3. подтверждение агенту на удаление `master` и `variant1`;
-  4. merge PR #3;
-  5. перевыпуск токена Telegram-бота: он попал на скриншот в чате.
-- **После этого агент:** удаляет `master` и `variant1`, переносит `docs/TASK.md` в `docs/tasks/003-static-landing.md`, удаляет влитые ветки `feature/contact-form` и `chore/foundation` (с согласия владельца).
+  4. перевыпуск токена Telegram-бота: он попал на скриншот в чате.
+- **После этого агент:** удаляет `master` и `variant1`, а с согласия владельца — влитые ветки `feature/contact-form`, `chore/foundation`, `feature/static-landing`. Текущей задачи нет: `docs/TASK.md` появится с TASK-004.
 
 ## Следующие шаги
 
