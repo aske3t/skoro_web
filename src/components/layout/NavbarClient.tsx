@@ -145,7 +145,9 @@ export default function NavbarClient() {
             href="/#contact"
             className="group inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-bg transition hover:bg-brand hover:text-ink"
           >
-            Ship now
+            {/* На телефоне полный текст не помещается рядом с логотипом и меню */}
+            <span className="md:hidden">Заказать</span>
+            <span className="hidden md:inline">Заказать доставку</span>
             <ArrowUpRight
               size={14}
               className="transition group-hover:rotate-45"
