@@ -2,17 +2,21 @@
   "name": "skoro-web",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bot:dev": "node --env-file-if-exists=.env.local --conditions=react-server scripts/telegram-bot-dev.mts",
+    "bot:commands": "node --env-file-if-exists=.env.local --conditions=react-server scripts/telegram-bot-commands.mts"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.2",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
+    "grammy": "^1.46.0",
     "lucide-react": "^0.469.0",
     "next": "^15.5.27",
     "react": "^19.0.0",

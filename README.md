@@ -31,6 +31,8 @@ Tests: `npm test` (vitest).
 | `TELEGRAM_BOT_TOKEN` | server | Bot token from @BotFather for new lead notifications |
 | `TELEGRAM_CHAT_ID` | server | Chat or group that receives lead notifications |
 | `LEAD_IP_SALT` | server | Random string (≥ 32 chars) for hashing client IPs used in rate limiting |
+| `TELEGRAM_WEBHOOK_SECRET` | server | Compared against `X-Telegram-Bot-Api-Secret-Token` on incoming webhook requests (see [docs/telegram-bot.md](docs/telegram-bot.md)) |
+| `TELEGRAM_ADMIN_IDS` | server | Comma-separated Telegram user ids allowed to act as dispatcher in the staff bot |
 
 Server variables must never get the `NEXT_PUBLIC_` prefix. Without them the site
 still builds and renders; only the contact form submission fails (without
@@ -41,6 +43,11 @@ still builds and renders; only the contact form submission fails (without
 Leads are stored in `public.leads` (migration in `supabase/migrations/`), written
 server-side by the `submitLead` server action. RLS is enabled without policies,
 so the table is not reachable with the public key.
+
+## Staff Telegram bot
+
+Dispatcher/courier bot running inside this app — see [docs/telegram-bot.md](docs/telegram-bot.md)
+for commands, local development (`npm run bot:dev`) and webhook setup.
 
 Open http://localhost:3000
 
