@@ -48,6 +48,12 @@
   3. первый релиз `dev` → `main` — по готовности, PR `dev` → `main`.
 - **Текущей задачи нет:** `docs/TASK.md` появится с TASK-004.
 
+**Служебный Telegram-бот** (ветка `feature/telegram-bot`, живое описание — [telegram-bot.md](telegram-bot.md), P-28):
+- Шаг 1 — каркас: grammy, route handler `/api/telegram/dispatch`, `bot:dev`, `bot:commands`, `/start`, `/help`, `/orders`. Закоммичен.
+- Шаг 2 — кнопки «Взял в работу» / «Спам» под заявкой (только админы). Код и тесты готовы, миграция `20261014103738_leads_handled_by` применена владельцем, типы обновлены. Ждёт проверки владельца в Telegram. `tsc`, `lint`, `test` (59), `build` — зелёные.
+- Шаг 3 — регистрация курьеров (`couriers`) — не начат.
+- Вебхук не ставился: для проверок используется `bot:dev` (polling). Env для Vercel (Production и Preview): `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ADMIN_IDS`.
+
 ## Следующие шаги
 
 1. **Владелец:** список выше.

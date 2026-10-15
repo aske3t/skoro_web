@@ -49,6 +49,9 @@ export type Database = {
           created_at: string
           email: string
           first_name: string | null
+          handled_at: string | null
+          handled_by_name: string | null
+          handled_by_tg_id: number | null
           id: string
           ip_hash: string | null
           kind: string
@@ -62,6 +65,9 @@ export type Database = {
           created_at?: string
           email: string
           first_name?: string | null
+          handled_at?: string | null
+          handled_by_name?: string | null
+          handled_by_tg_id?: number | null
           id?: string
           ip_hash?: string | null
           kind: string
@@ -75,6 +81,9 @@ export type Database = {
           created_at?: string
           email?: string
           first_name?: string | null
+          handled_at?: string | null
+          handled_by_name?: string | null
+          handled_by_tg_id?: number | null
           id?: string
           ip_hash?: string | null
           kind?: string

@@ -2,6 +2,7 @@ import "server-only";
 
 import { Bot } from "grammy";
 import { registerCommands } from "./commands.ts";
+import { registerLeadCallbacks } from "./lead-callbacks.ts";
 
 /**
  * Серверless: экземпляр создаётся на каждый вызов (route handler) или один раз
@@ -15,5 +16,6 @@ export function createBot(): Bot {
 
   const bot = new Bot(token);
   registerCommands(bot);
+  registerLeadCallbacks(bot);
   return bot;
 }

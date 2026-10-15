@@ -1,4 +1,6 @@
 import type { Tables } from "@/types/database";
+import { escapeHtml } from "../html.ts";
+import { leadKeyboardFor } from "../telegram/lead-keyboard.ts";
 
 export type LeadNotification = Pick<
   Tables<"leads">,
@@ -13,7 +15,7 @@ export type LeadNotification = Pick<
   | "utm"
 >;
 
-type LeadNotifier = (text: string) => Promise<void>;
+type LeadNotifier = (text: string, lead: LeadNotification) => Promise<void>;
 
 const TELEGRAM_TIMEOUT_MS = 5000;
 const TELEGRAM_TEXT_LIMIT = 4096;
@@ -31,13 +33,6 @@ const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
   timeStyle: "short",
 });
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
-
 /**
  * Экранирует и обрезает так, чтобы экранированный текст влез в max символов.
  * Резать после экранирования нельзя — можно разорвать сущность вроде &amp;.
@@ -52,7 +47,11 @@ function escapeAndTruncate(value: string, max: number): string {
   return out;
 }
 
-export function formatLeadMessage(lead: LeadNotification): string {
+/**
+ * `note` — готовый HTML (вызывающий экранирует сам): дописывается в футер,
+ * например «кто обработал». Его длина учитывается в лимите Telegram.
+ */
+export function formatLeadMessage(lead: LeadNotification, note?: string): string {
   const name = [lead.first_name, lead.last_name].filter(Boolean).join(" ");
   const utm =
     lead.utm && typeof lead.utm === "object" && !Array.isArray(lead.utm)
@@ -72,7 +71,7 @@ export function formatLeadMessage(lead: LeadNotification): string {
     }`,
     `Время: ${dateFormatter.format(new Date(lead.created_at))} (${TIME_ZONE})`,
   ].join("\n");
-  const footer = [utm && `UTM: ${escapeHtml(utm)}`, `ID: ${lead.id}`]
+  const footer = [utm && `UTM: ${escapeHtml(utm)}`, `ID: ${lead.id}`, note]
     .filter(Boolean)
     .join("\n");
 
@@ -86,7 +85,7 @@ export function formatLeadMessage(lead: LeadNotification): string {
   return `${header}\n\n${message}\n\n${footer}`;
 }
 
-const sendTelegram: LeadNotifier = async (text) => {
+const sendTelegram: LeadNotifier = async (text, lead) => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (!token || !chatId) {
@@ -102,6 +101,7 @@ const sendTelegram: LeadNotifier = async (text) => {
       text,
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
+      reply_markup: leadKeyboardFor(lead),
     }),
     signal: AbortSignal.timeout(TELEGRAM_TIMEOUT_MS),
   });
@@ -118,7 +118,7 @@ const notifiers: LeadNotifier[] = [sendTelegram];
 /** Никогда не бросает: лид уже сохранён, сбой уведомления только логируем. */
 export async function notifyNewLead(lead: LeadNotification): Promise<void> {
   const text = formatLeadMessage(lead);
-  const results = await Promise.allSettled(notifiers.map((notify) => notify(text)));
+  const results = await Promise.allSettled(notifiers.map((notify) => notify(text, lead)));
   for (const result of results) {
     if (result.status === "rejected") {
       const reason = result.reason;

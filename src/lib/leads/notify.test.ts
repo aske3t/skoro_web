@@ -52,6 +52,13 @@ describe("formatLeadMessage", () => {
     expect(text).not.toMatch(/&am…|&a…|&…/);
   });
 
+  it("appends a note to the footer and keeps the Telegram limit", () => {
+    const note = "✅ Взял в работу: <b>Иван</b> · 15.01.2026, 13:00";
+    const text = formatLeadMessage({ ...lead, message: "a".repeat(4000) }, note);
+    expect(text.endsWith(note)).toBe(true);
+    expect(text.length).toBeLessThanOrEqual(4096);
+  });
+
   it("shows time in Europe/Prague", () => {
     expect(formatLeadMessage(lead)).toContain("15.01.2026, 13:00");
     expect(

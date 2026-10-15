@@ -15,6 +15,7 @@ async function main() {
   }
 
   bot.start({
+    allowed_updates: ["message", "callback_query"],
     onStart: () => console.log("[bot:dev] Запущен long polling. Ctrl+C — остановить."),
   });
 }
