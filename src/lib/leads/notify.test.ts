@@ -11,6 +11,10 @@ const lead: LeadNotification = {
   phone: "+420777123456",
   message: "Нужна доставка",
   utm: { utm_source: "google" },
+  pickup_address: null,
+  delivery_address: null,
+  recipient_phone: null,
+  payment_method: null,
 };
 
 describe("formatLeadMessage", () => {
@@ -57,6 +61,29 @@ describe("formatLeadMessage", () => {
     const text = formatLeadMessage({ ...lead, message: "a".repeat(4000) }, note);
     expect(text.endsWith(note)).toBe(true);
     expect(text.length).toBeLessThanOrEqual(4096);
+  });
+
+  it("shows delivery details only for delivery leads", () => {
+    const details = {
+      pickup_address: "Masarykova 1 <b>",
+      delivery_address: "Česká 5",
+      recipient_phone: "+420777000111",
+      payment_method: "online",
+    };
+    const text = formatLeadMessage({ ...lead, ...details });
+    expect(text).toContain("Забор: Masarykova 1 &lt;b&gt;");
+    expect(text).toContain("Доставка: Česká 5");
+    expect(text).toContain('Тел. получателя: <a href="tel:+420777000111">');
+    expect(text).toContain("Оплата: Оплата на сайте");
+
+    const question = formatLeadMessage({ ...lead, ...details, kind: "question" });
+    expect(question).not.toContain("Забор:");
+  });
+
+  it("shows a dash for missing optional delivery fields", () => {
+    const text = formatLeadMessage({ ...lead, delivery_address: "Česká 5", payment_method: "cash" });
+    expect(text).toContain("Тел. получателя: —");
+    expect(text).toContain("Оплата: Наличные");
   });
 
   it("shows time in Europe/Prague", () => {

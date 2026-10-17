@@ -35,13 +35,30 @@ describe("leadSchema", () => {
       phone: "+420777123456",
       message: "Нужна доставка из Brno-střed",
       utm: null,
+      pickupAddress: null,
+      deliveryAddress: null,
+      recipientPhone: null,
+      paymentMethod: null,
     });
   });
 
   it("defaults kind to delivery", () => {
     const withoutKind: Record<string, unknown> = { ...valid };
     delete withoutKind.kind;
-    expect(leadSchema.parse(withoutKind).kind).toBe("delivery");
+    // Без kind заявка считается доставкой, а значит требует поля доставки.
+    expect(fieldErrorsOf(withoutKind)).toEqual({
+      pickupAddress: "required",
+      deliveryAddress: "required",
+      paymentMethod: "required",
+    });
+    expect(
+      leadSchema.parse({
+        ...withoutKind,
+        pickupAddress: "A",
+        deliveryAddress: "B",
+        paymentMethod: "cash",
+      }).kind,
+    ).toBe("delivery");
   });
 
   it("requires email and message", () => {
@@ -126,5 +143,75 @@ describe("parseUtm", () => {
       utm: '{"utm_campaign":"spring","ref":"x"}',
     });
     expect(lead.utm).toEqual({ utm_campaign: "spring" });
+  });
+});
+
+describe("leadSchema: delivery details", () => {
+  const delivery = {
+    ...valid,
+    kind: "delivery",
+    pickupAddress: " Masarykova 1, Brno ",
+    deliveryAddress: "Česká 5, Brno",
+    recipientPhone: "777 000 111",
+    paymentMethod: "cash",
+  };
+
+  it("accepts a full delivery lead and normalizes it", () => {
+    const result = leadSchema.safeParse(delivery);
+    expect(result.success).toBe(true);
+    expect(result.data).toMatchObject({
+      pickupAddress: "Masarykova 1, Brno",
+      deliveryAddress: "Česká 5, Brno",
+      recipientPhone: "+420777000111",
+      paymentMethod: "cash",
+      phone: "+420777123456",
+    });
+  });
+
+  it("requires addresses, client phone and payment method", () => {
+    expect(
+      fieldErrorsOf({
+        ...delivery,
+        pickupAddress: "",
+        deliveryAddress: "  ",
+        phone: "",
+        paymentMethod: "",
+      }),
+    ).toEqual({
+      pickupAddress: "required",
+      deliveryAddress: "required",
+      phone: "required",
+      paymentMethod: "required",
+    });
+  });
+
+  it("makes recipient phone optional but validates it when given", () => {
+    expect(leadSchema.parse({ ...delivery, recipientPhone: "" }).recipientPhone).toBeNull();
+    expect(fieldErrorsOf({ ...delivery, recipientPhone: "abc" })).toEqual({
+      recipientPhone: "invalid",
+    });
+  });
+
+  it("accepts only known payment methods", () => {
+    expect(leadSchema.parse({ ...delivery, paymentMethod: "online" }).paymentMethod).toBe("online");
+    expect(fieldErrorsOf({ ...delivery, paymentMethod: "bitcoin" })).toEqual({
+      paymentMethod: "invalid",
+    });
+  });
+
+  it("rejects too long addresses", () => {
+    expect(fieldErrorsOf({ ...delivery, pickupAddress: "a".repeat(301) })).toEqual({
+      pickupAddress: "too_long",
+    });
+  });
+
+  it("drops delivery fields for questions and does not require them", () => {
+    const result = leadSchema.parse({ ...valid, kind: "question", pickupAddress: "x", paymentMethod: "cash" });
+    expect(result).toMatchObject({
+      pickupAddress: null,
+      deliveryAddress: null,
+      recipientPhone: null,
+      paymentMethod: null,
+    });
   });
 });

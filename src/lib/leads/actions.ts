@@ -3,9 +3,12 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyNewLead } from "./notify";
+import { PHOTO_MAX_BYTES } from "./constants";
+import { LEAD_NOTIFICATION_COLUMNS, notifyNewLead } from "./notify";
+import { checkPhoto, type PhotoUpload } from "./photo";
 import {
   getFieldErrors,
+  type FieldErrorCode,
   leadSchema,
   type LeadFormState,
   type LeadFormValues,
@@ -30,7 +33,25 @@ function readValues(formData: FormData): LeadFormValues {
     email: field(formData, "email"),
     phone: field(formData, "phone"),
     message: field(formData, "message"),
+    pickupAddress: field(formData, "pickupAddress"),
+    deliveryAddress: field(formData, "deliveryAddress"),
+    recipientPhone: field(formData, "recipientPhone"),
+    paymentMethod: field(formData, "paymentMethod"),
   };
+}
+
+/** Необязательное фото: пустой input — не ошибка. Тип проверяется по байтам. */
+async function readPhoto(
+  formData: FormData,
+): Promise<{ photo?: PhotoUpload; error?: FieldErrorCode }> {
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) return {};
+  if (file.size > PHOTO_MAX_BYTES) return { error: "too_large" };
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const check = checkPhoto(bytes);
+  if (!check.ok) return { error: check.code };
+  return { photo: { bytes, type: check.type } };
 }
 
 export async function submitLead(
@@ -49,11 +70,19 @@ export async function submitLead(
     kind: formData.get("kind") ?? undefined,
     utm: field(formData, "utm"),
   });
-  if (!parsed.success) {
+
+  // Фото есть только у доставки; ошибку показываем вместе с ошибками остальных полей.
+  const { photo, error: photoError } =
+    values.kind === "delivery" ? await readPhoto(formData) : {};
+
+  if (!parsed.success || photoError) {
     return {
       status: "error",
       code: "validation",
-      fieldErrors: getFieldErrors(parsed.error),
+      fieldErrors: {
+        ...(parsed.success ? {} : getFieldErrors(parsed.error)),
+        ...(photoError ? { photo: photoError } : {}),
+      },
       values,
     };
   }
@@ -77,14 +106,18 @@ export async function submitLead(
         email: lead.email,
         phone: lead.phone,
         message: lead.message,
+        pickup_address: lead.pickupAddress,
+        delivery_address: lead.deliveryAddress,
+        recipient_phone: lead.recipientPhone,
+        payment_method: lead.paymentMethod,
         utm: lead.utm,
         ip_hash: ipHash,
       })
-      .select("id, created_at, kind, first_name, last_name, email, phone, message, utm")
+      .select(LEAD_NOTIFICATION_COLUMNS)
       .single();
     if (error) throw error;
 
-    after(() => notifyNewLead(data));
+    after(() => notifyNewLead(data, photo));
     return { status: "success" };
   } catch (error) {
     console.error("[leads] submit failed:", error);

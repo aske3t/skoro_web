@@ -5,6 +5,13 @@ export const EMAIL_MAX = 254;
 export const PHONE_INPUT_MAX = 32; // сырой ввод с пробелами и скобками
 export const MESSAGE_MAX = 4000;
 export const UTM_VALUE_MAX = 200;
+export const ADDRESS_MAX = 300;
+
+// Фото отправления. Лимит запроса на Vercel — 4,5 МБ, поэтому файл до 4 МБ.
+export const PHOTO_MAX_BYTES = 4 * 1024 * 1024;
+export const PHOTO_ACCEPT = "image/jpeg,image/png,image/webp";
+
+export const PAYMENT_METHODS = ["cash", "online"] as const;
 
 export const LEAD_KINDS = ["delivery", "question"] as const;
 export const UTM_KEYS = [

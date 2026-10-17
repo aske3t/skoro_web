@@ -1,9 +1,8 @@
 import type { AdminClient } from "../supabase/admin.ts";
-import type { LeadNotification } from "../leads/notify.ts";
+import { LEAD_NOTIFICATION_COLUMNS, type LeadNotification } from "../leads/notify.ts";
 import type { LeadAction } from "./callback-data.ts";
 
-const LEAD_COLUMNS =
-  "id, created_at, kind, first_name, last_name, email, phone, message, utm, status, handled_by_name, handled_at";
+const LEAD_COLUMNS = `${LEAD_NOTIFICATION_COLUMNS}, status, handled_by_name, handled_at` as const;
 
 const STATUS_BY_ACTION = {
   take: "in_progress",

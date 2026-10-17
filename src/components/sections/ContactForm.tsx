@@ -4,10 +4,14 @@ import { ArrowUpRight, Phone } from "lucide-react";
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { submitLead } from "@/lib/leads/actions";
 import {
+  ADDRESS_MAX,
   EMAIL_MAX,
   MESSAGE_MAX,
   NAME_MAX,
+  PAYMENT_METHODS,
   PHONE_INPUT_MAX,
+  PHOTO_ACCEPT,
+  PHOTO_MAX_BYTES,
   UTM_KEYS,
 } from "@/lib/leads/constants";
 import type {
@@ -29,11 +33,20 @@ const FIELD_ERROR_TEXT: Record<FieldErrorCode, string> = {
   required: "Заполните это поле.",
   invalid: "Проверьте значение.",
   too_long: "Слишком длинное значение.",
+  too_large: "Файл слишком большой: не более 4 МБ.",
+};
+
+const PAYMENT_LABEL: Record<(typeof PAYMENT_METHODS)[number], string> = {
+  cash: "Наличные",
+  online: "Оплата на сайте",
 };
 
 const INVALID_FIELD_TEXT: Partial<Record<LeadField, string>> = {
   email: "Введите корректный email.",
   phone: "Введите корректный номер телефона.",
+  recipientPhone: "Введите корректный номер телефона.",
+  paymentMethod: "Выберите способ оплаты.",
+  photo: "Подходят только фото JPG, PNG или WebP.",
 };
 
 const FORM_ERROR_TEXT = {
@@ -156,9 +169,17 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     }
   }
 
+  const [photoTooLarge, setPhotoTooLarge] = useState(false);
+  function checkPhotoSize(input: HTMLInputElement) {
+    const file = input.files?.[0];
+    const tooLarge = Boolean(file && file.size > PHOTO_MAX_BYTES);
+    if (tooLarge) input.value = "";
+    setPhotoTooLarge(tooLarge);
+  }
+
   const isDelivery = formType === "delivery";
   const messagePlaceholder = isDelivery
-    ? "Опишите, что нужно доставить, откуда и куда. Если знаете дату или время, укажите их здесь."
+    ? "Опишите, что нужно доставить (вес, габариты). Если знаете дату или время забора, укажите их здесь."
     : "Опишите ваш вопрос — мы ответим в течение рабочего дня.";
   const formTypeHint = isDelivery
     ? "Заявка будет отмечена как запрос на доставку."
@@ -305,26 +326,90 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                 {...errorProps("email")}
               />
             </Field>
-            <Field label="Телефон" htmlFor="phone" error={errorOf("phone")}>
-              <div className="flex items-stretch overflow-hidden rounded-xl border border-hairline-strong bg-bg/40 transition focus-within:border-brand/60 has-[[aria-invalid=true]]:border-red-400/70">
-                <span className="flex items-center gap-2 border-r border-hairline-strong px-4 font-mono text-sm text-ink-muted">
-                  <span className="h-1.5 w-1.5 rounded-full bg-brand-glow" />
-                  +420
-                </span>
-                <input
-                  id="phone"
-                  name="phone"
-                  type="tel"
-                  inputMode="tel"
-                  placeholder="000 000 00 00"
-                  autoComplete="tel"
-                  maxLength={PHONE_INPUT_MAX}
-                  defaultValue={values?.phone}
-                  className="flex-1 bg-transparent px-4 py-3.5 font-mono text-sm text-ink placeholder:text-ink-dim focus:outline-none"
-                  {...errorProps("phone")}
-                />
-              </div>
+            <Field label="Телефон" htmlFor="phone" required={isDelivery} error={errorOf("phone")}>
+              <PhoneInput
+                id="phone"
+                name="phone"
+                autoComplete="tel"
+                required={isDelivery}
+                defaultValue={values?.phone}
+                invalidProps={errorProps("phone")}
+              />
             </Field>
+
+            {isDelivery && (
+              <>
+                <div className="md:col-span-2">
+                  <Field label="Адрес забора" htmlFor="pickupAddress" required error={errorOf("pickupAddress")}>
+                    <input
+                      id="pickupAddress"
+                      name="pickupAddress"
+                      type="text"
+                      placeholder="Улица, дом, город"
+                      required
+                      autoComplete="street-address"
+                      maxLength={ADDRESS_MAX}
+                      defaultValue={values?.pickupAddress}
+                      className={inputClass}
+                      {...errorProps("pickupAddress")}
+                    />
+                  </Field>
+                </div>
+                <div className="md:col-span-2">
+                  <Field label="Адрес доставки" htmlFor="deliveryAddress" required error={errorOf("deliveryAddress")}>
+                    <input
+                      id="deliveryAddress"
+                      name="deliveryAddress"
+                      type="text"
+                      placeholder="Улица, дом, город"
+                      required
+                      maxLength={ADDRESS_MAX}
+                      defaultValue={values?.deliveryAddress}
+                      className={inputClass}
+                      {...errorProps("deliveryAddress")}
+                    />
+                  </Field>
+                </div>
+
+                <Field label="Телефон получателя" htmlFor="recipientPhone" error={errorOf("recipientPhone")}>
+                  <PhoneInput
+                    id="recipientPhone"
+                    name="recipientPhone"
+                    defaultValue={values?.recipientPhone}
+                    invalidProps={errorProps("recipientPhone")}
+                  />
+                </Field>
+
+                <fieldset aria-describedby={fieldErrors?.paymentMethod ? "paymentMethod-error" : undefined}>
+                  <legend className="mb-3 block font-mono text-[11px] uppercase tracking-label text-ink-muted">
+                    Способ оплаты
+                    <span className="ml-1 text-brand-glow">*</span>
+                  </legend>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    {PAYMENT_METHODS.map((method) => (
+                      <label key={method} className="relative cursor-pointer">
+                        <input
+                          type="radio"
+                          name="paymentMethod"
+                          value={method}
+                          required
+                          defaultChecked={values?.paymentMethod === method}
+                          className="peer sr-only"
+                        />
+                        <span className="block rounded-xl border border-hairline-strong bg-bg/40 px-4 py-3.5 text-center font-mono text-sm text-ink-muted transition peer-checked:border-brand/60 peer-checked:bg-brand/15 peer-checked:text-ink peer-focus-visible:border-brand/60">
+                          {PAYMENT_LABEL[method]}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {errorOf("paymentMethod") && (
+                    <p id="paymentMethod-error" className="mt-2 text-sm text-red-400">
+                      {errorOf("paymentMethod")?.text}
+                    </p>
+                  )}
+                </fieldset>
+              </>
+            )}
 
             <div className="md:col-span-2">
               <Field label="Сообщение" htmlFor="message" required error={errorOf("message")}>
@@ -341,6 +426,31 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                 />
               </Field>
             </div>
+
+            {isDelivery && (
+              <div className="md:col-span-2">
+                <Field
+                  label="Фото отправления"
+                  htmlFor="photo"
+                  hint="Необязательно. JPG, PNG или WebP, до 4 МБ."
+                  error={
+                    photoTooLarge
+                      ? { id: "photo-error", text: FIELD_ERROR_TEXT.too_large }
+                      : errorOf("photo")
+                  }
+                >
+                  <input
+                    id="photo"
+                    name="photo"
+                    type="file"
+                    accept={PHOTO_ACCEPT}
+                    onChange={(e) => checkPhotoSize(e.currentTarget)}
+                    className={`${inputClass} file:mr-4 file:rounded-full file:border-0 file:bg-brand/25 file:px-4 file:py-2 file:font-mono file:text-xs file:text-ink`}
+                    {...errorProps("photo")}
+                  />
+                </Field>
+              </div>
+            )}
           </div>
 
           {formError && (
@@ -387,12 +497,14 @@ function Field({
   label,
   htmlFor,
   required,
+  hint,
   error,
   children,
 }: {
   label: string;
   htmlFor: string;
   required?: boolean;
+  hint?: string;
   error?: { id: string; text: string };
   children: ReactNode;
 }) {
@@ -406,11 +518,50 @@ function Field({
         {required && <span className="ml-1 text-brand-glow">*</span>}
       </label>
       {children}
+      {hint && <p className="mt-2 text-xs text-ink-dim">{hint}</p>}
       {error && (
         <p id={error.id} className="mt-2 text-sm text-red-400">
           {error.text}
         </p>
       )}
+    </div>
+  );
+}
+
+function PhoneInput({
+  id,
+  name,
+  autoComplete,
+  required,
+  defaultValue,
+  invalidProps,
+}: {
+  id: string;
+  name: string;
+  autoComplete?: string;
+  required?: boolean;
+  defaultValue?: string;
+  invalidProps: Record<string, unknown>;
+}) {
+  return (
+    <div className="flex items-stretch overflow-hidden rounded-xl border border-hairline-strong bg-bg/40 transition focus-within:border-brand/60 has-[[aria-invalid=true]]:border-red-400/70">
+      <span className="flex items-center gap-2 border-r border-hairline-strong px-4 font-mono text-sm text-ink-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-brand-glow" />
+        +420
+      </span>
+      <input
+        id={id}
+        name={name}
+        type="tel"
+        inputMode="tel"
+        placeholder="000 000 00 00"
+        autoComplete={autoComplete}
+        required={required}
+        maxLength={PHONE_INPUT_MAX}
+        defaultValue={defaultValue}
+        className="flex-1 bg-transparent px-4 py-3.5 font-mono text-sm text-ink placeholder:text-ink-dim focus:outline-none"
+        {...invalidProps}
+      />
     </div>
   );
 }

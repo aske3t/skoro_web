@@ -1,20 +1,24 @@
 import { z } from "zod";
 
 import {
+  ADDRESS_MAX,
   EMAIL_MAX,
   LEAD_KINDS,
   MESSAGE_MAX,
   NAME_MAX,
+  PAYMENT_METHODS,
   PHONE_INPUT_MAX,
   UTM_KEYS,
   UTM_VALUE_MAX,
 } from "./constants";
 
 export {
+  ADDRESS_MAX,
   EMAIL_MAX,
   LEAD_KINDS,
   MESSAGE_MAX,
   NAME_MAX,
+  PAYMENT_METHODS,
   PHONE_INPUT_MAX,
   UTM_KEYS,
   UTM_VALUE_MAX,
@@ -24,8 +28,19 @@ const PHONE_RE = /^\+[1-9]\d{7,14}$/;
 const DEFAULT_COUNTRY_CODE = "+420";
 
 export type LeadKind = (typeof LEAD_KINDS)[number];
-export type LeadField = "firstName" | "lastName" | "email" | "phone" | "message";
-export type FieldErrorCode = "required" | "invalid" | "too_long";
+export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export type LeadField =
+  | "firstName"
+  | "lastName"
+  | "email"
+  | "phone"
+  | "message"
+  | "pickupAddress"
+  | "deliveryAddress"
+  | "recipientPhone"
+  | "paymentMethod"
+  | "photo";
+export type FieldErrorCode = "required" | "invalid" | "too_long" | "too_large";
 export type Utm = Partial<Record<(typeof UTM_KEYS)[number], string>>;
 
 export type LeadFormValues = {
@@ -35,6 +50,10 @@ export type LeadFormValues = {
   email: string;
   phone: string;
   message: string;
+  pickupAddress: string;
+  deliveryAddress: string;
+  recipientPhone: string;
+  paymentMethod: string;
 };
 
 export type LeadFormState =
@@ -53,11 +72,17 @@ const LEAD_FIELDS: readonly LeadField[] = [
   "email",
   "phone",
   "message",
+  "pickupAddress",
+  "deliveryAddress",
+  "recipientPhone",
+  "paymentMethod",
+  "photo",
 ];
 const FIELD_ERROR_CODES: readonly FieldErrorCode[] = [
   "required",
   "invalid",
   "too_long",
+  "too_large",
 ];
 
 /**
@@ -105,7 +130,15 @@ const optionalName = z
   .max(NAME_MAX, "too_long")
   .transform((v) => v || null);
 
-export const leadSchema = z.object({
+const optionalText = (max: number) =>
+  z
+    .string()
+    .trim()
+    .max(max, "too_long")
+    .optional()
+    .transform((v) => v || null);
+
+const baseLeadSchema = z.object({
   kind: z.enum(LEAD_KINDS, { error: "invalid" }).default("delivery"),
   firstName: optionalName,
   lastName: optionalName,
@@ -138,6 +171,51 @@ export const leadSchema = z.object({
     .string()
     .optional()
     .transform((v) => parseUtm(v)),
+  // Поля доставки: правила зависят от kind, проверяются в transform ниже.
+  pickupAddress: optionalText(ADDRESS_MAX),
+  deliveryAddress: optionalText(ADDRESS_MAX),
+  recipientPhone: optionalText(PHONE_INPUT_MAX),
+  paymentMethod: optionalText(32),
+});
+
+/**
+ * Для kind = delivery обязательны адреса, телефон клиента и способ оплаты;
+ * телефон получателя необязателен. Для question поля доставки отбрасываются.
+ * Эти проверки идут после проверки базовых полей: пока email или сообщение
+ * невалидны, ошибки полей доставки не показываются (в форме их ловит `required`).
+ */
+export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
+  const empty = {
+    pickupAddress: null,
+    deliveryAddress: null,
+    recipientPhone: null,
+    paymentMethod: null,
+  };
+  if (lead.kind !== "delivery") return { ...lead, ...empty };
+
+  const fail = (path: LeadField, message: FieldErrorCode) =>
+    ctx.addIssue({ code: "custom", message, path: [path] });
+
+  if (!lead.pickupAddress) fail("pickupAddress", "required");
+  if (!lead.deliveryAddress) fail("deliveryAddress", "required");
+  if (!lead.phone) fail("phone", "required");
+
+  let paymentMethod: PaymentMethod | null = null;
+  if (!lead.paymentMethod) {
+    fail("paymentMethod", "required");
+  } else if ((PAYMENT_METHODS as readonly string[]).includes(lead.paymentMethod)) {
+    paymentMethod = lead.paymentMethod as PaymentMethod;
+  } else {
+    fail("paymentMethod", "invalid");
+  }
+
+  let recipientPhone: string | null = null;
+  if (lead.recipientPhone) {
+    recipientPhone = normalizePhone(lead.recipientPhone);
+    if (!recipientPhone) fail("recipientPhone", "invalid");
+  }
+
+  return { ...lead, recipientPhone, paymentMethod };
 });
 
 export type LeadInput = z.output<typeof leadSchema>;
