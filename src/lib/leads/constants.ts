@@ -10,6 +10,10 @@ export const ADDRESS_MAX = 300;
 // Фото отправления. Лимит запроса на Vercel — 4,5 МБ, поэтому файл до 4 МБ.
 export const PHOTO_MAX_BYTES = 4 * 1024 * 1024;
 export const PHOTO_ACCEPT = "image/jpeg,image/png,image/webp";
+// В браузере фото сжимается до PHOTO_MAX_SIDE по длинной стороне, поэтому исходник может быть больше.
+export const PHOTO_SOURCE_MAX_BYTES = 20 * 1024 * 1024;
+export const PHOTO_MAX_SIDE = 2048;
+export const PHOTO_JPEG_QUALITY = 0.85;
 
 export const PAYMENT_METHODS = ["cash", "online"] as const;
 

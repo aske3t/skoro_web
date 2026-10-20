@@ -3,6 +3,7 @@
 import { ArrowUpRight, Phone } from "lucide-react";
 import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
 import { submitLead } from "@/lib/leads/actions";
+import { PhotoField } from "./PhotoField";
 import {
   ADDRESS_MAX,
   EMAIL_MAX,
@@ -10,8 +11,6 @@ import {
   NAME_MAX,
   PAYMENT_METHODS,
   PHONE_INPUT_MAX,
-  PHOTO_ACCEPT,
-  PHOTO_MAX_BYTES,
   UTM_KEYS,
 } from "@/lib/leads/constants";
 import type {
@@ -169,13 +168,8 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     }
   }
 
-  const [photoTooLarge, setPhotoTooLarge] = useState(false);
-  function checkPhotoSize(input: HTMLInputElement) {
-    const file = input.files?.[0];
-    const tooLarge = Boolean(file && file.size > PHOTO_MAX_BYTES);
-    if (tooLarge) input.value = "";
-    setPhotoTooLarge(tooLarge);
-  }
+  // Пока фото сжимается в браузере, отправку блокируем.
+  const [photoBusy, setPhotoBusy] = useState(false);
 
   const isDelivery = formType === "delivery";
   const messagePlaceholder = isDelivery
@@ -429,26 +423,7 @@ function LeadForm({ onReset }: { onReset: () => void }) {
 
             {isDelivery && (
               <div className="md:col-span-2">
-                <Field
-                  label="Фото отправления"
-                  htmlFor="photo"
-                  hint="Необязательно. JPG, PNG или WebP, до 4 МБ."
-                  error={
-                    photoTooLarge
-                      ? { id: "photo-error", text: FIELD_ERROR_TEXT.too_large }
-                      : errorOf("photo")
-                  }
-                >
-                  <input
-                    id="photo"
-                    name="photo"
-                    type="file"
-                    accept={PHOTO_ACCEPT}
-                    onChange={(e) => checkPhotoSize(e.currentTarget)}
-                    className={`${inputClass} file:mr-4 file:rounded-full file:border-0 file:bg-brand/25 file:px-4 file:py-2 file:font-mono file:text-xs file:text-ink`}
-                    {...errorProps("photo")}
-                  />
-                </Field>
+                <PhotoField serverError={errorOf("photo")?.text} onBusyChange={setPhotoBusy} />
               </div>
             )}
           </div>
@@ -476,8 +451,8 @@ function LeadForm({ onReset }: { onReset: () => void }) {
             </p>
             <button
               type="submit"
-              disabled={pending}
-              aria-busy={pending}
+              disabled={pending || photoBusy}
+              aria-busy={pending || photoBusy}
               className="group inline-flex items-center gap-2 rounded-full bg-ink px-7 py-4 font-mono text-[11px] uppercase tracking-label text-bg transition hover:bg-brand hover:text-ink disabled:cursor-wait disabled:opacity-60"
             >
               {pending ? "Отправляем…" : "Отправить"}
