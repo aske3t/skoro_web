@@ -1,7 +1,9 @@
 import { z } from "zod";
 
+import { isValidIco, normalizeIco } from "./ico";
 import {
   ADDRESS_MAX,
+  CUSTOMER_TYPES,
   EMAIL_MAX,
   LEAD_KINDS,
   MESSAGE_MAX,
@@ -29,6 +31,7 @@ const DEFAULT_COUNTRY_CODE = "+420";
 
 export type LeadKind = (typeof LEAD_KINDS)[number];
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
+export type CustomerType = (typeof CUSTOMER_TYPES)[number];
 export type LeadField =
   | "firstName"
   | "lastName"
@@ -39,8 +42,17 @@ export type LeadField =
   | "deliveryAddress"
   | "recipientPhone"
   | "paymentMethod"
+  | "customerType"
+  | "ico"
   | "photo";
-export type FieldErrorCode = "required" | "invalid" | "too_long" | "too_large";
+// not_found / inactive — результат проверки IČO в ARES (выставляет action, не схема).
+export type FieldErrorCode =
+  | "required"
+  | "invalid"
+  | "too_long"
+  | "too_large"
+  | "not_found"
+  | "inactive";
 export type Utm = Partial<Record<(typeof UTM_KEYS)[number], string>>;
 
 export type LeadFormValues = {
@@ -57,6 +69,8 @@ export type LeadFormValues = {
   // Код страны из выпадающего списка; номер в phone/recipientPhone — национальная часть.
   phoneCountry: string;
   recipientPhoneCountry: string;
+  customerType: string;
+  ico: string;
 };
 
 export type LeadFormState =
@@ -79,6 +93,8 @@ const LEAD_FIELDS: readonly LeadField[] = [
   "deliveryAddress",
   "recipientPhone",
   "paymentMethod",
+  "customerType",
+  "ico",
   "photo",
 ];
 const FIELD_ERROR_CODES: readonly FieldErrorCode[] = [
@@ -86,6 +102,8 @@ const FIELD_ERROR_CODES: readonly FieldErrorCode[] = [
   "invalid",
   "too_long",
   "too_large",
+  "not_found",
+  "inactive",
 ];
 
 /**
@@ -179,6 +197,8 @@ const baseLeadSchema = z.object({
   deliveryAddress: optionalText(ADDRESS_MAX),
   recipientPhone: optionalText(PHONE_INPUT_MAX),
   paymentMethod: optionalText(32),
+  customerType: optionalText(16),
+  ico: optionalText(20),
 });
 
 /**
@@ -193,6 +213,8 @@ export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
     deliveryAddress: null,
     recipientPhone: null,
     paymentMethod: null,
+    customerType: null,
+    ico: null,
   };
   if (lead.kind !== "delivery") return { ...lead, ...empty };
 
@@ -212,13 +234,30 @@ export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
     fail("paymentMethod", "invalid");
   }
 
+  // Компания обязана указать IČO; проверка существования в ARES — в action.
+  let customerType: CustomerType | null = null;
+  let ico: string | null = null;
+  if (!lead.customerType) {
+    fail("customerType", "required");
+  } else if ((CUSTOMER_TYPES as readonly string[]).includes(lead.customerType)) {
+    customerType = lead.customerType as CustomerType;
+  } else {
+    fail("customerType", "invalid");
+  }
+  if (customerType === "company") {
+    const normalized = lead.ico ? normalizeIco(lead.ico) : "";
+    if (!normalized) fail("ico", "required");
+    else if (!isValidIco(normalized)) fail("ico", "invalid");
+    else ico = normalized;
+  }
+
   let recipientPhone: string | null = null;
   if (lead.recipientPhone) {
     recipientPhone = normalizePhone(lead.recipientPhone);
     if (!recipientPhone) fail("recipientPhone", "invalid");
   }
 
-  return { ...lead, recipientPhone, paymentMethod };
+  return { ...lead, recipientPhone, paymentMethod, customerType, ico };
 });
 
 export type LeadInput = z.output<typeof leadSchema>;

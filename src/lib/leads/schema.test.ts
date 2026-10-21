@@ -39,6 +39,8 @@ describe("leadSchema", () => {
       deliveryAddress: null,
       recipientPhone: null,
       paymentMethod: null,
+      customerType: null,
+      ico: null,
     });
   });
 
@@ -50,6 +52,7 @@ describe("leadSchema", () => {
       pickupAddress: "required",
       deliveryAddress: "required",
       paymentMethod: "required",
+      customerType: "required",
     });
     expect(
       leadSchema.parse({
@@ -57,6 +60,7 @@ describe("leadSchema", () => {
         pickupAddress: "A",
         deliveryAddress: "B",
         paymentMethod: "cash",
+        customerType: "person",
       }).kind,
     ).toBe("delivery");
   });
@@ -154,6 +158,8 @@ describe("leadSchema: delivery details", () => {
     deliveryAddress: "Česká 5, Brno",
     recipientPhone: "777 000 111",
     paymentMethod: "cash",
+    customerType: "company",
+    ico: "452 74 649",
   };
 
   it("accepts a full delivery lead and normalizes it", () => {
@@ -213,5 +219,42 @@ describe("leadSchema: delivery details", () => {
       recipientPhone: null,
       paymentMethod: null,
     });
+  });
+});
+
+describe("leadSchema: customer type and IČO", () => {
+  const delivery = {
+    ...valid,
+    kind: "delivery",
+    pickupAddress: "Masarykova 1, Brno",
+    deliveryAddress: "Česká 5, Brno",
+    paymentMethod: "cash",
+  };
+
+  it("requires a valid IČO for companies and normalizes it", () => {
+    const lead = leadSchema.parse({ ...delivery, customerType: "company", ico: "452 74 649" });
+    expect(lead).toMatchObject({ customerType: "company", ico: "45274649" });
+    expect(fieldErrorsOf({ ...delivery, customerType: "company", ico: "" })).toEqual({
+      ico: "required",
+    });
+    expect(fieldErrorsOf({ ...delivery, customerType: "company", ico: "45274648" })).toEqual({
+      ico: "invalid",
+    });
+  });
+
+  it("does not need IČO for private persons and drops it", () => {
+    const lead = leadSchema.parse({ ...delivery, customerType: "person", ico: "123" });
+    expect(lead).toMatchObject({ customerType: "person", ico: null });
+  });
+
+  it("rejects unknown customer types", () => {
+    expect(fieldErrorsOf({ ...delivery, customerType: "government" })).toEqual({
+      customerType: "invalid",
+    });
+  });
+
+  it("drops customer fields for questions", () => {
+    const lead = leadSchema.parse({ ...valid, kind: "question", customerType: "company", ico: "x" });
+    expect(lead).toMatchObject({ customerType: null, ico: null });
   });
 });

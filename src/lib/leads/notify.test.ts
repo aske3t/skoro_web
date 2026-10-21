@@ -16,6 +16,10 @@ const lead: LeadNotification = {
   delivery_address: null,
   recipient_phone: null,
   payment_method: null,
+  customer_type: null,
+  ico: null,
+  company_name: null,
+  ico_verified: null,
 };
 
 describe("formatLeadMessage", () => {
@@ -111,5 +115,37 @@ describe("formatLeadMessage", () => {
     expect(text).toContain("Имя: —");
     expect(text).toContain("Телефон: —");
     expect(text).not.toContain("UTM:");
+  });
+});
+
+describe("formatLeadMessage: customer", () => {
+  const delivery = { ...lead, delivery_address: "Česká 5", payment_method: "cash" };
+
+  it("shows a verified company with name and IČO", () => {
+    const text = formatLeadMessage({
+      ...delivery,
+      customer_type: "company",
+      ico: "45274649",
+      company_name: "ČEZ, a. s. <x>",
+      ico_verified: true,
+    });
+    expect(text).toContain("Клиент: компания «ČEZ, a. s. &lt;x&gt;» · IČO 45274649 ✅ ARES");
+  });
+
+  it("warns when ARES was unavailable", () => {
+    const text = formatLeadMessage({
+      ...delivery,
+      customer_type: "company",
+      ico: "45274649",
+      ico_verified: false,
+    });
+    expect(text).toContain("Клиент: компания · IČO 45274649 ⚠️ ARES недоступен, не проверено");
+  });
+
+  it("shows private persons and skips old leads", () => {
+    expect(formatLeadMessage({ ...delivery, customer_type: "person" })).toContain(
+      "Клиент: частное лицо",
+    );
+    expect(formatLeadMessage(delivery)).not.toContain("Клиент:");
   });
 });

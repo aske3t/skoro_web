@@ -13,6 +13,7 @@ import { submitLead } from "@/lib/leads/actions";
 import { PhotoField } from "./PhotoField";
 import {
   ADDRESS_MAX,
+  CUSTOMER_TYPES,
   EMAIL_MAX,
   MESSAGE_MAX,
   NAME_MAX,
@@ -44,6 +45,13 @@ const FIELD_ERROR_TEXT: Record<FieldErrorCode, string> = {
   invalid: "Проверьте значение.",
   too_long: "Слишком длинное значение.",
   too_large: "Файл слишком большой: не более 4 МБ.",
+  not_found: "Фирма с таким IČO не найдена в реестре ARES.",
+  inactive: "По данным ARES фирма с этим IČO закрыта.",
+};
+
+const CUSTOMER_LABEL: Record<(typeof CUSTOMER_TYPES)[number], string> = {
+  company: "Компания",
+  person: "Частное лицо",
 };
 
 const PAYMENT_LABEL: Record<(typeof PAYMENT_METHODS)[number], string> = {
@@ -56,6 +64,8 @@ const INVALID_FIELD_TEXT: Partial<Record<LeadField, string>> = {
   phone: "Введите корректный номер телефона.",
   recipientPhone: "Введите корректный номер телефона.",
   paymentMethod: "Выберите способ оплаты.",
+  customerType: "Выберите: компания или частное лицо.",
+  ico: "Проверьте IČO: 8 цифр, контрольная цифра не сходится.",
   photo: "Подходят только фото JPG, PNG или WebP.",
 };
 
@@ -157,10 +167,15 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     state.status === "error" && state.code !== "validation" ? state.code : null;
 
   const [formType, setFormType] = useState<LeadKind>(values?.kind ?? "delivery");
+  // Компания по умолчанию: основной клиент — бизнес. IČO нужно только компании.
+  const [customerType, setCustomerType] = useState(values?.customerType || "company");
   const [prevState, setPrevState] = useState(state);
   if (state !== prevState) {
     setPrevState(state);
-    if (state.status === "error") setFormType(state.values.kind);
+    if (state.status === "error") {
+      setFormType(state.values.kind);
+      setCustomerType(state.values.customerType || "company");
+    }
   }
 
   // Time-trap: длительность заполнения по часам клиента, пишется в момент отправки.
@@ -345,6 +360,61 @@ function LeadForm({ onReset }: { onReset: () => void }) {
 
             {isDelivery && (
               <>
+                <fieldset aria-describedby={fieldErrors?.customerType ? "customerType-error" : undefined}>
+                  <legend className="mb-3 block font-mono text-[11px] uppercase tracking-label text-ink-muted">
+                    Заказчик
+                    <span className="ml-1 text-brand-glow">*</span>
+                  </legend>
+                  <div className="grid grid-cols-2 gap-3">
+                    {CUSTOMER_TYPES.map((type) => (
+                      <label key={type} className="relative cursor-pointer">
+                        <input
+                          type="radio"
+                          name="customerType"
+                          value={type}
+                          checked={customerType === type}
+                          onChange={() => setCustomerType(type)}
+                          className="peer sr-only"
+                        />
+                        <span className="block rounded-xl border border-hairline-strong bg-bg/40 px-4 py-3.5 text-center font-mono text-sm text-ink-muted transition peer-checked:border-brand/60 peer-checked:bg-brand/15 peer-checked:text-ink peer-focus-visible:border-brand/60">
+                          {CUSTOMER_LABEL[type]}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  {errorOf("customerType") && (
+                    <p id="customerType-error" className="mt-2 text-sm text-red-400">
+                      {errorOf("customerType")?.text}
+                    </p>
+                  )}
+                </fieldset>
+
+                {customerType === "company" ? (
+                  <Field
+                    label="IČO"
+                    htmlFor="ico"
+                    required
+                    hint="Проверим фирму в реестре ARES."
+                    error={errorOf("ico")}
+                  >
+                    {/* Без required: без JS переключиться на «Частное лицо» можно, а поле не спрячется. Обязательность проверяет сервер. */}
+                    <input
+                      id="ico"
+                      name="ico"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="12345678"
+                      autoComplete="off"
+                      maxLength={12}
+                      defaultValue={values?.ico}
+                      className={inputClass}
+                      {...errorProps("ico")}
+                    />
+                  </Field>
+                ) : (
+                  <div aria-hidden className="hidden md:block" />
+                )}
+
                 <div className="md:col-span-2">
                   <Field label="Адрес забора" htmlFor="pickupAddress" required error={errorOf("pickupAddress")}>
                     <AddressInput

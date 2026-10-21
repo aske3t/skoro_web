@@ -17,6 +17,11 @@ export const PHOTO_JPEG_QUALITY = 0.85;
 
 export const PAYMENT_METHODS = ["cash", "online"] as const;
 
+// Тип клиента в заявке на доставку. Для компании обязательно IČO (проверка в ARES).
+export const CUSTOMER_TYPES = ["company", "person"] as const;
+export const ICO_LENGTH = 8;
+export const COMPANY_NAME_MAX = 300;
+
 // Страны для поля телефона. groups — разбивка национального номера для читаемости,
 // example — плейсхолдер. Первая страна — значение по умолчанию.
 export const PHONE_COUNTRIES = [

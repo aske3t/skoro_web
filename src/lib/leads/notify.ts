@@ -19,11 +19,15 @@ export type LeadNotification = Pick<
   | "delivery_address"
   | "recipient_phone"
   | "payment_method"
+  | "customer_type"
+  | "ico"
+  | "company_name"
+  | "ico_verified"
 >;
 
 /** Колонки, нужные для уведомления; тот же список читает бот при правке сообщения. */
 export const LEAD_NOTIFICATION_COLUMNS =
-  "id, number, created_at, kind, first_name, last_name, email, phone, message, utm, pickup_address, delivery_address, recipient_phone, payment_method" as const;
+  "id, number, created_at, kind, first_name, last_name, email, phone, message, utm, pickup_address, delivery_address, recipient_phone, payment_method, customer_type, ico, company_name, ico_verified" as const;
 
 type LeadNotifier = (
   text: string,
@@ -73,10 +77,21 @@ function escapeAndTruncate(value: string, max: number): string {
   return out;
 }
 
+/** Строка о клиенте: компания с IČO и результатом ARES или частное лицо. Старые заявки — без строки. */
+function customerLine(lead: LeadNotification): string[] {
+  if (lead.customer_type === "person") return ["Клиент: частное лицо"];
+  if (lead.customer_type !== "company") return [];
+  const name = lead.company_name ? ` «${escapeHtml(lead.company_name)}»` : "";
+  const ico = lead.ico ? ` · IČO ${escapeHtml(lead.ico)}` : "";
+  const check = lead.ico_verified ? " ✅ ARES" : " ⚠️ ARES недоступен, не проверено";
+  return [`Клиент: компания${name}${ico}${check}`];
+}
+
 function deliveryLines(lead: LeadNotification): string[] {
   const phoneLink = (phone: string) =>
     `<a href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a>`;
   return [
+    ...customerLine(lead),
     `Забор: ${lead.pickup_address ? escapeHtml(lead.pickup_address) : "—"}`,
     `Доставка: ${lead.delivery_address ? escapeHtml(lead.delivery_address) : "—"}`,
     `Тел. получателя: ${lead.recipient_phone ? phoneLink(lead.recipient_phone) : "—"}`,
