@@ -39,8 +39,6 @@ function readValues(formData: FormData): LeadFormValues {
     deliveryAddress: field(formData, "deliveryAddress"),
     recipientPhone: field(formData, "recipientPhone"),
     paymentMethod: field(formData, "paymentMethod"),
-    phoneCountry: field(formData, "phoneCountry"),
-    recipientPhoneCountry: field(formData, "recipientPhoneCountry"),
     customerType: field(formData, "customerType"),
     ico: field(formData, "ico"),
   };
@@ -73,9 +71,9 @@ export async function submitLead(
   const values = readValues(formData);
   const parsed = leadSchema.safeParse({
     ...values,
-    // Код страны из списка + национальная часть → номер для проверки и нормализации в E.164.
-    phone: composePhone(values.phone, values.phoneCountry),
-    recipientPhone: composePhone(values.recipientPhone, values.recipientPhoneCountry),
+    // Номер без кода страны считается чешским; дальше схема нормализует его в E.164.
+    phone: composePhone(values.phone),
+    recipientPhone: composePhone(values.recipientPhone),
     kind: formData.get("kind") ?? undefined,
     utm: field(formData, "utm"),
   });

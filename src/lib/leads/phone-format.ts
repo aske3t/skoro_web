@@ -1,11 +1,11 @@
 // Без zod и серверного кода: используется и формой в браузере, и схемой на сервере.
-import {
-  DEFAULT_PHONE_COUNTRY,
-  PHONE_COUNTRIES,
-  type PhoneCountryCode,
-} from "./constants";
+import { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES } from "./constants";
 
-type PhoneCountry = (typeof PHONE_COUNTRIES)[number];
+export type PhoneCountry = (typeof PHONE_COUNTRIES)[number];
+
+// Для определения страны по коду: сначала более длинные коды (+420 раньше +42…).
+const BY_DIAL_LENGTH = [...PHONE_COUNTRIES].sort((a, b) => b.dial.length - a.dial.length);
+const UNKNOWN_GROUPS = [3, 3, 3, 3, 3];
 
 export function findPhoneCountry(code: string | null | undefined): PhoneCountry {
   return (
@@ -14,23 +14,24 @@ export function findPhoneCountry(code: string | null | undefined): PhoneCountry 
   );
 }
 
-/** Номер введён целиком в международном формате («+…» или «00…») — код страны из списка не нужен. */
+/** Номер введён в международном формате («+…» или «00…»). */
 export function isInternational(raw: string): boolean {
   const trimmed = raw.trimStart();
   return trimmed.startsWith("+") || trimmed.startsWith("00");
 }
 
-/**
- * Разбивает национальную часть номера на группы по правилам страны: «777123456» → «777 123 456».
- * Цифры сверх шаблона идут последней группой. Международный ввод не трогаем, кроме мусора.
- */
-export function formatLocalPhone(raw: string, country: PhoneCountryCode): string {
-  if (isInternational(raw)) return raw.replace(/[^\d+ ]/g, "");
+/** Цифры после «+»/«00»; null для номера без кода страны. */
+function internationalDigits(raw: string): string | null {
+  const trimmed = raw.trimStart();
+  if (trimmed.startsWith("+")) return trimmed.slice(1).replace(/\D/g, "");
+  if (trimmed.startsWith("00")) return trimmed.slice(2).replace(/\D/g, "");
+  return null;
+}
 
-  const digits = raw.replace(/\D/g, "");
+function group(digits: string, sizes: readonly number[]): string {
   const parts: string[] = [];
   let rest = digits;
-  for (const size of findPhoneCountry(country).groups) {
+  for (const size of sizes) {
     if (!rest) break;
     parts.push(rest.slice(0, size));
     rest = rest.slice(size);
@@ -39,14 +40,51 @@ export function formatLocalPhone(raw: string, country: PhoneCountryCode): string
   return parts.join(" ");
 }
 
+/** Страна по введённому коду: «+420 777…» → CZ. Номер без кода или неизвестный код → null. */
+export function detectPhoneCountry(raw: string): PhoneCountry | null {
+  const digits = internationalDigits(raw);
+  if (!digits) return null;
+  return BY_DIAL_LENGTH.find((c) => digits.startsWith(c.dial.slice(1))) ?? null;
+}
+
 /**
- * Собирает номер из кода страны и национальной части: («CZ», «777 123 456») → «+420 777 123 456».
- * Если номер уже международный, код страны игнорируется. Пустой ввод → пустая строка.
+ * Форматирует ввод для читаемости: «+420777123456» → «+420 777 123 456».
+ * Номер без кода — разбивка по правилам страны по умолчанию (CZ); неизвестный код — группами по 3.
  */
-export function composePhone(local: string, country: string | null | undefined): string {
+export function formatPhoneInput(raw: string): string {
+  const digits = internationalDigits(raw);
+  if (digits === null) return group(raw.replace(/\D/g, ""), findPhoneCountry(null).groups);
+  if (!digits) return "+";
+
+  const country = detectPhoneCountry(raw);
+  if (!country) return `+${group(digits, UNKNOWN_GROUPS)}`;
+  const code = country.dial.slice(1);
+  const national = digits.slice(code.length);
+  return national ? `+${code} ${group(national, country.groups)}` : `+${code}`;
+}
+
+/** Меняет код страны в введённом номере, сохраняя национальную часть. */
+export function withCountryCode(raw: string, country: PhoneCountry): string {
+  const current = detectPhoneCountry(raw);
+  const digits = internationalDigits(raw);
+  let national: string;
+  if (digits === null) national = raw.replace(/\D/g, "").replace(/^0+/, "");
+  else if (current) national = digits.slice(current.dial.length - 1);
+  else national = "";
+  return formatPhoneInput(`${country.dial}${national}`);
+}
+
+/**
+ * Номер для проверки на сервере: международный — как есть, без кода — с кодом страны
+ * (по умолчанию CZ). Ведущий 0 национального формата с кодом страны не пишется.
+ */
+export function composePhone(local: string, country?: string | null): string {
   const trimmed = local.trim();
   if (!trimmed || isInternational(trimmed)) return trimmed;
-  // Ведущий 0 национального формата (например, 067 в Украине) с кодом страны не пишется.
-  const national = trimmed.replace(/^0+/, "");
-  return `${findPhoneCountry(country).dial} ${national}`;
+  return `${findPhoneCountry(country).dial} ${trimmed.replace(/^0+/, "")}`;
+}
+
+/** Флаг страны из двухбуквенного кода (региональные индикаторы Unicode). */
+export function countryFlag(code: string): string {
+  return String.fromCodePoint(...[...code].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
 }

@@ -22,17 +22,17 @@ export const CUSTOMER_TYPES = ["company", "person"] as const;
 export const ICO_LENGTH = 8;
 export const COMPANY_NAME_MAX = 300;
 
-// Страны для поля телефона. groups — разбивка национального номера для читаемости,
-// example — плейсхолдер. Первая страна — значение по умолчанию.
+// Страны для списка кодов у поля телефона. groups — разбивка национального номера для читаемости.
+// Первая страна — по умолчанию: номер без кода считается чешским.
 export const PHONE_COUNTRIES = [
-  { code: "CZ", dial: "+420", groups: [3, 3, 3], example: "777 123 456" },
-  { code: "SK", dial: "+421", groups: [3, 3, 3], example: "901 123 456" },
-  { code: "UA", dial: "+380", groups: [2, 3, 2, 2], example: "67 123 45 67" },
-  { code: "PL", dial: "+48", groups: [3, 3, 3], example: "512 345 678" },
-  { code: "DE", dial: "+49", groups: [3, 4, 4], example: "151 2345 6789" },
-  { code: "AT", dial: "+43", groups: [3, 3, 4], example: "664 123 4567" },
-  { code: "HU", dial: "+36", groups: [2, 3, 4], example: "20 123 4567" },
-  { code: "GB", dial: "+44", groups: [4, 3, 3], example: "7400 123 456" },
+  { code: "CZ", name: "Чехия", dial: "+420", groups: [3, 3, 3] },
+  { code: "SK", name: "Словакия", dial: "+421", groups: [3, 3, 3] },
+  { code: "UA", name: "Украина", dial: "+380", groups: [2, 3, 2, 2] },
+  { code: "PL", name: "Польша", dial: "+48", groups: [3, 3, 3] },
+  { code: "DE", name: "Германия", dial: "+49", groups: [3, 4, 4] },
+  { code: "AT", name: "Австрия", dial: "+43", groups: [3, 3, 4] },
+  { code: "HU", name: "Венгрия", dial: "+36", groups: [2, 3, 4] },
+  { code: "GB", name: "Великобритания", dial: "+44", groups: [4, 3, 3] },
 ] as const;
 export type PhoneCountryCode = (typeof PHONE_COUNTRIES)[number]["code"];
 export const DEFAULT_PHONE_COUNTRY: PhoneCountryCode = "CZ";

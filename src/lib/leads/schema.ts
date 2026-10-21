@@ -66,9 +66,6 @@ export type LeadFormValues = {
   deliveryAddress: string;
   recipientPhone: string;
   paymentMethod: string;
-  // Код страны из выпадающего списка; номер в phone/recipientPhone — национальная часть.
-  phoneCountry: string;
-  recipientPhoneCountry: string;
   customerType: string;
   ico: string;
 };

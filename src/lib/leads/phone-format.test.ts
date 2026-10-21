@@ -1,63 +1,90 @@
 import { describe, expect, it } from "vitest";
-import { composePhone, findPhoneCountry, formatLocalPhone } from "./phone-format";
+import {
+  composePhone,
+  countryFlag,
+  detectPhoneCountry,
+  findPhoneCountry,
+  formatPhoneInput,
+  withCountryCode,
+} from "./phone-format";
 
-describe("formatLocalPhone", () => {
-  it("groups Czech numbers 3-3-3", () => {
-    expect(formatLocalPhone("777123456", "CZ")).toBe("777 123 456");
-    expect(formatLocalPhone("777 12", "CZ")).toBe("777 12");
+describe("formatPhoneInput", () => {
+  it("groups an international number by country rules", () => {
+    expect(formatPhoneInput("+420777123456")).toBe("+420 777 123 456");
+    expect(formatPhoneInput("+380671234567")).toBe("+380 67 123 45 67");
+    expect(formatPhoneInput("+49 151 23456789")).toBe("+49 151 2345 6789");
   });
 
-  it("uses country-specific groups", () => {
-    expect(formatLocalPhone("671234567", "UA")).toBe("67 123 45 67");
-    expect(formatLocalPhone("15123456789", "DE")).toBe("151 2345 6789");
+  it("formats while the code is still being typed", () => {
+    expect(formatPhoneInput("+")).toBe("+");
+    expect(formatPhoneInput("+42")).toBe("+42");
+    expect(formatPhoneInput("+420")).toBe("+420");
+    expect(formatPhoneInput("+4207")).toBe("+420 7");
   });
 
-  it("keeps extra digits as the last group", () => {
-    expect(formatLocalPhone("7771234567", "CZ")).toBe("777 123 456 7");
+  it("treats 00 as an international prefix", () => {
+    expect(formatPhoneInput("00420777123456")).toBe("+420 777 123 456");
   });
 
-  it("strips non-digits from local input", () => {
-    expect(formatLocalPhone("(777)-123a456", "CZ")).toBe("777 123 456");
+  it("groups unknown codes by three", () => {
+    expect(formatPhoneInput("+1555123456")).toBe("+155 512 345 6");
   });
 
-  it("leaves international input as typed, minus junk", () => {
-    expect(formatLocalPhone("+49 30 1234567", "CZ")).toBe("+49 30 1234567");
-    expect(formatLocalPhone("+49-30x1", "CZ")).toBe("+49301");
+  it("groups a number without code as Czech", () => {
+    expect(formatPhoneInput("777123456")).toBe("777 123 456");
+    expect(formatPhoneInput("(777)-123a456")).toBe("777 123 456");
+  });
+});
+
+describe("detectPhoneCountry", () => {
+  it("prefers the longest matching code", () => {
+    expect(detectPhoneCountry("+421 901")?.code).toBe("SK");
+    expect(detectPhoneCountry("+43 664")?.code).toBe("AT");
+    expect(detectPhoneCountry("777 123")).toBeNull();
+    expect(detectPhoneCountry("+999")).toBeNull();
+  });
+});
+
+describe("withCountryCode", () => {
+  it("prepends a code to a national number", () => {
+    expect(withCountryCode("777 123 456", findPhoneCountry("SK"))).toBe("+421 777 123 456");
+    expect(withCountryCode("067 123 45 67", findPhoneCountry("UA"))).toBe("+380 67 123 45 67");
+  });
+
+  it("replaces an existing code and keeps the number", () => {
+    expect(withCountryCode("+420 777 123 456", findPhoneCountry("SK"))).toBe("+421 777 123 456");
+  });
+
+  it("works on an empty field", () => {
+    expect(withCountryCode("", findPhoneCountry("PL"))).toBe("+48");
   });
 });
 
 describe("composePhone", () => {
-  it("prefixes the selected country code", () => {
-    expect(composePhone("777 123 456", "CZ")).toBe("+420 777 123 456");
-    expect(composePhone("901 123 456", "SK")).toBe("+421 901 123 456");
+  it("adds the Czech code to a number without code", () => {
+    expect(composePhone("777 123 456")).toBe("+420 777 123 456");
   });
 
-  it("drops the national trunk zero", () => {
-    expect(composePhone("067 123 45 67", "UA")).toBe("+380 67 123 45 67");
-  });
-
-  it("ignores the country for international input", () => {
-    expect(composePhone("+49 30 1234567", "CZ")).toBe("+49 30 1234567");
-    expect(composePhone("00420777123456", "SK")).toBe("00420777123456");
+  it("keeps international input", () => {
+    expect(composePhone("+49 30 1234567")).toBe("+49 30 1234567");
   });
 
   it("returns empty string for empty input", () => {
-    expect(composePhone("   ", "CZ")).toBe("");
-  });
-
-  it("falls back to the default country for unknown codes", () => {
-    expect(composePhone("777123456", "XX")).toBe("+420 777123456");
-    expect(findPhoneCountry(undefined).code).toBe("CZ");
+    expect(composePhone("   ")).toBe("");
   });
 });
 
 describe("composePhone + normalizePhone (form → schema)", () => {
-  it("produces E.164 for every listed country example", async () => {
+  it("produces E.164 for every listed country", async () => {
     const { normalizePhone } = await import("./schema");
     const { PHONE_COUNTRIES } = await import("./constants");
     for (const c of PHONE_COUNTRIES) {
-      const e164 = normalizePhone(composePhone(c.example, c.code));
-      expect(e164, c.code).toBe(c.dial + c.example.replace(/\D/g, ""));
+      const typed = withCountryCode("123 456 789", c);
+      expect(normalizePhone(composePhone(typed)), c.code).toBe(`${c.dial}123456789`);
     }
   });
+});
+
+it("builds flag emoji from a country code", () => {
+  expect(countryFlag("CZ")).toBe("🇨🇿");
 });
