@@ -67,6 +67,7 @@ export type Database = {
           payment_method: string | null
           phone: string | null
           pickup_address: string | null
+          recipient_name: string | null
           recipient_phone: string | null
           status: string
           utm: Json | null
@@ -93,6 +94,7 @@ export type Database = {
           payment_method?: string | null
           phone?: string | null
           pickup_address?: string | null
+          recipient_name?: string | null
           recipient_phone?: string | null
           status?: string
           utm?: Json | null
@@ -119,6 +121,7 @@ export type Database = {
           payment_method?: string | null
           phone?: string | null
           pickup_address?: string | null
+          recipient_name?: string | null
           recipient_phone?: string | null
           status?: string
           utm?: Json | null
