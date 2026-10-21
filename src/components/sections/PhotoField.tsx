@@ -172,14 +172,14 @@ export function PhotoField({
               {busy ? "Обрабатываем фото…" : "Сфотографируйте или выберите фото"}
             </span>
             <span className="hidden text-xs text-ink-dim md:block">
-              или перетащите сюда, или вставьте из буфера: Cmd/Ctrl+V
+              или перетащите сюда, или вставьте через Cmd/Ctrl+V
             </span>
           </label>
         )}
       </div>
 
       <p id="photo-hint" className="mt-2 text-xs text-ink-dim">
-        Необязательно. JPG, PNG или WebP. Большие фото уменьшим перед отправкой.
+        JPG, PNG, WebP
       </p>
       {shownError && (
         <p id="photo-error" className="mt-2 text-sm text-red-400">
