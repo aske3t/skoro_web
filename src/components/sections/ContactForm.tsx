@@ -21,7 +21,9 @@ import {
   UTM_KEYS,
 } from "@/lib/leads/constants";
 import { AddressInput } from "./AddressInput";
+import { DeliveryQuote } from "./DeliveryQuote";
 import { IcoField } from "./IcoField";
+import { quoteDelivery, type DeliveryQuoteRequest } from "@/lib/pricing";
 import { PhoneInput } from "./PhoneInput";
 import { checkRequiredFields, FIELD_ORDER } from "@/lib/leads/client-validation";
 import type {
@@ -212,6 +214,15 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     setFieldErrors(state.status === "error" ? (state.fieldErrors ?? {}) : {});
   }
 
+  // Тарифы раздельные для бизнеса и частных лиц: расчёт по стратегии текущей версии сайта.
+  // Сейчас стратегии возвращают null — блок цены не показывается (подготовка, P-35).
+  const [quoteRequest, setQuoteRequest] = useState<DeliveryQuoteRequest>({
+    pickupAddress: values?.pickupAddress ?? "",
+    deliveryAddress: values?.deliveryAddress ?? "",
+    paymentMethod: values?.paymentMethod || null,
+  });
+  const quote = formType === "delivery" ? quoteDelivery(audience, quoteRequest) : null;
+
   // «Я получатель»: поля получателя скрыты, сервер подставит имя и телефон заказчика.
   const [recipientIsCustomer, setRecipientIsCustomer] = useState(
     values?.recipientIsCustomer === "on",
@@ -298,7 +309,17 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     <form
       action={formAction}
       onSubmit={handleSubmit}
-      onChange={(e) => clearFieldError((e.target as unknown as { name?: string }).name ?? "")}
+      onChange={(e) => {
+        const { name, value } = e.target as unknown as { name?: string; value: string };
+        clearFieldError(name ?? "");
+        // Поля, от которых зависит расчёт. Выбор подсказки адреса меняет value без события —
+        // при подключении тарифов AddressInput должен сообщать о выборе (см. P-35).
+        if (name === "pickupAddress" || name === "deliveryAddress") {
+          setQuoteRequest((r) => ({ ...r, [name]: value }));
+        } else if (name === "paymentMethod") {
+          setQuoteRequest((r) => ({ ...r, paymentMethod: value || null }));
+        }
+      }}
       // Свои сообщения об ошибках вместо всплывающих подсказок браузера: те не видны у скрытых
       // radio способа оплаты. Без JS форма уходит на сервер, и он возвращает те же ошибки.
       noValidate
@@ -562,6 +583,8 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                     {...errorProps("message")}
                   />
                 </Field>
+
+                <DeliveryQuote quote={quote} />
 
                 {isDelivery && (
                   <PhotoField serverError={errorOf("photo")?.text} onBusyChange={setPhotoBusy} />
