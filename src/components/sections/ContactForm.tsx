@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, Phone } from "lucide-react";
+import { ArrowUpRight, Banknote, CreditCard, Phone, type LucideIcon } from "lucide-react";
 import {
   useActionState,
   useEffect,
@@ -8,10 +8,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { AudienceSwitch } from "@/components/layout/AudienceSwitch";
+import { useAudience } from "@/lib/audience";
 import { submitLead } from "@/lib/leads/actions";
 import { PhotoField } from "./PhotoField";
 import {
-  CUSTOMER_TYPES,
   EMAIL_MAX,
   MESSAGE_MAX,
   NAME_MAX,
@@ -44,9 +45,9 @@ const FIELD_ERROR_TEXT: Record<FieldErrorCode, string> = {
   inactive: "По данным ARES фирма с этим IČO закрыта.",
 };
 
-const CUSTOMER_LABEL: Record<(typeof CUSTOMER_TYPES)[number], string> = {
-  company: "Компания",
-  person: "Частное лицо",
+const PAYMENT_ICON: Record<(typeof PAYMENT_METHODS)[number], LucideIcon> = {
+  cash: Banknote,
+  online: CreditCard,
 };
 
 const PAYMENT_LABEL: Record<(typeof PAYMENT_METHODS)[number], string> = {
@@ -146,6 +147,14 @@ export default function ContactForm() {
           </div>
         </div>
 
+        {/* Версия сайта видна и здесь: клиент, пришедший к форме, может переключиться (P-31). */}
+        <div className="mt-12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-5">
+          <p className="font-mono text-[11px] uppercase tracking-label text-ink-muted">
+            Заявка оформляется
+          </p>
+          <AudienceSwitch />
+        </div>
+
         <LeadForm key={formKey} onReset={() => setFormKey((k) => k + 1)} />
       </div>
     </section>
@@ -162,15 +171,13 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     state.status === "error" && state.code !== "validation" ? state.code : null;
 
   const [formType, setFormType] = useState<LeadKind>(values?.kind ?? "delivery");
-  // Компания по умолчанию: основной клиент — бизнес. IČO нужно только компании.
-  const [customerType, setCustomerType] = useState(values?.customerType || "company");
+  // Тип клиента следует за версией сайта: бизнес → компания с IČO, частные лица → без IČO.
+  const audience = useAudience();
+  const customerType = audience === "business" ? "company" : "person";
   const [prevState, setPrevState] = useState(state);
   if (state !== prevState) {
     setPrevState(state);
-    if (state.status === "error") {
-      setFormType(state.values.kind);
-      setCustomerType(state.values.customerType || "company");
-    }
+    if (state.status === "error") setFormType(state.values.kind);
   }
 
   // Time-trap: длительность заполнения по часам клиента, пишется в момент отправки.
@@ -220,6 +227,7 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     >
       <div className="noise-layer rounded-[1.75rem]" />
       <input type="hidden" name="kind" value={formType} />
+      <input type="hidden" name="customerType" value={customerType} />
       <input type="hidden" name="elapsedMs" ref={elapsedRef} defaultValue="" />
       <input type="hidden" name="utm" value={utm} />
 
@@ -299,99 +307,59 @@ function LeadForm({ onReset }: { onReset: () => void }) {
       ) : (
         <>
           {/* Fields */}
-          <div className="relative grid grid-cols-1 gap-6 md:grid-cols-2">
-            <Field label="Имя" htmlFor="firstName" error={errorOf("firstName")}>
-              <input
-                id="firstName"
-                name="firstName"
-                type="text"
-                placeholder="Иван"
-                autoComplete="given-name"
-                maxLength={NAME_MAX}
-                defaultValue={values?.firstName}
-                className={inputClass}
-                {...errorProps("firstName")}
-              />
-            </Field>
-            <Field label="Фамилия" htmlFor="lastName" error={errorOf("lastName")}>
-              <input
-                id="lastName"
-                name="lastName"
-                type="text"
-                placeholder="Иванов"
-                autoComplete="family-name"
-                maxLength={NAME_MAX}
-                defaultValue={values?.lastName}
-                className={inputClass}
-                {...errorProps("lastName")}
-              />
-            </Field>
+          <div className="relative space-y-10">
+            <FormSection index="01" title="Контакты">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <Field label="Имя и фамилия" htmlFor="firstName" error={errorOf("firstName")}>
+                  {/* Одно поле вместо двух; на сервере попадает в first_name. */}
+                  <input
+                    id="firstName"
+                    name="firstName"
+                    type="text"
+                    placeholder="Иван Иванов"
+                    autoComplete="name"
+                    maxLength={NAME_MAX}
+                    defaultValue={values?.firstName}
+                    className={inputClass}
+                    {...errorProps("firstName")}
+                  />
+                </Field>
 
-            <Field label="Email" htmlFor="email" required error={errorOf("email")}>
-              <input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="example@domain.com"
-                required
-                autoComplete="email"
-                maxLength={EMAIL_MAX}
-                defaultValue={values?.email}
-                className={inputClass}
-                {...errorProps("email")}
-              />
-            </Field>
-            <Field label="Телефон" htmlFor="phone" required={isDelivery} error={errorOf("phone")}>
-              <PhoneInput
-                id="phone"
-                name="phone"
-                autoComplete="tel"
-                required={isDelivery}
-                defaultValue={values?.phone}
-                invalidProps={errorProps("phone")}
-              />
-            </Field>
+                <Field label="Email" htmlFor="email" required error={errorOf("email")}>
+                  <input
+                    id="email"
+                    name="email"
+                    type="email"
+                    placeholder="example@domain.com"
+                    required
+                    autoComplete="email"
+                    maxLength={EMAIL_MAX}
+                    defaultValue={values?.email}
+                    className={inputClass}
+                    {...errorProps("email")}
+                  />
+                </Field>
 
-            {isDelivery && (
-              <>
-                <fieldset aria-describedby={fieldErrors?.customerType ? "customerType-error" : undefined}>
-                  <legend className="mb-3 block font-mono text-[11px] uppercase tracking-label text-ink-muted">
-                    Заказчик
-                    <span className="ml-1 text-brand-glow">*</span>
-                  </legend>
-                  <div className="grid grid-cols-2 gap-3">
-                    {CUSTOMER_TYPES.map((type) => (
-                      <label key={type} className="relative cursor-pointer">
-                        <input
-                          type="radio"
-                          name="customerType"
-                          value={type}
-                          checked={customerType === type}
-                          onChange={() => setCustomerType(type)}
-                          className="peer sr-only"
-                        />
-                        <span className="block rounded-xl border border-hairline-strong bg-bg/40 px-4 py-3.5 text-center font-mono text-sm text-ink-muted transition peer-checked:border-brand/60 peer-checked:bg-brand/15 peer-checked:text-ink peer-focus-visible:border-brand/60">
-                          {CUSTOMER_LABEL[type]}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  {errorOf("customerType") && (
-                    <p id="customerType-error" className="mt-2 text-sm text-red-400">
-                      {errorOf("customerType")?.text}
-                    </p>
-                  )}
-                </fieldset>
+                <Field label="Телефон" htmlFor="phone" required={isDelivery} error={errorOf("phone")}>
+                  <PhoneInput
+                    id="phone"
+                    name="phone"
+                    autoComplete="tel"
+                    required={isDelivery}
+                    defaultValue={values?.phone}
+                    invalidProps={errorProps("phone")}
+                  />
+                </Field>
 
-                {customerType === "company" ? (
+                {isDelivery && customerType === "company" && (
                   <Field
-                    label="IČO"
+                    label="IČO компании"
                     htmlFor="ico"
                     required
                     hint="Проверим фирму в реестре ARES."
                     error={errorOf("ico")}
                   >
-                    {/* Без required: без JS переключиться на «Частное лицо» можно, а поле не спрячется. Обязательность проверяет сервер. */}
+                    {/* Без required: обязательность проверяет сервер, иначе без JS частному лицу не отправить форму. */}
                     <input
                       id="ico"
                       name="ico"
@@ -405,94 +373,95 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                       {...errorProps("ico")}
                     />
                   </Field>
-                ) : (
-                  <div aria-hidden className="hidden md:block" />
+                )}
+              </div>
+            </FormSection>
+
+            {isDelivery && (
+              <FormSection index="02" title="Маршрут">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <Field label="Адрес забора" htmlFor="pickupAddress" required error={errorOf("pickupAddress")}>
+                      <AddressInput
+                        id="pickupAddress"
+                        name="pickupAddress"
+                        defaultValue={values?.pickupAddress}
+                        className={inputClass}
+                        invalidProps={errorProps("pickupAddress")}
+                      />
+                    </Field>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Field label="Адрес доставки" htmlFor="deliveryAddress" required error={errorOf("deliveryAddress")}>
+                      <AddressInput
+                        id="deliveryAddress"
+                        name="deliveryAddress"
+                        defaultValue={values?.deliveryAddress}
+                        className={inputClass}
+                        invalidProps={errorProps("deliveryAddress")}
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Телефон получателя" htmlFor="recipientPhone" error={errorOf("recipientPhone")}>
+                    <PhoneInput
+                      id="recipientPhone"
+                      name="recipientPhone"
+                      defaultValue={values?.recipientPhone}
+                      invalidProps={errorProps("recipientPhone")}
+                    />
+                  </Field>
+                </div>
+              </FormSection>
+            )}
+
+            <FormSection index={isDelivery ? "03" : "02"} title={isDelivery ? "Детали заказа" : "Ваш вопрос"}>
+              <div className="space-y-6">
+                {isDelivery && (
+                  <fieldset aria-describedby={fieldErrors?.paymentMethod ? "paymentMethod-error" : undefined}>
+                    <legend className="mb-3 block font-mono text-[11px] uppercase tracking-label text-ink-muted">
+                      Способ оплаты
+                      <span className="ml-1 text-brand-glow">*</span>
+                    </legend>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      {PAYMENT_METHODS.map((method) => (
+                        <ChoiceCard
+                          key={method}
+                          name="paymentMethod"
+                          value={method}
+                          label={PAYMENT_LABEL[method]}
+                          Icon={PAYMENT_ICON[method]}
+                          defaultChecked={values?.paymentMethod === method}
+                          required
+                        />
+                      ))}
+                    </div>
+                    {errorOf("paymentMethod") && (
+                      <p id="paymentMethod-error" className="mt-2 text-sm text-red-400">
+                        {errorOf("paymentMethod")?.text}
+                      </p>
+                    )}
+                  </fieldset>
                 )}
 
-                <div className="md:col-span-2">
-                  <Field label="Адрес забора" htmlFor="pickupAddress" required error={errorOf("pickupAddress")}>
-                    <AddressInput
-                      id="pickupAddress"
-                      name="pickupAddress"
-                      defaultValue={values?.pickupAddress}
-                      className={inputClass}
-                      invalidProps={errorProps("pickupAddress")}
-                    />
-                  </Field>
-                </div>
-                <div className="md:col-span-2">
-                  <Field label="Адрес доставки" htmlFor="deliveryAddress" required error={errorOf("deliveryAddress")}>
-                    <AddressInput
-                      id="deliveryAddress"
-                      name="deliveryAddress"
-                      defaultValue={values?.deliveryAddress}
-                      className={inputClass}
-                      invalidProps={errorProps("deliveryAddress")}
-                    />
-                  </Field>
-                </div>
-
-                <Field label="Телефон получателя" htmlFor="recipientPhone" error={errorOf("recipientPhone")}>
-                  <PhoneInput
-                    id="recipientPhone"
-                    name="recipientPhone"
-                    defaultValue={values?.recipientPhone}
-                    invalidProps={errorProps("recipientPhone")}
+                <Field label="Сообщение" htmlFor="message" required error={errorOf("message")}>
+                  <textarea
+                    id="message"
+                    name="message"
+                    rows={5}
+                    placeholder={messagePlaceholder}
+                    required
+                    maxLength={MESSAGE_MAX}
+                    defaultValue={values?.message}
+                    className={`${inputClass} min-h-[140px] resize-y`}
+                    {...errorProps("message")}
                   />
                 </Field>
 
-                <fieldset aria-describedby={fieldErrors?.paymentMethod ? "paymentMethod-error" : undefined}>
-                  <legend className="mb-3 block font-mono text-[11px] uppercase tracking-label text-ink-muted">
-                    Способ оплаты
-                    <span className="ml-1 text-brand-glow">*</span>
-                  </legend>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {PAYMENT_METHODS.map((method) => (
-                      <label key={method} className="relative cursor-pointer">
-                        <input
-                          type="radio"
-                          name="paymentMethod"
-                          value={method}
-                          required
-                          defaultChecked={values?.paymentMethod === method}
-                          className="peer sr-only"
-                        />
-                        <span className="block rounded-xl border border-hairline-strong bg-bg/40 px-4 py-3.5 text-center font-mono text-sm text-ink-muted transition peer-checked:border-brand/60 peer-checked:bg-brand/15 peer-checked:text-ink peer-focus-visible:border-brand/60">
-                          {PAYMENT_LABEL[method]}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                  {errorOf("paymentMethod") && (
-                    <p id="paymentMethod-error" className="mt-2 text-sm text-red-400">
-                      {errorOf("paymentMethod")?.text}
-                    </p>
-                  )}
-                </fieldset>
-              </>
-            )}
-
-            <div className="md:col-span-2">
-              <Field label="Сообщение" htmlFor="message" required error={errorOf("message")}>
-                <textarea
-                  id="message"
-                  name="message"
-                  rows={5}
-                  placeholder={messagePlaceholder}
-                  required
-                  maxLength={MESSAGE_MAX}
-                  defaultValue={values?.message}
-                  className={`${inputClass} min-h-[140px] resize-y`}
-                  {...errorProps("message")}
-                />
-              </Field>
-            </div>
-
-            {isDelivery && (
-              <div className="md:col-span-2">
-                <PhotoField serverError={errorOf("photo")?.text} onBusyChange={setPhotoBusy} />
+                {isDelivery && (
+                  <PhotoField serverError={errorOf("photo")?.text} onBusyChange={setPhotoBusy} />
+                )}
               </div>
-            )}
+            </FormSection>
           </div>
 
           {formError && (
@@ -532,6 +501,74 @@ function LeadForm({ onReset }: { onReset: () => void }) {
         </>
       )}
     </form>
+  );
+}
+
+/** Блок формы с номером и заголовком — визуально делит длинную форму на шаги. */
+function FormSection({
+  index,
+  title,
+  children,
+}: {
+  index: string;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section>
+      <div className="mb-5 flex items-center gap-3">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand/40 bg-brand/10 font-mono text-[10px] text-brand-glow">
+          {index}
+        </span>
+        <h4 className="font-mono text-[11px] uppercase tracking-label text-ink">{title}</h4>
+        <span aria-hidden className="h-px flex-1 bg-hairline" />
+      </div>
+      {children}
+    </section>
+  );
+}
+
+/** Карточка выбора (radio) с иконкой. */
+function ChoiceCard({
+  name,
+  value,
+  label,
+  Icon,
+  defaultChecked,
+  required,
+}: {
+  name: string;
+  value: string;
+  label: string;
+  Icon: LucideIcon;
+  defaultChecked?: boolean;
+  required?: boolean;
+}) {
+  return (
+    <label className="group relative cursor-pointer">
+      <input
+        type="radio"
+        name={name}
+        value={value}
+        required={required}
+        defaultChecked={defaultChecked}
+        className="peer sr-only"
+      />
+      <span className="flex items-center gap-3 rounded-2xl border border-hairline-strong bg-bg/40 p-3.5 transition hover:border-ink/30 peer-checked:border-brand/70 peer-checked:bg-brand/10 peer-focus-visible:ring-2 peer-focus-visible:ring-brand/50">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-ink-muted transition group-has-[:checked]:bg-brand group-has-[:checked]:text-ink">
+          <Icon size={18} aria-hidden />
+        </span>
+        <span className="flex-1 font-mono text-sm text-ink-muted transition group-has-[:checked]:text-ink">
+          {label}
+        </span>
+        <span
+          aria-hidden
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-hairline-strong transition group-has-[:checked]:border-brand"
+        >
+          <span className="h-2.5 w-2.5 scale-0 rounded-full bg-brand transition group-has-[:checked]:scale-100" />
+        </span>
+      </span>
+    </label>
   );
 }
 

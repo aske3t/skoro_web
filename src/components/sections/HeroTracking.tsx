@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, MapPin } from "lucide-react";
+import { AudienceSwitch } from "@/components/layout/AudienceSwitch";
 
 export default function HeroTracking() {
   return (
@@ -10,12 +11,6 @@ export default function HeroTracking() {
         <div className="absolute inset-0 grid-lines opacity-60" />
         <div className="absolute inset-0 ambient-glow" />
         <div className="noise-layer" />
-        {/* Ghost wordmark */}
-        <div className="absolute -right-10 top-24 hidden select-none md:block">
-          <span className="ghost-type font-display text-[22rem] leading-none">
-            Skoro
-          </span>
-        </div>
       </div>
 
       <div className="relative mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-14 px-6 md:px-10 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
@@ -24,11 +19,11 @@ export default function HeroTracking() {
           {/* Manifest tag */}
           <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
             <span className="inline-block h-px w-8 bg-ink-muted" />
-            Главное · доставка для бизнеса
-            <span className="rounded-full border border-hairline-strong px-2.5 py-0.5 text-brand-glow">
-              Live
-            </span>
+            Доставка для бизнеса
           </div>
+
+          {/* Кто клиент: от выбора зависят версии сайта (сейчас — форма заявки, P-31). */}
+          <AudienceSwitch variant="hero" className="mt-6" />
 
           {/* Editorial headline */}
           <h1 className="mt-7 font-display text-[clamp(3rem,8vw,6.5rem)] font-normal leading-[0.95] tracking-[-0.02em] text-ink">
@@ -74,7 +69,7 @@ export default function HeroTracking() {
               className="transition group-hover/btn:translate-x-1"
             />
           </a>
-          
+
           {/* Stat strip */}
           <div className="mt-10 grid grid-cols-3 gap-6 border-t border-hairline pt-6 md:max-w-lg">
             <Stat value="30 минут" label="Доставка по Брно" />
@@ -92,7 +87,7 @@ export default function HeroTracking() {
               <div className="relative">
                 <div>
                 <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
-                
+
                 </div>
                 <h3 className="mt-2 font-display text-2xl leading-tight text-ink md:text-3xl">
                   Что можно нам <span className="italic text-brand-glow">поручить</span>
@@ -129,7 +124,7 @@ export default function HeroTracking() {
                   <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
                     Где смотреть нас
                   </div>
-                  
+
                   <div className="mt-4 flex flex-wrap gap-3">
                     <a href="https://www.instagram.com/skoro.u.vas?igsh=Znp5ejlwbmk1ZHcy" className="rounded-full border border-hairline-strong bg-bg/40 px-4 py-2 text-sm text-ink-muted transition hover:border-brand/50 hover:bg-brand/15 hover:text-ink">
                       Instagram
