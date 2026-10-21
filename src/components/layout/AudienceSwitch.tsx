@@ -9,8 +9,9 @@ const OPTIONS: { value: Audience; label: string; Icon: LucideIcon }[] = [
 ];
 
 /**
- * Выбор версии сайта: бизнес или частное лицо. От выбора зависят версии сайта (форма заявки уже сейчас).
- * `hero` — крупный, в первом экране; `compact` — у формы заявки.
+ * Выбор версии сайта: бизнес или частное лицо. Монолитный переключатель:
+ * подсветка выбранного варианта — один бегунок, который плавно переезжает.
+ * `hero` — в первом экране; `compact` — у формы заявки.
  */
 export function AudienceSwitch({
   variant = "compact",
@@ -21,13 +22,20 @@ export function AudienceSwitch({
 }) {
   const audience = useAudience();
   const hero = variant === "hero";
+  const index = OPTIONS.findIndex((o) => o.value === audience);
 
   return (
     <div
       role="radiogroup"
       aria-label="Кто вы"
-      className={`flex w-full gap-1.5 rounded-2xl border border-hairline-strong bg-bg-soft/60 p-1.5 backdrop-blur-sm sm:w-auto sm:rounded-full ${className}`}
+      className={`relative grid w-full grid-cols-2 rounded-full border border-hairline-strong bg-bg-soft/60 p-1 backdrop-blur-sm sm:inline-grid sm:w-auto ${className}`}
     >
+      {/* Бегунок: ширина одной ячейки, сдвиг на ширину ячейки к выбранному варианту. */}
+      <span
+        aria-hidden
+        className="absolute inset-y-1 left-1 w-[calc(50%-0.25rem)] rounded-full bg-brand shadow-brand transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+        style={{ transform: `translateX(${index * 100}%)` }}
+      />
       {OPTIONS.map(({ value, label, Icon }) => {
         const active = audience === value;
         return (
@@ -37,17 +45,11 @@ export function AudienceSwitch({
             role="radio"
             aria-checked={active}
             onClick={() => setAudience(value)}
-            className={`inline-flex flex-1 items-center justify-center gap-2 whitespace-nowrap sm:gap-2.5 rounded-xl transition sm:rounded-full ${
-              hero
-                ? "px-2.5 py-3 text-sm sm:px-7 sm:py-4 sm:text-lg"
-                : "px-4 py-2.5 text-sm"
-            } ${
-              active
-                ? "bg-brand text-ink shadow-brand"
-                : "text-ink-muted hover:bg-ink/5 hover:text-ink"
-            }`}
+            className={`relative z-10 inline-flex items-center justify-center gap-1.5 whitespace-nowrap sm:gap-2 rounded-full transition-colors duration-300 ${
+              hero ? "px-2 py-2 text-[13px] sm:px-5 sm:text-sm" : "px-2 py-1.5 text-[13px] sm:px-4"
+            } ${active ? "text-ink" : "text-ink-muted hover:text-ink"}`}
           >
-            <Icon size={hero ? 18 : 16} aria-hidden className="shrink-0" />
+            <Icon size={hero ? 16 : 14} aria-hidden className="shrink-0" />
             {label}
           </button>
         );
