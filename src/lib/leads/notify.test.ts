@@ -3,6 +3,7 @@ import { formatLeadMessage, type LeadNotification } from "./notify";
 
 const lead: LeadNotification = {
   id: "00000000-0000-0000-0000-000000000001",
+  number: 7,
   created_at: "2026-01-15T12:00:00Z",
   kind: "delivery",
   first_name: "Иван",
@@ -20,7 +21,7 @@ const lead: LeadNotification = {
 describe("formatLeadMessage", () => {
   it("renders all lead fields", () => {
     const text = formatLeadMessage(lead);
-    expect(text).toContain("Новая заявка · Доставка");
+    expect(text).toContain("Новая заявка №7 · Доставка");
     expect(text).toContain("Имя: Иван Иванов");
     expect(text).toContain("Email: ivan@example.com");
     expect(text).toContain('<a href="tel:+420777123456">+420777123456</a>');
@@ -84,6 +85,12 @@ describe("formatLeadMessage", () => {
     const text = formatLeadMessage({ ...lead, delivery_address: "Česká 5", payment_method: "cash" });
     expect(text).toContain("Тел. получателя: —");
     expect(text).toContain("Оплата: Наличные");
+  });
+
+  it("shows the sequential number in the header", () => {
+    expect(formatLeadMessage(lead)).toContain("Новая заявка №7 · Доставка");
+    expect(formatLeadMessage({ ...lead, number: 0 })).toContain("Новая заявка №0 ·");
+    expect(formatLeadMessage({ ...lead, number: null })).toContain("Новая заявка · Доставка");
   });
 
   it("shows time in Europe/Prague", () => {

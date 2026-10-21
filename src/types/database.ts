@@ -46,6 +46,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          client_notified_at: string | null
           created_at: string
           delivery_address: string | null
           email: string
@@ -58,6 +59,7 @@ export type Database = {
           kind: string
           last_name: string | null
           message: string
+          number: number | null
           payment_method: string | null
           phone: string | null
           pickup_address: string | null
@@ -66,6 +68,7 @@ export type Database = {
           utm: Json | null
         }
         Insert: {
+          client_notified_at?: string | null
           created_at?: string
           delivery_address?: string | null
           email: string
@@ -78,6 +81,7 @@ export type Database = {
           kind: string
           last_name?: string | null
           message: string
+          number?: number | null
           payment_method?: string | null
           phone?: string | null
           pickup_address?: string | null
@@ -86,6 +90,7 @@ export type Database = {
           utm?: Json | null
         }
         Update: {
+          client_notified_at?: string | null
           created_at?: string
           delivery_address?: string | null
           email?: string
@@ -98,6 +103,7 @@ export type Database = {
           kind?: string
           last_name?: string | null
           message?: string
+          number?: number | null
           payment_method?: string | null
           phone?: string | null
           pickup_address?: string | null

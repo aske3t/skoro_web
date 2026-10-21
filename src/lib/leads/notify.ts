@@ -6,6 +6,7 @@ import { leadKeyboardFor } from "../telegram/lead-keyboard.ts";
 export type LeadNotification = Pick<
   Tables<"leads">,
   | "id"
+  | "number"
   | "created_at"
   | "kind"
   | "first_name"
@@ -22,7 +23,7 @@ export type LeadNotification = Pick<
 
 /** Колонки, нужные для уведомления; тот же список читает бот при правке сообщения. */
 export const LEAD_NOTIFICATION_COLUMNS =
-  "id, created_at, kind, first_name, last_name, email, phone, message, utm, pickup_address, delivery_address, recipient_phone, payment_method" as const;
+  "id, number, created_at, kind, first_name, last_name, email, phone, message, utm, pickup_address, delivery_address, recipient_phone, payment_method" as const;
 
 type LeadNotifier = (
   text: string,
@@ -101,7 +102,7 @@ export function formatLeadMessage(lead: LeadNotification, note?: string): string
       : "";
 
   const header = [
-    `<b>Новая заявка · ${KIND_LABEL[lead.kind] ?? escapeHtml(lead.kind)}</b>`,
+    `<b>Новая заявка${lead.number !== null ? ` №${lead.number}` : ""} · ${KIND_LABEL[lead.kind] ?? escapeHtml(lead.kind)}</b>`,
     `Имя: ${name ? escapeHtml(name) : "—"}`,
     `Email: ${escapeHtml(lead.email)}`,
     `Телефон: ${

@@ -3,6 +3,7 @@ import { buildLeadCallback } from "./callback-data.ts";
 export const LEAD_BUTTON_TEXT = {
   take: "✅ Взял в работу",
   spam: "🚫 Спам",
+  email: "📧 Отправить письмо повторно",
 } as const;
 
 /** Кнопки под уведомлением о заявке. */
@@ -20,4 +21,11 @@ export function buildLeadKeyboard(leadId: string) {
 /** Кнопки только у заявок на доставку; вопросы уходят в чат без кнопок. */
 export function leadKeyboardFor(lead: { id: string; kind: string }) {
   return lead.kind === "delivery" ? buildLeadKeyboard(lead.id) : undefined;
+}
+
+/** Кнопка под обработанной заявкой, если письмо клиенту не ушло. */
+export function buildRetryEmailKeyboard(leadId: string) {
+  return {
+    inline_keyboard: [[{ text: LEAD_BUTTON_TEXT.email, callback_data: buildLeadCallback("email", leadId) }]],
+  };
 }

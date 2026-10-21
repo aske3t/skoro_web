@@ -77,6 +77,9 @@ Route Handler `POST /api/telegram/dispatch` (runtime `nodejs`), вызывая g
 | `TELEGRAM_BOT_TOKEN` | `bot.ts` | уже используется для уведомлений о лидах; теперь и для приёма обновлений |
 | `TELEGRAM_CHAT_ID` | `notify.ts` | группа «Заявки» (без изменений) |
 | `TELEGRAM_WEBHOOK_SECRET` | `route.ts` | секрет для `X-Telegram-Bot-Api-Secret-Token`; при установке вебхука передаётся в `setWebhook` |
+| `RESEND_API_KEY` | `email/resend.ts` | ключ Resend (Sending access, домен `notify.skorouvas.cz`) |
+| `EMAIL_FROM` | `email/resend.ts` | `SKORO u vás <noreply@notify.skorouvas.cz>` |
+| `EMAIL_REPLY_TO` | `email/resend.ts` | `skorodelivery@gmail.com` — куда приходят ответы клиентов |
 | `TELEGRAM_ADMIN_IDS` | `permissions.ts` | Telegram user id админов через запятую; кто может нажимать кнопки. Свой id — у @userinfobot или в `from.id` ответа `getUpdates` |
 
 Читаются лениво, без `NEXT_PUBLIC_`. Владельцу нужно завести `TELEGRAM_WEBHOOK_SECRET` и
@@ -128,3 +131,24 @@ npm run bot:commands
   уменьшается до 2048 px по длинной стороне и перекодируется в JPEG 0,85 (`photo-client.ts`,
   canvas, без зависимостей); EXIF, включая GPS, отбрасывается. Исходник — до 20 МБ, на сервер
   уходит до 4 МБ. Пока фото обрабатывается, отправка заблокирована. Без JS — обычный файл до 4 МБ.
+- **Письмо клиенту (2026-10-21).** При «✅ Взял в работу» у заявки на доставку бот отправляет
+  клиенту письмо через Resend (`src/lib/email/`, HTTP API без SDK): «objednávka č. XXXXXXXX
+  převzal kurýr», краткое описание доставки, телефон поддержки. Только чешский: языковых версий
+  сайта пока нет; новые языки — в `TEMPLATES` (`lead-taken.ts`). Номер — первые 8 символов uuid.
+  Под заявкой в группе появляется «📧 Письмо клиенту отправлено» или «⚠️ … не отправлено».
+  Повтор исключён условным update и `Idempotency-Key: lead-taken/<id>`. Сбой письма не откатывает
+  статус. Отправка с субдомена `notify.skorouvas.cz` (DKIM/SPF в Resend), ответы — на Gmail (P-29).
+- **Номер заявки и оформление письма (2026-10-21).** Миграция `20261020235139_leads_number`:
+  порядковый `leads.number` с 0 (nullable-колонка + последовательность `leads_number_seq`;
+  identity не подходит — она всегда NOT NULL, а ADR-0002 разрешает только nullable). Старые заявки
+  пронумерованы по `created_at`. Номер — в заголовке Telegram («Новая заявка №12 · Доставка»)
+  и в письме. Письмо — тёмная карточка в цветах сайта (`#1f1526`, акцент `#b895ff`), кнопка
+  «Zavolat», логотип внизу. Логотип встроен в письмо inline-вложением (`cid:skoro-logo`,
+  `src/lib/email/logo.ts`, PNG 440 px из `public/images/home/skoro_cropped.png`), поэтому
+  не зависит от прода.
+- **Надёжность письма (2026-10-21, P-30).** `leads.client_notified_at` (миграция
+  `20261021005207`) хранит факт отправки. Если письмо не ушло — под заявкой «⚠️ Письмо клиенту
+  не отправлено» и кнопка «📧 Отправить письмо повторно» (`lead:email:<uuid>`, только админы).
+  Повторное нажатие «Взял в работу» на взятую заявку без письма тоже досылает его. Ответ на
+  устаревшее нажатие (бот был выключен) больше не прерывает обработку; `bot.catch` не даёт
+  ошибке остановить бота.

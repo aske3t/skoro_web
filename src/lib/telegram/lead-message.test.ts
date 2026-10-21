@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildLeadKeyboard, leadKeyboardFor } from "./lead-keyboard";
-import { displayName, formatHandledNote } from "./lead-message";
+import { buildLeadKeyboard, buildRetryEmailKeyboard, leadKeyboardFor } from "./lead-keyboard";
+import { displayName, formatEmailNote, formatHandledNote } from "./lead-message";
 import { parseCallbackData } from "./callback-data";
 
 describe("displayName", () => {
@@ -57,5 +57,20 @@ describe("leadKeyboardFor", () => {
 
   it("gives no buttons to questions", () => {
     expect(leadKeyboardFor({ id, kind: "question" })).toBeUndefined();
+  });
+});
+
+describe("formatEmailNote", () => {
+  it("reports sent and failed emails", () => {
+    expect(formatEmailNote(true)).toContain("отправлено");
+    expect(formatEmailNote(false)).toContain("не отправлено");
+  });
+});
+
+describe("buildRetryEmailKeyboard", () => {
+  it("has a single retry button for the lead", () => {
+    const id = "3f2b8c1e-9a47-4d6b-8e5f-1a2b3c4d5e6f";
+    const [[button]] = buildRetryEmailKeyboard(id).inline_keyboard;
+    expect(parseCallbackData(button.callback_data)).toEqual({ kind: "lead", action: "email", leadId: id });
   });
 });

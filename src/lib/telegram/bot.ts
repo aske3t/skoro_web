@@ -17,5 +17,14 @@ export function createBot(): Bot {
   const bot = new Bot(token);
   registerCommands(bot);
   registerLeadCallbacks(bot);
+
+  // Без обработчика grammY при ошибке в хендлере останавливает polling, и бот «молчит».
+  bot.catch((err) => {
+    const error = err.error;
+    console.error(
+      `[telegram] update ${err.ctx.update.update_id} failed:`,
+      error instanceof Error ? error.message : error,
+    );
+  });
   return bot;
 }

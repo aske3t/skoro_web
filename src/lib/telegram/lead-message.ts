@@ -32,3 +32,8 @@ export function displayName(user: TelegramUserName): string {
 export function formatHandledNote(action: LeadAction, name: string, at: Date): string {
   return `${ACTION_LABEL[action]}: <b>${escapeHtml(name)}</b> · ${handledAtFormatter.format(at)}`;
 }
+
+/** Строка о письме клиенту под заявкой (только «Взял в работу» у доставки). */
+export function formatEmailNote(sent: boolean): string {
+  return sent ? "📧 Письмо клиенту отправлено" : "⚠️ Письмо клиенту не отправлено";
+}

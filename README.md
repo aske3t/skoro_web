@@ -33,6 +33,9 @@ Tests: `npm test` (vitest).
 | `LEAD_IP_SALT` | server | Random string (≥ 32 chars) for hashing client IPs used in rate limiting |
 | `TELEGRAM_WEBHOOK_SECRET` | server | Compared against `X-Telegram-Bot-Api-Secret-Token` on incoming webhook requests (see [docs/telegram-bot.md](docs/telegram-bot.md)) |
 | `TELEGRAM_ADMIN_IDS` | server | Comma-separated Telegram user ids allowed to act as dispatcher in the staff bot |
+| `RESEND_API_KEY` | server | Resend API key (sending access, domain `notify.skorouvas.cz`) for client emails |
+| `EMAIL_FROM` | server | Sender, e.g. `SKORO u vás <noreply@notify.skorouvas.cz>` |
+| `EMAIL_REPLY_TO` | server | Where client replies go (optional) |
 
 Server variables must never get the `NEXT_PUBLIC_` prefix. Without them the site
 still builds and renders; only the contact form submission fails (without

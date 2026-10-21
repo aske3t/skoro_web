@@ -11,10 +11,13 @@ describe("callback data", () => {
       leadId: ID,
     });
     expect(parseCallbackData(buildLeadCallback("spam", ID))?.action).toBe("spam");
+    expect(parseCallbackData(buildLeadCallback("email", ID))?.action).toBe("email");
   });
 
   it("fits the 64-byte Telegram limit", () => {
-    expect(Buffer.byteLength(buildLeadCallback("take", ID))).toBeLessThanOrEqual(64);
+    for (const action of ["take", "spam", "email"] as const) {
+      expect(Buffer.byteLength(buildLeadCallback(action, ID))).toBeLessThanOrEqual(64);
+    }
   });
 
   it("normalises uppercase uuid", () => {
