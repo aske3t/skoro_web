@@ -1,5 +1,6 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import type { Database } from "@/types/database";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -11,7 +12,7 @@ export async function updateSession(request: NextRequest) {
     return supabaseResponse;
   }
 
-  const supabase = createServerClient(
+  const supabase = createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
@@ -20,20 +21,26 @@ export async function updateSession(request: NextRequest) {
           return request.cookies.getAll();
         },
         setAll(
-          cookiesToSet: {
-          name: string;
-          value: string;
-          options?: Record<string, unknown>;
-    }[],
+          cookiesToSet: { name: string; value: string; options: CookieOptions }[],
         ) {
-  cookiesToSet.forEach(({ name, value }) =>
-    request.cookies.set(name, value),
-  );
-}
+          // 1) Кладём в request — чтобы дальше по цепочке в этом же запросе
+          //    Supabase видел свежие куки.
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
+          // 2) Пересобираем response, чтобы он унаследовал обновлённый request.
+          supabaseResponse = NextResponse.next({ request });
+          // 3) Кладём в response — это то, что реально уйдёт в Set-Cookie
+          //    и сохранится в браузере. Опции пробрасываем как есть.
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options),
+          );
+        },
       },
     },
   );
 
+  // Триггерит ротацию токена при необходимости. Не убирать.
   await supabase.auth.getUser();
 
   return supabaseResponse;

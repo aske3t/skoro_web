@@ -6,3 +6,7 @@ out
 *.tsbuildinfo
 next-env.d.ts
 .DS_Store
+
+# local tool state
+supabase/.temp/
+.claude/settings.local.json

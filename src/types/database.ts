@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -20,6 +20,7 @@ export type Database = {
           display_order: number
           id: string
           label: string
+          max_lead_minutes: number | null
           slug: string
           sub_label: string | null
         }
@@ -28,6 +29,7 @@ export type Database = {
           display_order?: number
           id?: string
           label: string
+          max_lead_minutes?: number | null
           slug: string
           sub_label?: string | null
         }
@@ -36,8 +38,219 @@ export type Database = {
           display_order?: number
           id?: string
           label?: string
+          max_lead_minutes?: number | null
           slug?: string
           sub_label?: string | null
+        }
+        Relationships: []
+      }
+      leads: {
+        Row: {
+          client_notified_at: string | null
+          created_at: string
+          delivery_address: string | null
+          email: string
+          first_name: string | null
+          handled_at: string | null
+          handled_by_name: string | null
+          handled_by_tg_id: number | null
+          id: string
+          ip_hash: string | null
+          kind: string
+          last_name: string | null
+          message: string
+          number: number | null
+          payment_method: string | null
+          phone: string | null
+          pickup_address: string | null
+          recipient_phone: string | null
+          status: string
+          utm: Json | null
+        }
+        Insert: {
+          client_notified_at?: string | null
+          created_at?: string
+          delivery_address?: string | null
+          email: string
+          first_name?: string | null
+          handled_at?: string | null
+          handled_by_name?: string | null
+          handled_by_tg_id?: number | null
+          id?: string
+          ip_hash?: string | null
+          kind: string
+          last_name?: string | null
+          message: string
+          number?: number | null
+          payment_method?: string | null
+          phone?: string | null
+          pickup_address?: string | null
+          recipient_phone?: string | null
+          status?: string
+          utm?: Json | null
+        }
+        Update: {
+          client_notified_at?: string | null
+          created_at?: string
+          delivery_address?: string | null
+          email?: string
+          first_name?: string | null
+          handled_at?: string | null
+          handled_by_name?: string | null
+          handled_by_tg_id?: number | null
+          id?: string
+          ip_hash?: string | null
+          kind?: string
+          last_name?: string | null
+          message?: string
+          number?: number | null
+          payment_method?: string | null
+          phone?: string | null
+          pickup_address?: string | null
+          recipient_phone?: string | null
+          status?: string
+          utm?: Json | null
+        }
+        Relationships: []
+      }
+      orders: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          delivered_at: string | null
+          from_address: string | null
+          id: string
+          payment_status: string
+          price: number | null
+          recipient_contact: string | null
+          scheduled_for: string | null
+          slot_id: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          subscription_id: string | null
+          to_address: string | null
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          from_address?: string | null
+          id?: string
+          payment_status?: string
+          price?: number | null
+          recipient_contact?: string | null
+          scheduled_for?: string | null
+          slot_id?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          subscription_id?: string | null
+          to_address?: string | null
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          delivered_at?: string | null
+          from_address?: string | null
+          id?: string
+          payment_status?: string
+          price?: number | null
+          recipient_contact?: string | null
+          scheduled_for?: string | null
+          slot_id?: string | null
+          status?: Database["public"]["Enums"]["order_status"]
+          subscription_id?: string | null
+          to_address?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "delivery_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          currency: string
+          id: string
+          method: string | null
+          order_id: string | null
+          paid_at: string | null
+          status: string
+          subscription_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          currency?: string
+          id?: string
+          method?: string | null
+          order_id?: string | null
+          paid_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          currency?: string
+          id?: string
+          method?: string | null
+          order_id?: string | null
+          paid_at?: string | null
+          status?: string
+          subscription_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          company_name: string | null
+          contact_name: string | null
+          created_at: string | null
+          id: string
+          phone: string | null
+        }
+        Insert: {
+          company_name?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          id: string
+          phone?: string | null
+        }
+        Update: {
+          company_name?: string | null
+          contact_name?: string | null
+          created_at?: string | null
+          id?: string
+          phone?: string | null
         }
         Relationships: []
       }
@@ -82,6 +295,24 @@ export type Database = {
           },
         ]
       }
+      service_config: {
+        Row: {
+          id: number
+          operating_end_minute: number
+          operating_start_minute: number
+        }
+        Insert: {
+          id?: number
+          operating_end_minute: number
+          operating_start_minute: number
+        }
+        Update: {
+          id?: number
+          operating_end_minute?: number
+          operating_start_minute?: number
+        }
+        Relationships: []
+      }
       skoro_pricing: {
         Row: {
           base_price: number
@@ -100,6 +331,42 @@ export type Database = {
           id?: number
           per_extra_point?: number
           per_km_price?: number
+        }
+        Relationships: []
+      }
+      subscriptions: {
+        Row: {
+          id: string
+          price: number
+          purchased_at: string | null
+          remaining_deliveries: number
+          status: string
+          tier_name: string
+          total_deliveries: number
+          user_id: string
+          valid_until: string | null
+        }
+        Insert: {
+          id?: string
+          price: number
+          purchased_at?: string | null
+          remaining_deliveries: number
+          status?: string
+          tier_name: string
+          total_deliveries: number
+          user_id: string
+          valid_until?: string | null
+        }
+        Update: {
+          id?: string
+          price?: number
+          purchased_at?: string | null
+          remaining_deliveries?: number
+          status?: string
+          tier_name?: string
+          total_deliveries?: number
+          user_id?: string
+          valid_until?: string | null
         }
         Relationships: []
       }
@@ -162,10 +429,41 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_order_for_user: {
+        Args: {
+          p_comment?: string
+          p_from_address: string
+          p_recipient_contact: string
+          p_scheduled_for: string
+          p_slot_id: string
+          p_to_address: string
+        }
+        Returns: {
+          comment: string | null
+          created_at: string | null
+          delivered_at: string | null
+          from_address: string | null
+          id: string
+          payment_status: string
+          price: number | null
+          recipient_contact: string | null
+          scheduled_for: string | null
+          slot_id: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          subscription_id: string | null
+          to_address: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
-      [_ in never]: never
+      order_status: "new" | "in_progress" | "delivered" | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -181,12 +479,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -210,11 +508,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -235,11 +533,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -260,11 +558,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -277,11 +575,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -292,6 +590,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      order_status: ["new", "in_progress", "delivered", "cancelled"],
+    },
   },
 } as const

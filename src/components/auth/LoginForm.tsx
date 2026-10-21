@@ -3,7 +3,6 @@
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { createClient } from "@/lib/supabase/client";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -52,12 +51,6 @@ export default function LoginForm() {
       <Button type="submit" disabled={loading} className="w-full">
         {loading ? "Signing in…" : "Sign in"}
       </Button>
-      <p className="text-center text-sm text-white/70">
-        No account?{" "}
-        <Link href="/signup" className="text-brand hover:underline">
-          Sign up
-        </Link>
-      </p>
     </form>
   );
 }

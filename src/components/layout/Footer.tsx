@@ -15,7 +15,7 @@ const columns = [
   {
     heading: "Info",
     links: [
-      { label: "Cross city delivery", href: "/tracking" },
+      { label: "Cross city delivery", href: "/#services" },
     ],
   },
   {
@@ -29,9 +29,9 @@ const columns = [
 ];
 
 const social = [
-  { label: "Instagram", href: "#" },
-  { label: "Facebook", href: "#" },
-  { label: "LinkedIn", href: "#" },
+  { label: "Instagram", href: "https://www.instagram.com/skoro.u.vas?igsh=Znp5ejlwbmk1ZHcy" },
+  { label: "Facebook", href: "https://www.facebook.com/share/1Rty6EAmJt/?mibextid=wwXIfr" },
+  { label: "Telegram", href: "#" },
 ];
 
 export default function Footer() {
@@ -52,10 +52,6 @@ export default function Footer() {
         {/* Newsletter / CTA row */}
         <div className="grid grid-cols-1 items-start gap-10 border-b border-hairline pb-16 lg:grid-cols-[1.3fr_1fr]">
           <div>
-            <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
-              <span className="inline-block h-px w-8 bg-ink-muted" />
-              The Dispatch · weekly bulletin
-            </div>
             <h3 className="mt-5 max-w-2xl font-display text-[clamp(2rem,5vw,3.5rem)] leading-[1] tracking-[-0.02em] text-ink">
               Thanks for making it
               <br />
@@ -137,8 +133,7 @@ export default function Footer() {
         {/* Bottom bar */}
         <div className="flex flex-col-reverse items-start justify-between gap-6 border-t border-hairline py-8 md:flex-row md:items-center">
           <p className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
-            © 2026 Skoro Couriers Ltd. All rights reserved. ·
-            <span className="text-ink-muted"> Made along the M11 corridor</span>
+            © 2026 Skoro Couriers Ltd. All rights reserved
           </p>
 
           <ul className="flex items-center gap-5 font-mono text-[11px] uppercase tracking-label text-ink-muted">
