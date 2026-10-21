@@ -1,7 +1,14 @@
 "use client";
 
 import { ArrowUpRight, Phone } from "lucide-react";
-import { useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useActionState,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { submitLead } from "@/lib/leads/actions";
 import { PhotoField } from "./PhotoField";
 import {
@@ -10,9 +17,13 @@ import {
   MESSAGE_MAX,
   NAME_MAX,
   PAYMENT_METHODS,
-  PHONE_INPUT_MAX,
+  PHONE_COUNTRIES,
+  PHONE_LOCAL_MAX,
   UTM_KEYS,
+  type PhoneCountryCode,
 } from "@/lib/leads/constants";
+import { findPhoneCountry, formatLocalPhone } from "@/lib/leads/phone-format";
+import { useAddressAutocomplete } from "@/lib/maps/adressAutocomplete";
 import type {
   FieldErrorCode,
   LeadField,
@@ -324,9 +335,10 @@ function LeadForm({ onReset }: { onReset: () => void }) {
               <PhoneInput
                 id="phone"
                 name="phone"
-                autoComplete="tel"
+                autoComplete="tel-national"
                 required={isDelivery}
                 defaultValue={values?.phone}
+                defaultCountry={values?.phoneCountry}
                 invalidProps={errorProps("phone")}
               />
             </Field>
@@ -335,32 +347,21 @@ function LeadForm({ onReset }: { onReset: () => void }) {
               <>
                 <div className="md:col-span-2">
                   <Field label="Адрес забора" htmlFor="pickupAddress" required error={errorOf("pickupAddress")}>
-                    <input
+                    <AddressInput
                       id="pickupAddress"
                       name="pickupAddress"
-                      type="text"
-                      placeholder="Улица, дом, город"
-                      required
-                      autoComplete="street-address"
-                      maxLength={ADDRESS_MAX}
                       defaultValue={values?.pickupAddress}
-                      className={inputClass}
-                      {...errorProps("pickupAddress")}
+                      invalidProps={errorProps("pickupAddress")}
                     />
                   </Field>
                 </div>
                 <div className="md:col-span-2">
                   <Field label="Адрес доставки" htmlFor="deliveryAddress" required error={errorOf("deliveryAddress")}>
-                    <input
+                    <AddressInput
                       id="deliveryAddress"
                       name="deliveryAddress"
-                      type="text"
-                      placeholder="Улица, дом, город"
-                      required
-                      maxLength={ADDRESS_MAX}
                       defaultValue={values?.deliveryAddress}
-                      className={inputClass}
-                      {...errorProps("deliveryAddress")}
+                      invalidProps={errorProps("deliveryAddress")}
                     />
                   </Field>
                 </div>
@@ -370,6 +371,7 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                     id="recipientPhone"
                     name="recipientPhone"
                     defaultValue={values?.recipientPhone}
+                    defaultCountry={values?.recipientPhoneCountry}
                     invalidProps={errorProps("recipientPhone")}
                   />
                 </Field>
@@ -503,12 +505,18 @@ function Field({
   );
 }
 
+/**
+ * Код страны (список) + национальная часть номера. Цифры разбиваются на группы прямо при вводе.
+ * Номер, введённый целиком через «+» или «00», уходит как есть — код из списка тогда не используется.
+ * Без JS отправляются оба поля как есть, сервер склеивает их сам (composePhone).
+ */
 function PhoneInput({
   id,
   name,
   autoComplete,
   required,
   defaultValue,
+  defaultCountry,
   invalidProps,
 }: {
   id: string;
@@ -516,27 +524,113 @@ function PhoneInput({
   autoComplete?: string;
   required?: boolean;
   defaultValue?: string;
+  defaultCountry?: string;
   invalidProps: Record<string, unknown>;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [country, setCountry] = useState<PhoneCountryCode>(
+    findPhoneCountry(defaultCountry).code,
+  );
+
+  function reformat(input: HTMLInputElement, code: PhoneCountryCode) {
+    const next = formatLocalPhone(input.value, code);
+    if (next === input.value) return;
+    // Каретка остаётся после того же количества цифр, что и до форматирования.
+    const caret = input.selectionStart ?? input.value.length;
+    const digitsBefore = input.value.slice(0, caret).replace(/\D/g, "").length;
+    input.value = next;
+    let pos = 0;
+    for (let seen = 0; pos < next.length && seen < digitsBefore; pos++) {
+      if (/\d/.test(next[pos])) seen++;
+    }
+    input.setSelectionRange(pos, pos);
+  }
+
   return (
     <div className="flex items-stretch overflow-hidden rounded-xl border border-hairline-strong bg-bg/40 transition focus-within:border-brand/60 has-[[aria-invalid=true]]:border-red-400/70">
-      <span className="flex items-center gap-2 border-r border-hairline-strong px-4 font-mono text-sm text-ink-muted">
-        <span className="h-1.5 w-1.5 rounded-full bg-brand-glow" />
-        +420
-      </span>
+      <select
+        name={`${name}Country`}
+        aria-label="Код страны"
+        value={country}
+        onChange={(e) => {
+          const code = e.target.value as PhoneCountryCode;
+          setCountry(code);
+          if (inputRef.current) reformat(inputRef.current, code);
+        }}
+        className="cursor-pointer border-r border-hairline-strong bg-transparent px-3 font-mono text-sm text-ink-muted focus:outline-none [&>option]:bg-bg [&>option]:text-ink"
+      >
+        {PHONE_COUNTRIES.map((c) => (
+          <option key={c.code} value={c.code}>
+            {c.code} {c.dial}
+          </option>
+        ))}
+      </select>
       <input
+        ref={inputRef}
         id={id}
         name={name}
         type="tel"
         inputMode="tel"
-        placeholder="000 000 00 00"
+        placeholder={findPhoneCountry(country).example}
         autoComplete={autoComplete}
         required={required}
-        maxLength={PHONE_INPUT_MAX}
+        maxLength={PHONE_LOCAL_MAX}
         defaultValue={defaultValue}
-        className="flex-1 bg-transparent px-4 py-3.5 font-mono text-sm text-ink placeholder:text-ink-dim focus:outline-none"
+        onChange={(e) => reformat(e.currentTarget, country)}
+        className="min-w-0 flex-1 bg-transparent px-4 py-3.5 font-mono text-sm text-ink placeholder:text-ink-dim focus:outline-none"
         {...invalidProps}
       />
     </div>
+  );
+}
+
+/** Enter при открытом списке подсказок Google выбирает адрес, а не отправляет форму. */
+function keepEnterForSuggestions(e: KeyboardEvent<HTMLInputElement>) {
+  if (e.key !== "Enter") return;
+  const suggestionsOpen = Array.from(
+    document.querySelectorAll<HTMLElement>(".pac-container"),
+  ).some((el) => el.offsetParent !== null && el.style.display !== "none");
+  if (suggestionsOpen) e.preventDefault();
+}
+
+/**
+ * Адрес с подсказками Google Places (Чехия, приоритет — Брно). Ручной ввод разрешён:
+ * без ключа Google или при сбое подсказок поле остаётся обычным текстовым.
+ */
+function AddressInput({
+  id,
+  name,
+  defaultValue,
+  invalidProps,
+}: {
+  id: string;
+  name: string;
+  defaultValue?: string;
+  invalidProps: Record<string, unknown>;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useAddressAutocomplete({
+    inputRef,
+    strictBounds: false,
+    onSelect: (address) => {
+      if (inputRef.current) inputRef.current.value = address;
+    },
+  });
+
+  return (
+    <input
+      ref={inputRef}
+      id={id}
+      name={name}
+      type="text"
+      placeholder="Город, улица, номер дома"
+      required
+      autoComplete="street-address"
+      maxLength={ADDRESS_MAX}
+      defaultValue={defaultValue}
+      onKeyDown={keepEnterForSuggestions}
+      className={inputClass}
+      {...invalidProps}
+    />
   );
 }

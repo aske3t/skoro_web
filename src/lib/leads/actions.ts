@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PHOTO_MAX_BYTES } from "./constants";
 import { LEAD_NOTIFICATION_COLUMNS, notifyNewLead } from "./notify";
+import { composePhone } from "./phone-format";
 import { checkPhoto, type PhotoUpload } from "./photo";
 import {
   getFieldErrors,
@@ -37,6 +38,8 @@ function readValues(formData: FormData): LeadFormValues {
     deliveryAddress: field(formData, "deliveryAddress"),
     recipientPhone: field(formData, "recipientPhone"),
     paymentMethod: field(formData, "paymentMethod"),
+    phoneCountry: field(formData, "phoneCountry"),
+    recipientPhoneCountry: field(formData, "recipientPhoneCountry"),
   };
 }
 
@@ -67,6 +70,9 @@ export async function submitLead(
   const values = readValues(formData);
   const parsed = leadSchema.safeParse({
     ...values,
+    // Код страны из списка + национальная часть → номер для проверки и нормализации в E.164.
+    phone: composePhone(values.phone, values.phoneCountry),
+    recipientPhone: composePhone(values.recipientPhone, values.recipientPhoneCountry),
     kind: formData.get("kind") ?? undefined,
     utm: field(formData, "utm"),
   });
