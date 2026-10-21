@@ -7,6 +7,7 @@ const lead = {
   first_name: "Jan",
   pickup_address: "Masarykova 1, Brno",
   delivery_address: "Česká 5, Brno",
+  recipient_name: "Petr Novák",
   recipient_phone: "+420777000111",
   payment_method: "cash",
   message: "Krabice 5 kg",
@@ -63,5 +64,12 @@ describe("buildLeadTakenEmail", () => {
     const email = buildLeadTakenEmail({ ...lead, message: "a".repeat(800) });
     expect(email.text).toContain(`Poznámka: ${"a".repeat(500)}…`);
     expect(email.text).not.toContain("a".repeat(501));
+  });
+});
+
+describe("buildLeadTakenEmail: recipient", () => {
+  it("shows the recipient name when given and hides the row otherwise", () => {
+    expect(buildLeadTakenEmail(lead).text).toContain("Příjemce: Petr Novák");
+    expect(buildLeadTakenEmail({ ...lead, recipient_name: null }).text).not.toContain("Příjemce:");
   });
 });

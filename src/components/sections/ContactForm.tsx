@@ -402,6 +402,20 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                       />
                     </Field>
                   </div>
+                  <Field label="Имя получателя" htmlFor="recipientName" error={errorOf("recipientName")}>
+                    {/* autoComplete off: браузер иначе подставит имя самого заказчика. */}
+                    <input
+                      id="recipientName"
+                      name="recipientName"
+                      type="text"
+                      placeholder="Пётр Новак"
+                      autoComplete="off"
+                      maxLength={NAME_MAX}
+                      defaultValue={values?.recipientName}
+                      className={inputClass}
+                      {...errorProps("recipientName")}
+                    />
+                  </Field>
                   <Field label="Телефон получателя" htmlFor="recipientPhone" error={errorOf("recipientPhone")}>
                     <PhoneInput
                       id="recipientPhone"

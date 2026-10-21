@@ -37,6 +37,7 @@ describe("leadSchema", () => {
       utm: null,
       pickupAddress: null,
       deliveryAddress: null,
+      recipientName: null,
       recipientPhone: null,
       paymentMethod: null,
       customerType: null,
@@ -256,5 +257,35 @@ describe("leadSchema: customer type and IČO", () => {
   it("drops customer fields for questions", () => {
     const lead = leadSchema.parse({ ...valid, kind: "question", customerType: "company", ico: "x" });
     expect(lead).toMatchObject({ customerType: null, ico: null });
+  });
+});
+
+describe("leadSchema: recipient name", () => {
+  const delivery = {
+    ...valid,
+    kind: "delivery",
+    pickupAddress: "Masarykova 1, Brno",
+    deliveryAddress: "Česká 5, Brno",
+    paymentMethod: "cash",
+    customerType: "person",
+  };
+
+  it("is optional, trimmed and kept for deliveries", () => {
+    expect(leadSchema.parse({ ...delivery, recipientName: "  Petr Novák " }).recipientName).toBe(
+      "Petr Novák",
+    );
+    expect(leadSchema.parse(delivery).recipientName).toBeNull();
+  });
+
+  it("rejects too long names", () => {
+    expect(fieldErrorsOf({ ...delivery, recipientName: "a".repeat(101) })).toEqual({
+      recipientName: "too_long",
+    });
+  });
+
+  it("is dropped for questions", () => {
+    expect(
+      leadSchema.parse({ ...valid, kind: "question", recipientName: "Petr" }).recipientName,
+    ).toBeNull();
   });
 });

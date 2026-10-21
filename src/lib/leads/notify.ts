@@ -17,6 +17,7 @@ export type LeadNotification = Pick<
   | "utm"
   | "pickup_address"
   | "delivery_address"
+  | "recipient_name"
   | "recipient_phone"
   | "payment_method"
   | "customer_type"
@@ -27,7 +28,7 @@ export type LeadNotification = Pick<
 
 /** Колонки, нужные для уведомления; тот же список читает бот при правке сообщения. */
 export const LEAD_NOTIFICATION_COLUMNS =
-  "id, number, created_at, kind, first_name, last_name, email, phone, message, utm, pickup_address, delivery_address, recipient_phone, payment_method, customer_type, ico, company_name, ico_verified" as const;
+  "id, number, created_at, kind, first_name, last_name, email, phone, message, utm, pickup_address, delivery_address, recipient_name, recipient_phone, payment_method, customer_type, ico, company_name, ico_verified" as const;
 
 type LeadNotifier = (
   text: string,
@@ -94,6 +95,7 @@ function deliveryLines(lead: LeadNotification): string[] {
     ...customerLine(lead),
     `Забор: ${lead.pickup_address ? escapeHtml(lead.pickup_address) : "—"}`,
     `Доставка: ${lead.delivery_address ? escapeHtml(lead.delivery_address) : "—"}`,
+    `Получатель: ${lead.recipient_name ? escapeHtml(lead.recipient_name) : "—"}`,
     `Тел. получателя: ${lead.recipient_phone ? phoneLink(lead.recipient_phone) : "—"}`,
     `Оплата: ${
       lead.payment_method

@@ -40,6 +40,7 @@ export type LeadField =
   | "message"
   | "pickupAddress"
   | "deliveryAddress"
+  | "recipientName"
   | "recipientPhone"
   | "paymentMethod"
   | "customerType"
@@ -64,6 +65,7 @@ export type LeadFormValues = {
   message: string;
   pickupAddress: string;
   deliveryAddress: string;
+  recipientName: string;
   recipientPhone: string;
   paymentMethod: string;
   customerType: string;
@@ -88,6 +90,7 @@ const LEAD_FIELDS: readonly LeadField[] = [
   "message",
   "pickupAddress",
   "deliveryAddress",
+  "recipientName",
   "recipientPhone",
   "paymentMethod",
   "customerType",
@@ -192,6 +195,7 @@ const baseLeadSchema = z.object({
   // Поля доставки: правила зависят от kind, проверяются в transform ниже.
   pickupAddress: optionalText(ADDRESS_MAX),
   deliveryAddress: optionalText(ADDRESS_MAX),
+  recipientName: optionalText(NAME_MAX),
   recipientPhone: optionalText(PHONE_INPUT_MAX),
   paymentMethod: optionalText(32),
   customerType: optionalText(16),
@@ -208,6 +212,7 @@ export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
   const empty = {
     pickupAddress: null,
     deliveryAddress: null,
+    recipientName: null,
     recipientPhone: null,
     paymentMethod: null,
     customerType: null,

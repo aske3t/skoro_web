@@ -14,6 +14,7 @@ const lead: LeadNotification = {
   utm: { utm_source: "google" },
   pickup_address: null,
   delivery_address: null,
+  recipient_name: null,
   recipient_phone: null,
   payment_method: null,
   customer_type: null,
@@ -147,5 +148,15 @@ describe("formatLeadMessage: customer", () => {
       "Клиент: частное лицо",
     );
     expect(formatLeadMessage(delivery)).not.toContain("Клиент:");
+  });
+});
+
+describe("formatLeadMessage: recipient name", () => {
+  it("shows the escaped recipient name for deliveries and a dash when missing", () => {
+    const delivery = { ...lead, delivery_address: "Česká 5", payment_method: "cash" };
+    expect(formatLeadMessage({ ...delivery, recipient_name: "Petr <b>" })).toContain(
+      "Получатель: Petr &lt;b&gt;",
+    );
+    expect(formatLeadMessage(delivery)).toContain("Получатель: —");
   });
 });
