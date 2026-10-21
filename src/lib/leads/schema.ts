@@ -67,6 +67,8 @@ export type LeadFormValues = {
   deliveryAddress: string;
   recipientName: string;
   recipientPhone: string;
+  // Галочка «Я получатель»: "on", если отмечена (так её отправляет браузер).
+  recipientIsCustomer: string;
   paymentMethod: string;
   customerType: string;
   ico: string;
@@ -200,6 +202,10 @@ const baseLeadSchema = z.object({
   paymentMethod: optionalText(32),
   customerType: optionalText(16),
   ico: optionalText(20),
+  recipientIsCustomer: z
+    .string()
+    .optional()
+    .transform((v) => v === "on" || v === "true"),
 });
 
 /**
@@ -217,6 +223,7 @@ export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
     paymentMethod: null,
     customerType: null,
     ico: null,
+    recipientIsCustomer: false,
   };
   if (lead.kind !== "delivery") return { ...lead, ...empty };
 
@@ -251,6 +258,18 @@ export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
     if (!normalized) fail("ico", "required");
     else if (!isValidIco(normalized)) fail("ico", "invalid");
     else ico = normalized;
+  }
+
+  // «Я получатель»: получатель — сам заказчик, его имя и телефон (уже нормализован выше).
+  if (lead.recipientIsCustomer) {
+    return {
+      ...lead,
+      recipientName: lead.firstName,
+      recipientPhone: lead.phone,
+      paymentMethod,
+      customerType,
+      ico,
+    };
   }
 
   let recipientPhone: string | null = null;

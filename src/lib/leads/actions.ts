@@ -39,6 +39,7 @@ function readValues(formData: FormData): LeadFormValues {
     deliveryAddress: field(formData, "deliveryAddress"),
     recipientName: field(formData, "recipientName"),
     recipientPhone: field(formData, "recipientPhone"),
+    recipientIsCustomer: field(formData, "recipientIsCustomer"),
     paymentMethod: field(formData, "paymentMethod"),
     customerType: field(formData, "customerType"),
     ico: field(formData, "ico"),

@@ -42,6 +42,7 @@ describe("leadSchema", () => {
       paymentMethod: null,
       customerType: null,
       ico: null,
+      recipientIsCustomer: false,
     });
   });
 
@@ -287,5 +288,31 @@ describe("leadSchema: recipient name", () => {
     expect(
       leadSchema.parse({ ...valid, kind: "question", recipientName: "Petr" }).recipientName,
     ).toBeNull();
+  });
+});
+
+describe("leadSchema: «Я получатель»", () => {
+  const delivery = {
+    ...valid,
+    kind: "delivery",
+    pickupAddress: "Masarykova 1, Brno",
+    deliveryAddress: "Česká 5, Brno",
+    paymentMethod: "cash",
+    customerType: "person",
+    recipientName: "Кто-то другой",
+    recipientPhone: "abc",
+  };
+
+  it("copies the customer's name and phone into the recipient and ignores recipient fields", () => {
+    const lead = leadSchema.parse({ ...delivery, recipientIsCustomer: "on" });
+    expect(lead).toMatchObject({
+      recipientIsCustomer: true,
+      recipientName: "Иван",
+      recipientPhone: "+420777123456",
+    });
+  });
+
+  it("keeps validating recipient fields when unchecked", () => {
+    expect(fieldErrorsOf(delivery)).toEqual({ recipientPhone: "invalid" });
   });
 });

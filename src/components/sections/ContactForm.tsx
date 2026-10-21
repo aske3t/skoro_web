@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type FormEvent,
   type ReactNode,
 } from "react";
 import { AudienceSwitch } from "@/components/layout/AudienceSwitch";
@@ -20,7 +21,9 @@ import {
   UTM_KEYS,
 } from "@/lib/leads/constants";
 import { AddressInput } from "./AddressInput";
+import { IcoField } from "./IcoField";
 import { PhoneInput } from "./PhoneInput";
+import { checkRequiredFields, FIELD_ORDER } from "@/lib/leads/client-validation";
 import type {
   FieldErrorCode,
   LeadField,
@@ -65,14 +68,38 @@ const INVALID_FIELD_TEXT: Partial<Record<LeadField, string>> = {
   photo: "Подходят только фото JPG, PNG или WebP.",
 };
 
+// Названия полей для сводки ошибок у кнопки отправки.
+const FIELD_LABEL: Partial<Record<LeadField, string>> = {
+  firstName: "Имя и фамилия",
+  email: "Email",
+  phone: "Телефон",
+  ico: "IČO",
+  pickupAddress: "Адрес забора",
+  deliveryAddress: "Адрес доставки",
+  recipientName: "Имя получателя",
+  recipientPhone: "Телефон получателя",
+  paymentMethod: "Способ оплаты",
+  message: "Сообщение",
+  photo: "Фото",
+};
+
 const FORM_ERROR_TEXT = {
   validation: "Проверьте поля формы.",
   rate_limited: "Слишком много заявок за короткое время. Попробуйте позже или позвоните нам:",
   server_error: "Не удалось отправить заявку. Попробуйте ещё раз или позвоните нам:",
 } as const;
 
+// Для выбора из вариантов «заполните» не подходит.
+const REQUIRED_FIELD_TEXT: Partial<Record<LeadField, string>> = {
+  paymentMethod: "Выберите способ оплаты.",
+};
+
 function fieldErrorText(field: LeadField, code: FieldErrorCode): string {
-  return (code === "invalid" && INVALID_FIELD_TEXT[field]) || FIELD_ERROR_TEXT[code];
+  return (
+    (code === "invalid" && INVALID_FIELD_TEXT[field]) ||
+    (code === "required" && REQUIRED_FIELD_TEXT[field]) ||
+    FIELD_ERROR_TEXT[code]
+  );
 }
 
 /** utm_* из адресной строки в JSON; пустая строка, если меток нет. */
@@ -166,7 +193,11 @@ function LeadForm({ onReset }: { onReset: () => void }) {
   // После action React сбрасывает неуправляемые поля к defaultValue,
   // поэтому при ошибке defaultValue берём из вернувшихся values.
   const values = state.status === "error" ? state.values : undefined;
-  const fieldErrors = state.status === "error" ? state.fieldErrors : undefined;
+  // Ошибки полей: от сервера после отправки или от проверки в браузере до неё.
+  // Исправленное поле снимает свою ошибку сразу при вводе.
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<LeadField, FieldErrorCode>>>(
+    () => (state.status === "error" ? (state.fieldErrors ?? {}) : {}),
+  );
   const formError =
     state.status === "error" && state.code !== "validation" ? state.code : null;
 
@@ -178,7 +209,13 @@ function LeadForm({ onReset }: { onReset: () => void }) {
   if (state !== prevState) {
     setPrevState(state);
     if (state.status === "error") setFormType(state.values.kind);
+    setFieldErrors(state.status === "error" ? (state.fieldErrors ?? {}) : {});
   }
+
+  // «Я получатель»: поля получателя скрыты, сервер подставит имя и телефон заказчика.
+  const [recipientIsCustomer, setRecipientIsCustomer] = useState(
+    values?.recipientIsCustomer === "on",
+  );
 
   // Time-trap: длительность заполнения по часам клиента, пишется в момент отправки.
   // React 19 вызывает onSubmit до того, как соберёт FormData для action.
@@ -194,6 +231,44 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     if (mountedAtRef.current !== null && elapsedRef.current) {
       elapsedRef.current.value = String(Date.now() - mountedAtRef.current);
     }
+  }
+
+  /** Проверка обязательных полей до отправки: ошибки у полей, фокус на первом незаполненном. */
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const get = (name: string) => String(data.get(name) ?? "");
+    const errors = checkRequiredFields({
+      kind: formType,
+      customerType,
+      email: get("email"),
+      message: get("message"),
+      phone: get("phone"),
+      pickupAddress: get("pickupAddress"),
+      deliveryAddress: get("deliveryAddress"),
+      paymentMethod: get("paymentMethod"),
+      ico: get("ico"),
+    });
+
+    if (Object.keys(errors).length > 0) {
+      e.preventDefault(); // action не вызывается
+      setFieldErrors(errors);
+      const first = FIELD_ORDER.find((f) => errors[f]);
+      const target = first ? form.querySelector<HTMLElement>(`[name="${first}"]`) : null;
+      target?.closest("fieldset, div")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      target?.focus({ preventScroll: true });
+      return;
+    }
+    recordElapsed();
+  }
+
+  function clearFieldError(name: string) {
+    if (!(name in fieldErrors)) return;
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      delete next[name as LeadField];
+      return next;
+    });
   }
 
   // Пока фото сжимается в браузере, отправку блокируем.
@@ -222,7 +297,11 @@ function LeadForm({ onReset }: { onReset: () => void }) {
   return (
     <form
       action={formAction}
-      onSubmit={recordElapsed}
+      onSubmit={handleSubmit}
+      onChange={(e) => clearFieldError((e.target as unknown as { name?: string }).name ?? "")}
+      // Свои сообщения об ошибках вместо всплывающих подсказок браузера: те не видны у скрытых
+      // radio способа оплаты. Без JS форма уходит на сервер, и он возвращает те же ошибки.
+      noValidate
       className="relative mt-16 overflow-hidden rounded-[1.75rem] border border-hairline-strong bg-bg-soft/60 p-8 shadow-card backdrop-blur-sm md:p-12"
     >
       <div className="noise-layer rounded-[1.75rem]" />
@@ -352,27 +431,35 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                 </Field>
 
                 {isDelivery && customerType === "company" && (
-                  <Field
-                    label="IČO компании"
-                    htmlFor="ico"
-                    required
-                    hint="Проверим фирму в реестре ARES."
-                    error={errorOf("ico")}
-                  >
-                    {/* Без required: обязательность проверяет сервер, иначе без JS частному лицу не отправить форму. */}
-                    <input
-                      id="ico"
-                      name="ico"
-                      type="text"
-                      inputMode="numeric"
-                      placeholder="12345678"
-                      autoComplete="off"
-                      maxLength={12}
+                  <Field label="IČO компании" htmlFor="ico" required error={errorOf("ico")}>
+                    <IcoField
                       defaultValue={values?.ico}
                       className={inputClass}
-                      {...errorProps("ico")}
+                      invalidProps={errorProps("ico")}
+                      hideStatus={Boolean(fieldErrors.ico)}
                     />
                   </Field>
+                )}
+
+                {isDelivery && (
+                  <label className="flex w-fit cursor-pointer items-center gap-3 md:col-span-2">
+                    <input
+                      type="checkbox"
+                      name="recipientIsCustomer"
+                      checked={recipientIsCustomer}
+                      onChange={(e) => setRecipientIsCustomer(e.target.checked)}
+                      className="peer sr-only"
+                    />
+                    <span
+                      aria-hidden
+                      className="flex h-5 w-5 items-center justify-center rounded-md border border-hairline-strong bg-bg/40 transition peer-checked:border-brand peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand/50"
+                    >
+                      <svg viewBox="0 0 12 12" className={`h-3 w-3 text-ink ${recipientIsCustomer ? "" : "hidden"}`}>
+                        <path d="M2 6.5 4.8 9 10 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                    <span className="text-sm text-ink-muted">Я получатель</span>
+                  </label>
                 )}
               </div>
             </FormSection>
@@ -402,28 +489,32 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                       />
                     </Field>
                   </div>
-                  <Field label="Имя получателя" htmlFor="recipientName" error={errorOf("recipientName")}>
-                    {/* autoComplete off: браузер иначе подставит имя самого заказчика. */}
-                    <input
-                      id="recipientName"
-                      name="recipientName"
-                      type="text"
-                      placeholder="Пётр Новак"
-                      autoComplete="off"
-                      maxLength={NAME_MAX}
-                      defaultValue={values?.recipientName}
-                      className={inputClass}
-                      {...errorProps("recipientName")}
-                    />
-                  </Field>
-                  <Field label="Телефон получателя" htmlFor="recipientPhone" error={errorOf("recipientPhone")}>
-                    <PhoneInput
-                      id="recipientPhone"
-                      name="recipientPhone"
-                      defaultValue={values?.recipientPhone}
-                      invalidProps={errorProps("recipientPhone")}
-                    />
-                  </Field>
+                  {!recipientIsCustomer && (
+                    <>
+                      <Field label="Имя получателя" htmlFor="recipientName" error={errorOf("recipientName")}>
+                        {/* autoComplete off: браузер иначе подставит имя самого заказчика. */}
+                        <input
+                          id="recipientName"
+                          name="recipientName"
+                          type="text"
+                          placeholder="Пётр Новак"
+                          autoComplete="off"
+                          maxLength={NAME_MAX}
+                          defaultValue={values?.recipientName}
+                          className={inputClass}
+                          {...errorProps("recipientName")}
+                        />
+                      </Field>
+                      <Field label="Телефон получателя" htmlFor="recipientPhone" error={errorOf("recipientPhone")}>
+                        <PhoneInput
+                          id="recipientPhone"
+                          name="recipientPhone"
+                          defaultValue={values?.recipientPhone}
+                          invalidProps={errorProps("recipientPhone")}
+                        />
+                      </Field>
+                    </>
+                  )}
                 </div>
               </FormSection>
             )}
@@ -446,6 +537,7 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                           Icon={PAYMENT_ICON[method]}
                           defaultChecked={values?.paymentMethod === method}
                           required
+                          invalid={Boolean(fieldErrors.paymentMethod)}
                         />
                       ))}
                     </div>
@@ -477,6 +569,19 @@ function LeadForm({ onReset }: { onReset: () => void }) {
               </div>
             </FormSection>
           </div>
+
+          {Object.keys(fieldErrors).length > 0 && (
+            <div
+              role="alert"
+              className="relative mt-8 rounded-xl border border-red-400/40 bg-red-400/10 px-4 py-3.5 text-sm text-ink"
+            >
+              Заполните или исправьте:{" "}
+              {FIELD_ORDER.filter((f) => fieldErrors[f])
+                .map((f) => FIELD_LABEL[f])
+                .join(", ")}
+              .
+            </div>
+          )}
 
           {formError && (
             <div
@@ -550,6 +655,7 @@ function ChoiceCard({
   Icon,
   defaultChecked,
   required,
+  invalid,
 }: {
   name: string;
   value: string;
@@ -557,6 +663,7 @@ function ChoiceCard({
   Icon: LucideIcon;
   defaultChecked?: boolean;
   required?: boolean;
+  invalid?: boolean;
 }) {
   return (
     <label className="group relative cursor-pointer">
@@ -568,7 +675,7 @@ function ChoiceCard({
         defaultChecked={defaultChecked}
         className="peer sr-only"
       />
-      <span className="flex items-center gap-3 rounded-2xl border border-hairline-strong bg-bg/40 p-3.5 transition hover:border-ink/30 peer-checked:border-brand/70 peer-checked:bg-brand/10 peer-focus-visible:ring-2 peer-focus-visible:ring-brand/50">
+      <span className={`flex items-center gap-3 rounded-2xl border bg-bg/40 p-3.5 transition ${invalid ? "border-red-400/70" : "border-hairline-strong"} hover:border-ink/30 peer-checked:border-brand/70 peer-checked:bg-brand/10 peer-focus-visible:ring-2 peer-focus-visible:ring-brand/50`}>
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-ink-muted transition group-has-[:checked]:bg-brand group-has-[:checked]:text-ink">
           <Icon size={18} aria-hidden />
         </span>
