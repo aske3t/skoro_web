@@ -6,13 +6,11 @@ import {
   useEffect,
   useRef,
   useState,
-  type KeyboardEvent,
   type ReactNode,
 } from "react";
 import { submitLead } from "@/lib/leads/actions";
 import { PhotoField } from "./PhotoField";
 import {
-  ADDRESS_MAX,
   CUSTOMER_TYPES,
   EMAIL_MAX,
   MESSAGE_MAX,
@@ -24,7 +22,7 @@ import {
   type PhoneCountryCode,
 } from "@/lib/leads/constants";
 import { findPhoneCountry, formatLocalPhone } from "@/lib/leads/phone-format";
-import { useAddressAutocomplete } from "@/lib/maps/adressAutocomplete";
+import { AddressInput } from "./AddressInput";
 import type {
   FieldErrorCode,
   LeadField,
@@ -421,6 +419,7 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                       id="pickupAddress"
                       name="pickupAddress"
                       defaultValue={values?.pickupAddress}
+                      className={inputClass}
                       invalidProps={errorProps("pickupAddress")}
                     />
                   </Field>
@@ -431,6 +430,7 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                       id="deliveryAddress"
                       name="deliveryAddress"
                       defaultValue={values?.deliveryAddress}
+                      className={inputClass}
                       invalidProps={errorProps("deliveryAddress")}
                     />
                   </Field>
@@ -651,56 +651,5 @@ function PhoneInput({
         {...invalidProps}
       />
     </div>
-  );
-}
-
-/** Enter при открытом списке подсказок Google выбирает адрес, а не отправляет форму. */
-function keepEnterForSuggestions(e: KeyboardEvent<HTMLInputElement>) {
-  if (e.key !== "Enter") return;
-  const suggestionsOpen = Array.from(
-    document.querySelectorAll<HTMLElement>(".pac-container"),
-  ).some((el) => el.offsetParent !== null && el.style.display !== "none");
-  if (suggestionsOpen) e.preventDefault();
-}
-
-/**
- * Адрес с подсказками Google Places (Чехия, приоритет — Брно). Ручной ввод разрешён:
- * без ключа Google или при сбое подсказок поле остаётся обычным текстовым.
- */
-function AddressInput({
-  id,
-  name,
-  defaultValue,
-  invalidProps,
-}: {
-  id: string;
-  name: string;
-  defaultValue?: string;
-  invalidProps: Record<string, unknown>;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  useAddressAutocomplete({
-    inputRef,
-    strictBounds: false,
-    onSelect: (address) => {
-      if (inputRef.current) inputRef.current.value = address;
-    },
-  });
-
-  return (
-    <input
-      ref={inputRef}
-      id={id}
-      name={name}
-      type="text"
-      placeholder="Город, улица, номер дома"
-      required
-      autoComplete="street-address"
-      maxLength={ADDRESS_MAX}
-      defaultValue={defaultValue}
-      onKeyDown={keepEnterForSuggestions}
-      className={inputClass}
-      {...invalidProps}
-    />
   );
 }
