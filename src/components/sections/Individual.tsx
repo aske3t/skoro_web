@@ -2,13 +2,15 @@
 
 import { ArrowUpRight } from "lucide-react";
 import { useReveal } from "@/lib/useReveal";
+import { SkoroStamp } from "./SkoroStamp";
 
 // ────────────────────────────────────────────────────────────────────────────
 // Тексты секции. Меняйте только их — вёрстка ниже подхватит изменения.
 // `sheet.terms` — строки бланка договора справа: название условия и значение.
 // ────────────────────────────────────────────────────────────────────────────
 const CONTENT = {
-  title: "Договор под ваш бизнес вместо общего прайса",
+  // Заголовок уже выводится внутри <h2>, поэтому здесь фрагмент, а не второй <h2>.
+  title: <>Договор под <span className="italic text-brand-glow">ваш бизнес</span> вместо общего прайса</>,
   text:
     "Если доставок много или они регулярные, закрепим цену и условия в индивидуальном договоре и возьмём логистику целиком: забор, доставку, возвраты и документы.",
   cta: "Обсудить договор",
@@ -26,7 +28,9 @@ const CONTENT = {
       { label: "Контакт", value: "Личный менеджер" },
     ],
     signature: "Подпись заказчика",
-    stamp: "Согласовано",
+    // Печать из логотипа: текст по кругу сверху и снизу.
+    stampTop: "SKORO U VÁS · KURÝRNÍ SLUŽBA",
+    stampBottom: "BRNO · ČR",
   },
 };
 
@@ -66,7 +70,7 @@ export default function Individual() {
         </div>
 
         {/* Справа — бланк договора: бумага, поля с отточиями, подпись и печать */}
-        <div ref={sheetRef} className="relative mx-auto w-full max-w-[560px]">
+        <div ref={sheetRef} data-sheet className="relative mx-auto w-full max-w-[560px]">
           <div
             className="relative rotate-[-1.5deg] rounded-[6px] bg-[#EFE9F6] px-7 pb-9 pt-8 text-[#1D1425] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.04)] sm:px-10 sm:pb-11 sm:pt-10"
             role="img"
@@ -108,12 +112,17 @@ export default function Individual() {
                 <div className="mt-1.5 text-xs text-[#1D1425]/55">{CONTENT.sheet.signature}</div>
               </div>
 
-              {/* Печать: единственное движение секции. Без анимации при prefers-reduced-motion. */}
+              {/* Печать из логотипа: единственное движение секции, «опускается» на бланк один раз.
+                  Без анимации при prefers-reduced-motion. Заходит на строку подписи, как настоящая. */}
               <div
                 aria-hidden
-                className="-mb-2 mr-1 select-none rounded-lg border-[3px] border-double border-brand px-4 py-2 font-display text-xl uppercase tracking-[0.08em] text-brand opacity-0 mix-blend-multiply transition-[opacity,transform] delay-300 duration-500 ease-[cubic-bezier(0.2,1.4,0.4,1)] [transform:rotate(-12deg)_scale(1.6)] motion-reduce:opacity-90 motion-reduce:transition-none motion-reduce:[transform:rotate(-12deg)] [.is-visible_&]:opacity-90 [.is-visible_&]:[transform:rotate(-12deg)_scale(1)]"
+                className="-mb-6 -mr-2 shrink-0 select-none opacity-0 mix-blend-multiply transition-[opacity,transform] delay-300 duration-500 ease-[cubic-bezier(0.2,1.4,0.4,1)] [transform:rotate(-14deg)_scale(1.6)] motion-reduce:opacity-90 motion-reduce:transition-none motion-reduce:[transform:rotate(-14deg)] sm:-mr-4 [.is-visible_&]:opacity-90 [.is-visible_&]:[transform:rotate(-14deg)_scale(1)]"
               >
-                {CONTENT.sheet.stamp}
+                <SkoroStamp
+                  top={CONTENT.sheet.stampTop}
+                  bottom={CONTENT.sheet.stampBottom}
+                  className="h-36 w-36 sm:h-44 sm:w-44"
+                />
               </div>
             </div>
           </div>
