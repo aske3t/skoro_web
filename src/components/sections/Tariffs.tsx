@@ -44,17 +44,13 @@ export default function Tariffs() {
         {/* Section header */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_1fr] lg:gap-12">
           <div>
-            <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
-              <span className="inline-block h-px w-8 bg-ink-muted" />
-              Тарифы · разовые заказы
-            </div>
             <h2 className="mt-5 max-w-2xl font-display text-[clamp(1.75rem,4.5vw,3rem)] font-normal leading-[1.05] tracking-[-0.02em] text-ink">
               Базовые{" "}
               <span className="italic text-brand-glow">тарифы.</span>
             </h2>
           </div>
           <p className="max-w-md self-end ml-auto text-sm leading-relaxed text-ink-muted md:text-base">
-            Стандартные тарифы для разовых заказов A-B. <p>Цены зафиксированы для города, выбираете подходящую опцию и мы приезжаем.</p>
+            Стандартные тарифы для разовых заказов A-B. <p>Больше времени до исполнения - ниже цена</p>
           </p>
         </div>
 
@@ -74,8 +70,7 @@ export default function Tariffs() {
 
         {/* Footnote */}
         <p className="mt-4 max-w-2xl font-mono text-[10px] uppercase tracking-label text-ink-dim">
-          * Все цены указаны без НДС. Действуют в пределах Брно. Для регулярных
-          клиентов — индивидуальный тариф.
+          * Все цены указаны без НДС.
         </p>
       </div>
     </section>

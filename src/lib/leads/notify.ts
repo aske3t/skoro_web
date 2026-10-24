@@ -1,8 +1,12 @@
 import type { Tables } from "@/types/database";
+import { escapeHtml } from "../html.ts";
+import type { PhotoUpload } from "./photo.ts";
+import { leadKeyboardFor } from "../telegram/lead-keyboard.ts";
 
 export type LeadNotification = Pick<
   Tables<"leads">,
   | "id"
+  | "number"
   | "created_at"
   | "kind"
   | "first_name"
@@ -11,11 +15,29 @@ export type LeadNotification = Pick<
   | "phone"
   | "message"
   | "utm"
+  | "pickup_address"
+  | "delivery_address"
+  | "recipient_name"
+  | "recipient_phone"
+  | "payment_method"
+  | "customer_type"
+  | "ico"
+  | "company_name"
+  | "ico_verified"
 >;
 
-type LeadNotifier = (text: string) => Promise<void>;
+/** Колонки, нужные для уведомления; тот же список читает бот при правке сообщения. */
+export const LEAD_NOTIFICATION_COLUMNS =
+  "id, number, created_at, kind, first_name, last_name, email, phone, message, utm, pickup_address, delivery_address, recipient_name, recipient_phone, payment_method, customer_type, ico, company_name, ico_verified" as const;
+
+type LeadNotifier = (
+  text: string,
+  lead: LeadNotification,
+  photo?: PhotoUpload,
+) => Promise<void>;
 
 const TELEGRAM_TIMEOUT_MS = 5000;
+const TELEGRAM_PHOTO_TIMEOUT_MS = 15000;
 const TELEGRAM_TEXT_LIMIT = 4096;
 const MESSAGE_PREVIEW_MAX = 3500;
 const TIME_ZONE = "Europe/Prague";
@@ -25,18 +47,22 @@ const KIND_LABEL: Record<string, string> = {
   question: "Вопрос",
 };
 
+const PAYMENT_LABEL: Record<string, string> = {
+  cash: "Наличные",
+  online: "Оплата на сайте",
+};
+
+const PHOTO_EXTENSION = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+} as const;
+
 const dateFormatter = new Intl.DateTimeFormat("ru-RU", {
   timeZone: TIME_ZONE,
   dateStyle: "short",
   timeStyle: "short",
 });
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
 
 /**
  * Экранирует и обрезает так, чтобы экранированный текст влез в max символов.
@@ -52,7 +78,38 @@ function escapeAndTruncate(value: string, max: number): string {
   return out;
 }
 
-export function formatLeadMessage(lead: LeadNotification): string {
+/** Строка о клиенте: компания с IČO и результатом ARES или частное лицо. Старые заявки — без строки. */
+function customerLine(lead: LeadNotification): string[] {
+  if (lead.customer_type === "person") return ["Клиент: частное лицо"];
+  if (lead.customer_type !== "company") return [];
+  const name = lead.company_name ? ` «${escapeHtml(lead.company_name)}»` : "";
+  const ico = lead.ico ? ` · IČO ${escapeHtml(lead.ico)}` : "";
+  const check = lead.ico_verified ? " ✅ ARES" : " ⚠️ ARES недоступен, не проверено";
+  return [`Клиент: компания${name}${ico}${check}`];
+}
+
+function deliveryLines(lead: LeadNotification): string[] {
+  const phoneLink = (phone: string) =>
+    `<a href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a>`;
+  return [
+    ...customerLine(lead),
+    `Забор: ${lead.pickup_address ? escapeHtml(lead.pickup_address) : "—"}`,
+    `Доставка: ${lead.delivery_address ? escapeHtml(lead.delivery_address) : "—"}`,
+    `Получатель: ${lead.recipient_name ? escapeHtml(lead.recipient_name) : "—"}`,
+    `Тел. получателя: ${lead.recipient_phone ? phoneLink(lead.recipient_phone) : "—"}`,
+    `Оплата: ${
+      lead.payment_method
+        ? escapeHtml(PAYMENT_LABEL[lead.payment_method] ?? lead.payment_method)
+        : "—"
+    }`,
+  ];
+}
+
+/**
+ * `note` — готовый HTML (вызывающий экранирует сам): дописывается в футер,
+ * например «кто обработал». Его длина учитывается в лимите Telegram.
+ */
+export function formatLeadMessage(lead: LeadNotification, note?: string): string {
   const name = [lead.first_name, lead.last_name].filter(Boolean).join(" ");
   const utm =
     lead.utm && typeof lead.utm === "object" && !Array.isArray(lead.utm)
@@ -62,7 +119,7 @@ export function formatLeadMessage(lead: LeadNotification): string {
       : "";
 
   const header = [
-    `<b>Новая заявка · ${KIND_LABEL[lead.kind] ?? escapeHtml(lead.kind)}</b>`,
+    `<b>Новая заявка${lead.number !== null ? ` №${lead.number}` : ""} · ${KIND_LABEL[lead.kind] ?? escapeHtml(lead.kind)}</b>`,
     `Имя: ${name ? escapeHtml(name) : "—"}`,
     `Email: ${escapeHtml(lead.email)}`,
     `Телефон: ${
@@ -70,9 +127,10 @@ export function formatLeadMessage(lead: LeadNotification): string {
         ? `<a href="tel:${escapeHtml(lead.phone)}">${escapeHtml(lead.phone)}</a>`
         : "—"
     }`,
+    ...(lead.kind === "delivery" ? deliveryLines(lead) : []),
     `Время: ${dateFormatter.format(new Date(lead.created_at))} (${TIME_ZONE})`,
   ].join("\n");
-  const footer = [utm && `UTM: ${escapeHtml(utm)}`, `ID: ${lead.id}`]
+  const footer = [utm && `UTM: ${escapeHtml(utm)}`, `ID: ${lead.id}`, note]
     .filter(Boolean)
     .join("\n");
 
@@ -81,12 +139,13 @@ export function formatLeadMessage(lead: LeadNotification): string {
     MESSAGE_PREVIEW_MAX,
     TELEGRAM_TEXT_LIMIT - header.length - footer.length - 8,
   );
-  const message = escapeAndTruncate(lead.message, Math.max(budget, 0));
+  // Комментарий к доставке необязателен: без него блок сообщения не выводим.
+  const message = lead.message ? escapeAndTruncate(lead.message, Math.max(budget, 0)) : null;
 
-  return `${header}\n\n${message}\n\n${footer}`;
+  return [header, message, footer].filter(Boolean).join("\n\n");
 }
 
-const sendTelegram: LeadNotifier = async (text) => {
+const sendTelegram: LeadNotifier = async (text, lead, photo) => {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
   if (!token || !chatId) {
@@ -102,6 +161,7 @@ const sendTelegram: LeadNotifier = async (text) => {
       text,
       parse_mode: "HTML",
       link_preview_options: { is_disabled: true },
+      reply_markup: leadKeyboardFor(lead),
     }),
     signal: AbortSignal.timeout(TELEGRAM_TIMEOUT_MS),
   });
@@ -110,15 +170,41 @@ const sendTelegram: LeadNotifier = async (text) => {
     const body = await response.text().catch(() => "");
     throw new Error(`Telegram API ${response.status}: ${body.slice(0, 200)}`);
   }
+  if (!photo) return;
+
+  // Фото — ответом на заявку. Сбой фото не отменяет уже отправленную заявку.
+  const sent = (await response.json().catch(() => null)) as {
+    result?: { message_id?: number };
+  } | null;
+  const form = new FormData();
+  form.append("chat_id", chatId);
+  form.append(
+    "photo",
+    new Blob([photo.bytes as BlobPart], { type: photo.type }),
+    `photo.${PHOTO_EXTENSION[photo.type]}`,
+  );
+  if (sent?.result?.message_id) {
+    form.append("reply_parameters", JSON.stringify({ message_id: sent.result.message_id }));
+  }
+
+  const photoResponse = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+    method: "POST",
+    body: form,
+    signal: AbortSignal.timeout(TELEGRAM_PHOTO_TIMEOUT_MS),
+  });
+  if (!photoResponse.ok) {
+    const body = await photoResponse.text().catch(() => "");
+    throw new Error(`Telegram sendPhoto ${photoResponse.status}: ${body.slice(0, 200)}`);
+  }
 };
 
 // Новые каналы (email и т.п.) добавляются сюда.
 const notifiers: LeadNotifier[] = [sendTelegram];
 
 /** Никогда не бросает: лид уже сохранён, сбой уведомления только логируем. */
-export async function notifyNewLead(lead: LeadNotification): Promise<void> {
+export async function notifyNewLead(lead: LeadNotification, photo?: PhotoUpload): Promise<void> {
   const text = formatLeadMessage(lead);
-  const results = await Promise.allSettled(notifiers.map((notify) => notify(text)));
+  const results = await Promise.allSettled(notifiers.map((notify) => notify(text, lead, photo)));
   for (const result of results) {
     if (result.status === "rejected") {
       const reason = result.reason;

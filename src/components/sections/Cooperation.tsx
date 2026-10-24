@@ -41,7 +41,7 @@ const steps: Step[] = [
     ordinal: "01",
     title: "Заявка",
     description:
-      "Оставляете заявку на сотрудничество — через форму на сайте или звонком.",
+      "Оставляете заявку на сотрудничество - через форму на сайте или звонком.",
     icon: FileText,
     pos: { top: "23.4%", left: "50%" },
     anchor: "bottom-center",
@@ -50,7 +50,7 @@ const steps: Step[] = [
     ordinal: "02",
     title: "Потребности и договор",
     description:
-      "Узнаём ваши задачи, фиксируем объёмы и заключаем договор без бумажной волокиты.",
+      "Узнаём ваши задачи, фиксируем объёмы и цену, заключаем договор без бумажной волокиты.",
     icon: Handshake,
     pos: { top: "41.97%", left: "74.73%" },
     anchor: "bottom-left-corner",
@@ -66,9 +66,9 @@ const steps: Step[] = [
   },
   {
     ordinal: "04",
-    title: "Доставка день в день",
+    title: "Доставка",
     description:
-      "Выполняем заявки в день обращения — курьер, экспресс или регулярные рейсы.",
+      "Выполняем заказы — слоты, экспресс или регулярные рейсы. Возьмем клиентскую доставку и вашу внутреннюю логистику на себя",
     icon: Truck,
     pos: { top: "71.03%", left: "34.72%" },
     anchor: "top-right-corner",
@@ -77,7 +77,7 @@ const steps: Step[] = [
     ordinal: "05",
     title: "Отчётные документы",
     description:
-      "Готовим закрывающие документы — акты, реестры, выгрузки в 1С.",
+      "Добавляем вас в нашу CRM, делаем для вас отчетность по заказам в оговоренном формате.",
     icon: FileCheck2,
     pos: { top: "41.97%", left: "25.27%" },
     anchor: "bottom-right-corner",
@@ -128,8 +128,6 @@ export default function Cooperation() {
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.3fr_1fr] lg:gap-16">
           <div>
             <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
-              <span className="inline-block h-px w-8 bg-ink-muted" />
-              Сотрудничество · 5 шагов
             </div>
             <h2 className="mt-6 max-w-3xl font-display text-[clamp(2.25rem,6vw,4.75rem)] font-normal leading-[1] tracking-[-0.02em] text-ink">
               Как выглядит{" "}
@@ -138,9 +136,8 @@ export default function Cooperation() {
             </h2>
           </div>
           <p className="max-w-md self-end ml-auto text-base leading-relaxed text-ink-muted md:text-lg">
-            Пять шагов — от заявки до закрывающих документов. Подключение
-            возможно в день обращения, дальше всё идёт по кругу: заявка,
-            настройка, выполнение, отчётность.
+            Пять шагов — от заявки на сотрудничетво до закрывающих документов. Подключение
+            возможно уже в день обращения.
           </p>
         </div>
 
@@ -210,10 +207,6 @@ function RingDiagram() {
 
       {/* Center label */}
       <div className="absolute left-1/2 top-1/2 flex w-[260px] -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-3 text-center">
-        <span className="inline-flex items-center gap-2 rounded-full border border-hairline-strong bg-bg-soft/60 px-3 py-1 font-mono text-[10px] uppercase tracking-label text-brand-glow backdrop-blur">
-          <span className="h-1.5 w-1.5 animate-float-slow rounded-full bg-brand-glow" />
-          Цикл работы
-        </span>
         <h3 className="font-display text-4xl leading-[1.05] tracking-[-0.01em] text-ink md:text-5xl">
           От <span className="italic text-brand-glow">заявки</span>
           <br />

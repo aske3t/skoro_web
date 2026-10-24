@@ -3,9 +3,14 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { notifyNewLead } from "./notify";
+import { lookupIco } from "./ares";
+import { PHOTO_MAX_BYTES } from "./constants";
+import { LEAD_NOTIFICATION_COLUMNS, notifyNewLead } from "./notify";
+import { composePhone } from "./phone-format";
+import { checkPhoto, type PhotoUpload } from "./photo";
 import {
   getFieldErrors,
+  type FieldErrorCode,
   leadSchema,
   type LeadFormState,
   type LeadFormValues,
@@ -30,7 +35,29 @@ function readValues(formData: FormData): LeadFormValues {
     email: field(formData, "email"),
     phone: field(formData, "phone"),
     message: field(formData, "message"),
+    pickupAddress: field(formData, "pickupAddress"),
+    deliveryAddress: field(formData, "deliveryAddress"),
+    recipientName: field(formData, "recipientName"),
+    recipientPhone: field(formData, "recipientPhone"),
+    recipientIsCustomer: field(formData, "recipientIsCustomer"),
+    paymentMethod: field(formData, "paymentMethod"),
+    customerType: field(formData, "customerType"),
+    ico: field(formData, "ico"),
   };
+}
+
+/** Необязательное фото: пустой input — не ошибка. Тип проверяется по байтам. */
+async function readPhoto(
+  formData: FormData,
+): Promise<{ photo?: PhotoUpload; error?: FieldErrorCode }> {
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) return {};
+  if (file.size > PHOTO_MAX_BYTES) return { error: "too_large" };
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const check = checkPhoto(bytes);
+  if (!check.ok) return { error: check.code };
+  return { photo: { bytes, type: check.type } };
 }
 
 export async function submitLead(
@@ -46,14 +73,25 @@ export async function submitLead(
   const values = readValues(formData);
   const parsed = leadSchema.safeParse({
     ...values,
+    // Номер без кода страны считается чешским; дальше схема нормализует его в E.164.
+    phone: composePhone(values.phone),
+    recipientPhone: composePhone(values.recipientPhone),
     kind: formData.get("kind") ?? undefined,
     utm: field(formData, "utm"),
   });
-  if (!parsed.success) {
+
+  // Фото есть только у доставки; ошибку показываем вместе с ошибками остальных полей.
+  const { photo, error: photoError } =
+    values.kind === "delivery" ? await readPhoto(formData) : {};
+
+  if (!parsed.success || photoError) {
     return {
       status: "error",
       code: "validation",
-      fieldErrors: getFieldErrors(parsed.error),
+      fieldErrors: {
+        ...(parsed.success ? {} : getFieldErrors(parsed.error)),
+        ...(photoError ? { photo: photoError } : {}),
+      },
       values,
     };
   }
@@ -68,6 +106,24 @@ export async function submitLead(
       return { status: "error", code: "rate_limited", values };
     }
 
+    // IČO компании сверяется с ARES. Фирмы нет или она закрыта — ошибка поля.
+    // ARES недоступен — заявку не теряем: принимаем по контрольной сумме, ico_verified = false.
+    let companyName: string | null = null;
+    let icoVerified: boolean | null = null;
+    if (lead.customerType === "company" && lead.ico) {
+      const ares = await lookupIco(lead.ico);
+      if (ares.status === "not_found" || ares.status === "inactive") {
+        return {
+          status: "error",
+          code: "validation",
+          fieldErrors: { ico: ares.status },
+          values,
+        };
+      }
+      icoVerified = ares.status === "found";
+      companyName = ares.status === "found" ? ares.name : null;
+    }
+
     const { data, error } = await supabase
       .from("leads")
       .insert({
@@ -77,14 +133,23 @@ export async function submitLead(
         email: lead.email,
         phone: lead.phone,
         message: lead.message,
+        pickup_address: lead.pickupAddress,
+        delivery_address: lead.deliveryAddress,
+        recipient_name: lead.recipientName,
+        recipient_phone: lead.recipientPhone,
+        payment_method: lead.paymentMethod,
+        customer_type: lead.customerType,
+        ico: lead.ico,
+        company_name: companyName,
+        ico_verified: icoVerified,
         utm: lead.utm,
         ip_hash: ipHash,
       })
-      .select("id, created_at, kind, first_name, last_name, email, phone, message, utm")
+      .select(LEAD_NOTIFICATION_COLUMNS)
       .single();
     if (error) throw error;
 
-    after(() => notifyNewLead(data));
+    after(() => notifyNewLead(data, photo));
     return { status: "success" };
   } catch (error) {
     console.error("[leads] submit failed:", error);
