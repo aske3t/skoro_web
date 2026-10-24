@@ -67,11 +67,25 @@ describe("leadSchema", () => {
     ).toBe("delivery");
   });
 
-  it("requires email and message", () => {
-    expect(fieldErrorsOf({ ...valid, email: "   ", message: "" })).toEqual({
-      email: "required",
-      message: "required",
+  it("requires email", () => {
+    expect(fieldErrorsOf({ ...valid, email: "   " })).toEqual({ email: "required" });
+  });
+
+  it("requires a message for questions", () => {
+    expect(fieldErrorsOf({ ...valid, message: "   " })).toEqual({ message: "required" });
+  });
+
+  it("allows a delivery without a comment", () => {
+    const result = leadSchema.parse({
+      ...valid,
+      kind: "delivery",
+      message: "  ",
+      pickupAddress: "A",
+      deliveryAddress: "B",
+      paymentMethod: "cash",
+      customerType: "person",
     });
+    expect(result.message).toBeNull();
   });
 
   it("rejects malformed email", () => {

@@ -65,6 +65,10 @@ describe("buildLeadTakenEmail", () => {
     expect(email.text).toContain(`Poznámka: ${"a".repeat(500)}…`);
     expect(email.text).not.toContain("a".repeat(501));
   });
+
+  it("omits the note row when the delivery has no comment", () => {
+    expect(buildLeadTakenEmail({ ...lead, message: null }).text).not.toContain("Poznámka:");
+  });
 });
 
 describe("buildLeadTakenEmail: recipient", () => {

@@ -123,7 +123,7 @@ export function AddressInput({
         {...invalidProps}
       />
       {showList && (
-        <div className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-xl border border-hairline-strong bg-bg-soft shadow-card">
+        <div className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-[4px] border border-[#1D1425]/15 bg-[#FBF8FE] shadow-[0_18px_40px_-16px_rgba(29,20,37,0.45)]">
           <ul id={listId} role="listbox" className="max-h-72 overflow-y-auto py-1">
             {items.map((item, i) => (
               <li
@@ -138,20 +138,20 @@ export function AddressInput({
                 }}
                 onMouseEnter={() => setActive(i)}
                 className={`flex cursor-pointer items-start gap-3 px-4 py-2.5 transition ${
-                  i === active ? "bg-brand/15" : ""
+                  i === active ? "bg-[#925AF4]/12" : ""
                 }`}
               >
-                <MapPin size={16} className="mt-0.5 shrink-0 text-brand-glow" />
+                <MapPin size={16} className="mt-0.5 shrink-0 text-[#925AF4]" />
                 <span className="min-w-0">
-                  <span className="block truncate text-sm text-ink">{item.main}</span>
+                  <span className="block truncate text-[15px] text-[#1D1425]">{item.main}</span>
                   {item.secondary && (
-                    <span className="block truncate text-xs text-ink-dim">{item.secondary}</span>
+                    <span className="block truncate text-[13px] text-[#1D1425]/70">{item.secondary}</span>
                   )}
                 </span>
               </li>
             ))}
           </ul>
-          <div className="border-t border-hairline px-4 py-1.5 text-right font-mono text-[10px] text-ink-dim">
+          <div className="border-t border-[#1D1425]/10 px-4 py-1.5 text-right text-[11px] text-[#1D1425]/60">
             Powered by Google
           </div>
         </div>

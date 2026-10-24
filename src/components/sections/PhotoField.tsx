@@ -101,7 +101,7 @@ export function PhotoField({
     <div>
       <label
         htmlFor="photo"
-        className="mb-3 block font-mono text-[11px] uppercase tracking-label text-ink-muted"
+        className="mb-2 block text-[13px] leading-5 text-[#1D1425]/70"
       >
         Фото отправления
       </label>
@@ -118,9 +118,9 @@ export function PhotoField({
           const file = e.dataTransfer.files[0];
           if (file) void accept(file, file.name);
         }}
-        className={`relative rounded-xl border border-dashed bg-bg/40 transition ${
-          dragOver ? "border-brand bg-brand/10" : "border-hairline-strong"
-        } ${shownError ? "border-red-400/70" : ""}`}
+        className={`relative rounded-[4px] border border-dashed transition ${
+          dragOver ? "border-[#925AF4] bg-[#925AF4]/10" : "border-[#1D1425]/30 bg-white/40"
+        } ${shownError ? "border-[#B3261E]" : ""}`}
       >
         <input
           ref={inputRef}
@@ -146,10 +146,10 @@ export function PhotoField({
               alt="Выбранное фото"
               className="h-20 w-20 shrink-0 rounded-lg object-cover"
             />
-            <span className="min-w-0 flex-1 truncate text-sm text-ink-muted">{preview.name}</span>
+            <span className="min-w-0 flex-1 truncate text-sm text-[#1D1425]/70">{preview.name}</span>
             <label
               htmlFor="photo"
-              className="cursor-pointer rounded-full px-3 py-2 font-mono text-[11px] uppercase tracking-label text-ink-muted transition hover:text-ink"
+              className="cursor-pointer rounded-full px-3 py-2 text-sm text-[#1D1425]/70 underline decoration-[#1D1425]/30 underline-offset-4 transition hover:text-[#1D1425]"
             >
               Заменить
             </label>
@@ -157,7 +157,7 @@ export function PhotoField({
               type="button"
               onClick={remove}
               aria-label="Удалить фото"
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-ink-muted transition hover:bg-ink/5 hover:text-ink"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#1D1425]/70 transition hover:bg-[#1D1425]/5 hover:text-[#1D1425] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#925AF4]"
             >
               <X size={18} />
             </button>
@@ -165,24 +165,24 @@ export function PhotoField({
         ) : (
           <label
             htmlFor="photo"
-            className="flex min-h-[96px] cursor-pointer flex-col items-center justify-center gap-2 px-4 py-6 text-center peer-focus-visible:ring-2 peer-focus-visible:ring-brand/60"
+            className="flex min-h-[96px] cursor-pointer flex-col items-center justify-center gap-2 px-4 py-6 text-center peer-focus-visible:ring-2 peer-focus-visible:ring-[#925AF4]"
           >
-            <ImagePlus size={22} className="text-brand-glow" />
-            <span className="text-sm text-ink">
+            <ImagePlus size={22} className="text-[#925AF4]" />
+            <span className="text-[15px] text-[#1D1425]">
               {busy ? "Обрабатываем фото…" : "Сфотографируйте или выберите фото"}
             </span>
-            <span className="hidden text-xs text-ink-dim md:block">
+            <span className="hidden text-[13px] text-[#1D1425]/70 md:block">
               или перетащите сюда, или вставьте через Cmd/Ctrl+V
             </span>
           </label>
         )}
       </div>
 
-      <p id="photo-hint" className="mt-2 text-xs text-ink-dim">
-        JPG, PNG, WebP
+      <p id="photo-hint" className="mt-1.5 text-[13px] text-[#1D1425]/70">
+        JPG, PNG или WebP
       </p>
       {shownError && (
-        <p id="photo-error" className="mt-2 text-sm text-red-400">
+        <p id="photo-error" className="mt-1.5 text-sm text-[#B3261E]">
           {shownError}
         </p>
       )}

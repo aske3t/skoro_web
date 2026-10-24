@@ -139,9 +139,10 @@ export function formatLeadMessage(lead: LeadNotification, note?: string): string
     MESSAGE_PREVIEW_MAX,
     TELEGRAM_TEXT_LIMIT - header.length - footer.length - 8,
   );
-  const message = escapeAndTruncate(lead.message, Math.max(budget, 0));
+  // Комментарий к доставке необязателен: без него блок сообщения не выводим.
+  const message = lead.message ? escapeAndTruncate(lead.message, Math.max(budget, 0)) : null;
 
-  return `${header}\n\n${message}\n\n${footer}`;
+  return [header, message, footer].filter(Boolean).join("\n\n");
 }
 
 const sendTelegram: LeadNotifier = async (text, lead, photo) => {

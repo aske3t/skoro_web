@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowUpRight, Banknote, CreditCard, Phone, type LucideIcon } from "lucide-react";
+import {
+  ArrowUpRight,
+  Banknote,
+  ChevronDown,
+  CircleCheck,
+  CreditCard,
+  Phone,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import {
   useActionState,
   useEffect,
@@ -9,9 +18,9 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
-import { AudienceSwitch } from "@/components/layout/AudienceSwitch";
-import { useAudience } from "@/lib/audience";
+import { setAudience, useAudience, type Audience } from "@/lib/audience";
 import { submitLead } from "@/lib/leads/actions";
+import { useReveal } from "@/lib/useReveal";
 import { PhotoField } from "./PhotoField";
 import {
   EMAIL_MAX,
@@ -25,6 +34,7 @@ import { DeliveryQuote } from "./DeliveryQuote";
 import { IcoField } from "./IcoField";
 import { quoteDelivery, type DeliveryQuoteRequest } from "@/lib/pricing";
 import { PhoneInput } from "./PhoneInput";
+import { SkoroStamp } from "./SkoroStamp";
 import { checkRequiredFields, FIELD_ORDER } from "@/lib/leads/client-validation";
 import type {
   FieldErrorCode,
@@ -33,13 +43,20 @@ import type {
   LeadKind,
 } from "@/lib/leads/schema";
 
+// Форма — бумажная накладная на тёмном фоне секции, как бланк договора в Individual:
+// бумага #EFE9F6, чернила #1D1425, ячейки полей разделены линиями, как в бланке.
 const inputClass =
-  "w-full rounded-xl border border-hairline-strong bg-bg/40 px-4 py-3.5 font-mono text-sm text-ink placeholder:text-ink-dim transition focus:border-brand/60 focus:outline-none aria-[invalid=true]:border-red-400/70";
+  "block w-full bg-transparent py-1 text-base text-[#1D1425] placeholder:text-[#1D1425]/60 focus:outline-none";
 
 const SUPPORT_PHONE = "+420 795 402 571";
 const SUPPORT_PHONE_HREF = "tel:+420795402571";
 
 const INITIAL_STATE: LeadFormState = { status: "idle" };
+
+const KIND_LABEL: Record<LeadKind, string> = {
+  delivery: "Доставка",
+  question: "Вопрос",
+};
 
 const FIELD_ERROR_TEXT: Record<FieldErrorCode, string> = {
   required: "Заполните это поле.",
@@ -61,23 +78,32 @@ const PAYMENT_LABEL: Record<(typeof PAYMENT_METHODS)[number], string> = {
 };
 
 const INVALID_FIELD_TEXT: Partial<Record<LeadField, string>> = {
-  email: "Введите корректный email.",
-  phone: "Введите корректный номер телефона.",
-  recipientPhone: "Введите корректный номер телефона.",
+  email: "Проверьте email: например, name@company.cz.",
+  phone: "Проверьте номер телефона: например, +420 777 123 456.",
+  recipientPhone: "Проверьте номер телефона получателя.",
   paymentMethod: "Выберите способ оплаты.",
   customerType: "Выберите: компания или частное лицо.",
   ico: "Проверьте IČO: 8 цифр, контрольная цифра не сходится.",
   photo: "Подходят только фото JPG, PNG или WebP.",
 };
 
+// Пустое обязательное поле: говорим, что именно нужно, а не просто «заполните».
+const REQUIRED_FIELD_TEXT: Partial<Record<LeadField, string>> = {
+  email: "Укажите email — на него ответим.",
+  phone: "Укажите телефон: по нему уточним детали доставки.",
+  ico: "Укажите IČO компании: 8 цифр.",
+  pickupAddress: "Укажите, откуда забрать отправление.",
+  deliveryAddress: "Укажите, куда доставить отправление.",
+  paymentMethod: "Выберите способ оплаты.",
+};
+
 // Названия полей для сводки ошибок у кнопки отправки.
 const FIELD_LABEL: Partial<Record<LeadField, string>> = {
-  firstName: "Имя и фамилия",
   email: "Email",
   phone: "Телефон",
   ico: "IČO",
-  pickupAddress: "Адрес забора",
-  deliveryAddress: "Адрес доставки",
+  pickupAddress: "Откуда",
+  deliveryAddress: "Куда",
   recipientName: "Имя получателя",
   recipientPhone: "Телефон получателя",
   paymentMethod: "Способ оплаты",
@@ -91,12 +117,9 @@ const FORM_ERROR_TEXT = {
   server_error: "Не удалось отправить заявку. Попробуйте ещё раз или позвоните нам:",
 } as const;
 
-// Для выбора из вариантов «заполните» не подходит.
-const REQUIRED_FIELD_TEXT: Partial<Record<LeadField, string>> = {
-  paymentMethod: "Выберите способ оплаты.",
-};
-
 function fieldErrorText(field: LeadField, code: FieldErrorCode): string {
+  // Сообщение обязательно только у вопроса: комментарий к доставке можно не писать.
+  if (code === "required" && field === "message") return "Напишите ваш вопрос.";
   return (
     (code === "invalid" && INVALID_FIELD_TEXT[field]) ||
     (code === "required" && REQUIRED_FIELD_TEXT[field]) ||
@@ -120,68 +143,33 @@ export default function ContactForm() {
   const [formKey, setFormKey] = useState(0);
 
   return (
-    <section
-      id="contact"
-      className="relative overflow-hidden bg-bg pb-32 pt-32"
-    >
-      {/* Background layers */}
-      <div aria-hidden className="absolute inset-0 grid-lines opacity-30" />
-      <div
-        aria-hidden
-        className="absolute inset-0"
-        style={{
-          backgroundImage:
-            "radial-gradient(ellipse 60% 50% at 50% 0%, rgba(146,90,244,0.16), transparent 60%), radial-gradient(ellipse 55% 60% at 100% 100%, rgba(179,143,185,0.10), transparent 65%)",
-        }}
-      />
+    <section id="contact" className="relative overflow-hidden bg-bg py-24 md:py-32">
+      <div aria-hidden className="absolute inset-0 grid-lines opacity-15" />
       <div className="noise-layer" />
 
       <div className="relative mx-auto max-w-[1400px] px-6 md:px-10">
-        {/* Section header */}
-        <div>
-          <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
-            <span className="inline-block h-px w-8 bg-ink-muted" />
-            Связаться с нами · заявка или вопрос
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-end lg:gap-16">
+          <h2 className="max-w-3xl font-display text-[clamp(2.25rem,6vw,4.75rem)] font-normal leading-[1] tracking-[-0.02em] text-ink">
+            Мы свяжемся <span className="italic text-brand-glow">с вами!</span>
+          </h2>
+
+          <div className="max-w-md lg:ml-auto">
+            <p className="text-base leading-relaxed text-ink-muted md:text-lg">
+              Ответим в течение рабочего дня. Поля со звёздочкой обязательны.
+            </p>
+            <a
+              href={SUPPORT_PHONE_HREF}
+              className="mt-5 inline-flex max-w-full items-center gap-3 rounded-full border border-brand/40 bg-brand/10 px-4 py-3 text-sm text-ink transition hover:border-brand hover:bg-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-glow md:px-5"
+            >
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/25 text-brand-glow">
+                <Phone size={16} aria-hidden />
+              </span>
+              <span className="min-w-0 leading-snug">
+                <span className="block text-[13px] text-ink-muted">Либо позвоните нам</span>
+                <span className="block text-[15px] tabular-nums text-ink">{SUPPORT_PHONE}</span>
+              </span>
+            </a>
           </div>
-
-          <div className="mt-6 grid grid-cols-1 gap-8 lg:grid-cols-[1.3fr_1fr] lg:items-start lg:gap-16">
-            <h2 className="max-w-3xl font-display text-[clamp(2.25rem,6vw,4.75rem)] font-normal leading-[1] tracking-[-0.02em] text-ink">
-              Мы свяжемся{" "}
-              <span className="italic text-brand-glow">с вами!</span>
-            </h2>
-
-            <div className="max-w-md lg:ml-auto lg:pt-1">
-              <p className="text-base leading-relaxed text-ink-muted md:text-lg">
-                Заполните форму — ответим в течение рабочего дня. Поля,
-                отмеченные звёздочкой, обязательны.
-              </p>
-
-              <a
-                href="tel:+420795402571"
-                className="mt-5 inline-flex max-w-full items-center gap-3 rounded-full border border-brand/40 bg-brand/10 px-4 py-3 text-sm text-ink transition hover:border-brand hover:bg-brand hover:text-ink md:px-5"
-              >
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand/25 text-brand-glow">
-                  <Phone size={16} />
-                </span>
-                <span className="min-w-0 leading-snug">
-                  <span className="block text-xs text-ink-muted">
-                    Либо позвоните нам
-                  </span>
-                  <span className="block font-mono text-sm text-ink">
-                    +420 795 402 571
-                  </span>
-                </span>
-              </a>
-            </div>
-          </div>
-        </div>
-
-        {/* Версия сайта видна и здесь: клиент, пришедший к форме, может переключиться (P-31). */}
-        <div className="mt-12 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-5">
-          <p className="font-mono text-[11px] uppercase tracking-label text-ink-muted">
-            Заявка оформляется
-          </p>
-          <AudienceSwitch />
         </div>
 
         <LeadForm key={formKey} onReset={() => setFormKey((k) => k + 1)} />
@@ -192,6 +180,7 @@ export default function ContactForm() {
 
 function LeadForm({ onReset }: { onReset: () => void }) {
   const [state, formAction, pending] = useActionState(submitLead, INITIAL_STATE);
+  const formRef = useRef<HTMLFormElement>(null);
   // После action React сбрасывает неуправляемые поля к defaultValue,
   // поэтому при ошибке defaultValue берём из вернувшихся values.
   const values = state.status === "error" ? state.values : undefined;
@@ -228,6 +217,9 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     values?.recipientIsCustomer === "on",
   );
 
+  // Название фирмы из ARES — в шапку накладной, как строка «Отправитель».
+  const [company, setCompany] = useState<string | null>(null);
+
   // Time-trap: длительность заполнения по часам клиента, пишется в момент отправки.
   // React 19 вызывает onSubmit до того, как соберёт FormData для action.
   const mountedAtRef = useRef<number | null>(null);
@@ -244,10 +236,17 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     }
   }
 
+  /** Фокус на поле по имени: из сводки ошибок и после неудачной проверки. */
+  function focusField(field: LeadField) {
+    const target = formRef.current?.querySelector<HTMLElement>(`[name="${field}"]`);
+    target?.closest("details")?.setAttribute("open", "");
+    target?.closest("[data-cell], fieldset")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    target?.focus({ preventScroll: true });
+  }
+
   /** Проверка обязательных полей до отправки: ошибки у полей, фокус на первом незаполненном. */
   function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    const form = e.currentTarget;
-    const data = new FormData(form);
+    const data = new FormData(e.currentTarget);
     const get = (name: string) => String(data.get(name) ?? "");
     const errors = checkRequiredFields({
       kind: formType,
@@ -265,9 +264,7 @@ function LeadForm({ onReset }: { onReset: () => void }) {
       e.preventDefault(); // action не вызывается
       setFieldErrors(errors);
       const first = FIELD_ORDER.find((f) => errors[f]);
-      const target = first ? form.querySelector<HTMLElement>(`[name="${first}"]`) : null;
-      target?.closest("fieldset, div")?.scrollIntoView({ behavior: "smooth", block: "center" });
-      target?.focus({ preventScroll: true });
+      if (first) focusField(first);
       return;
     }
     recordElapsed();
@@ -286,27 +283,32 @@ function LeadForm({ onReset }: { onReset: () => void }) {
   const [photoBusy, setPhotoBusy] = useState(false);
 
   const isDelivery = formType === "delivery";
-  const messagePlaceholder = isDelivery
-    ? "Опишите, что нужно доставить (вес, габариты). Если знаете дату или время забора, укажите их здесь."
-    : "Опишите ваш вопрос — мы ответим в течение рабочего дня.";
-  const formTypeHint = isDelivery
-    ? "Заявка будет отмечена как запрос на доставку."
-    : "Заявка будет отмечена как общий вопрос.";
+  const showIco = isDelivery && customerType === "company";
+  // Получатель и фото необязательны и свёрнуты; раскрываем, если в них уже есть ввод или ошибка.
+  const extrasOpen = Boolean(
+    values?.recipientName ||
+      values?.recipientPhone ||
+      fieldErrors.recipientName ||
+      fieldErrors.recipientPhone ||
+      fieldErrors.photo,
+  );
 
   function errorProps(field: LeadField) {
-    const code = fieldErrors?.[field];
-    return code
+    return fieldErrors[field]
       ? { "aria-invalid": true, "aria-describedby": `${field}-error` }
       : {};
   }
 
   function errorOf(field: LeadField) {
-    const code = fieldErrors?.[field];
+    const code = fieldErrors[field];
     return code ? { id: `${field}-error`, text: fieldErrorText(field, code) } : undefined;
   }
 
+  const errorFields = FIELD_ORDER.filter((f) => fieldErrors[f]);
+
   return (
     <form
+      ref={formRef}
       action={formAction}
       onSubmit={handleSubmit}
       onChange={(e) => {
@@ -323,10 +325,15 @@ function LeadForm({ onReset }: { onReset: () => void }) {
       // Свои сообщения об ошибках вместо всплывающих подсказок браузера: те не видны у скрытых
       // radio способа оплаты. Без JS форма уходит на сервер, и он возвращает те же ошибки.
       noValidate
-      className="relative mt-16 overflow-hidden rounded-[1.75rem] border border-hairline-strong bg-bg-soft/60 p-8 shadow-card backdrop-blur-sm md:p-12"
+      className="relative mx-auto mt-14 max-w-[880px] scroll-mt-24 rounded-[6px] bg-[#EFE9F6] px-5 pb-8 pt-9 text-[#1D1425] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.6),0_0_0_1px_rgba(255,255,255,0.04)] selection:bg-[#925AF4]/25 sm:px-10 sm:pb-10 sm:pt-11"
     >
-      <div className="noise-layer rounded-[1.75rem]" />
-      <input type="hidden" name="kind" value={formType} />
+      {/* Перфорация сверху, как у отрывного бланка */}
+      <div
+        aria-hidden
+        className="absolute inset-x-6 top-3 h-px"
+        style={{ backgroundImage: "repeating-linear-gradient(90deg, #B8ADC6 0 6px, transparent 6px 12px)" }}
+      />
+
       <input type="hidden" name="customerType" value={customerType} />
       <input type="hidden" name="elapsedMs" ref={elapsedRef} defaultValue="" />
       <input type="hidden" name="utm" value={utm} />
@@ -337,179 +344,153 @@ function LeadForm({ onReset }: { onReset: () => void }) {
         <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" />
       </div>
 
-      {/* Card header — placeholder heading */}
-      <div className="relative flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
-        <div>
-          <div className="font-mono text-[11px] uppercase tracking-label text-ink-dim">
-            Form
-          </div>
-          <h3 className="mt-3 font-display text-3xl leading-tight tracking-[-0.01em] text-ink md:text-4xl">
-            Контактная форма
-          </h3>
-
-          <div className="mt-5 grid w-full max-w-xl grid-cols-1 rounded-[1.25rem] border border-hairline-strong bg-bg/40 p-1 sm:grid-cols-2 sm:rounded-full">
-            <button
-              type="button"
-              aria-pressed={isDelivery}
-              onClick={() => setFormType("delivery")}
-              className={`rounded-full px-4 py-3 font-mono text-[10px] uppercase tracking-label transition ${
-                isDelivery
-                  ? "bg-brand text-ink shadow-brand"
-                  : "text-ink-dim hover:bg-ink/5 hover:text-ink"
-              }`}
-            >
-              Мне нужна доставка
-            </button>
-
-            <button
-              type="button"
-              aria-pressed={!isDelivery}
-              onClick={() => setFormType("question")}
-              className={`rounded-full px-4 py-3 font-mono text-[10px] uppercase tracking-label transition ${
-                !isDelivery
-                  ? "bg-brand text-ink shadow-brand"
-                  : "text-ink-dim hover:bg-ink/5 hover:text-ink"
-              }`}
-            >
-              Хочу задать вопрос
-            </button>
-          </div>
-
-          <p className="mt-3 max-w-xl text-xs leading-relaxed text-ink-dim">
-            {formTypeHint}
-          </p>
-        </div>
-        <div className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-label text-ink-dim">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand-glow" />
-          Ответим за 24 часа
-        </div>
-      </div>
-
-      {/* Divider */}
-      <div className="relative my-8 h-px w-full bg-hairline-strong" />
-
       {state.status === "success" ? (
-        <div
-          role="status"
-          className="relative flex flex-col items-start gap-6 sm:flex-row sm:items-center sm:justify-between"
-        >
-          <p className="max-w-xl text-base leading-relaxed text-ink md:text-lg">
-            Заявка отправлена, ответим в течение рабочего дня.
-          </p>
-          <button
-            type="button"
-            onClick={onReset}
-            className="inline-flex items-center rounded-full border border-hairline-strong px-6 py-3.5 font-mono text-[11px] uppercase tracking-label text-ink-muted transition hover:border-ink/40 hover:text-ink"
-          >
-            Отправить ещё одну
-          </button>
-        </div>
+        <Receipt kind={formType} audience={audience} onReset={onReset} />
       ) : (
         <>
-          {/* Fields */}
-          <div className="relative space-y-10">
-            <FormSection index="01" title="Контакты">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                <Field label="Имя и фамилия" htmlFor="firstName" error={errorOf("firstName")}>
-                  {/* Одно поле вместо двух; на сервере попадает в first_name. */}
+          {/* Шапка накладной: что за заявка и единственный переключатель до первого поля */}
+          <div className="flex flex-col gap-4 border-b border-[#1D1425]/80 pb-5 sm:flex-row sm:items-end sm:justify-between">
+            <h3 className="font-display text-2xl leading-tight sm:text-3xl">
+              {isDelivery ? "Заявка на доставку" : "Вопрос в Skoro"}
+            </h3>
+            <div role="radiogroup" aria-label="Тип заявки" className="inline-grid w-fit grid-cols-2 rounded-full border border-[#1D1425]/25 p-1">
+              {(["delivery", "question"] as const).map((kind) => (
+                <label key={kind} className="cursor-pointer">
                   <input
-                    id="firstName"
-                    name="firstName"
-                    type="text"
-                    placeholder="Иван Иванов"
-                    autoComplete="name"
-                    maxLength={NAME_MAX}
-                    defaultValue={values?.firstName}
+                    type="radio"
+                    name="kind"
+                    value={kind}
+                    checked={formType === kind}
+                    onChange={() => setFormType(kind)}
+                    className="peer sr-only"
+                  />
+                  <span className="block rounded-full px-5 py-2 text-center text-[15px] text-[#1D1425]/70 transition hover:text-[#1D1425] peer-checked:bg-[#1D1425] peer-checked:text-[#F4EDE1] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#925AF4]">
+                    {KIND_LABEL[kind]}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {showIco && company && (
+            <p className="mt-4 inline-flex max-w-full items-center gap-2 rounded-full bg-[#1D1425] px-3.5 py-1.5 text-sm text-[#F4EDE1]">
+              <CircleCheck size={15} aria-hidden className="shrink-0 text-emerald-300" />
+              <span className="truncate">Отправитель: {company}</span>
+              <span className="hidden shrink-0 text-[#F4EDE1]/70 sm:inline">· проверено в ARES</span>
+            </p>
+          )}
+
+          <Block
+            title={isDelivery ? "Отправитель" : "Как с вами связаться"}
+            aside={<AudienceToggle audience={audience} />}
+          >
+            <Grid>
+              <Field label="Имя и фамилия" htmlFor="firstName">
+                {/* Одно поле вместо двух; на сервере попадает в first_name. */}
+                <input
+                  id="firstName"
+                  name="firstName"
+                  type="text"
+                  placeholder="Как к вам обращаться"
+                  autoComplete="name"
+                  maxLength={NAME_MAX}
+                  defaultValue={values?.firstName}
+                  className={inputClass}
+                />
+              </Field>
+
+              <Field label="Email" htmlFor="email" required error={errorOf("email")}>
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="name@company.cz"
+                  required
+                  autoComplete="email"
+                  maxLength={EMAIL_MAX}
+                  defaultValue={values?.email}
+                  className={inputClass}
+                  {...errorProps("email")}
+                />
+              </Field>
+
+              <Field label="Телефон" htmlFor="phone" required={isDelivery} error={errorOf("phone")} wide={!showIco}>
+                <PhoneInput
+                  id="phone"
+                  name="phone"
+                  autoComplete="tel"
+                  required={isDelivery}
+                  defaultValue={values?.phone}
+                  invalidProps={errorProps("phone")}
+                />
+              </Field>
+
+              {showIco && (
+                <Field label="IČO компании" htmlFor="ico" required error={errorOf("ico")}>
+                  <IcoField
+                    defaultValue={values?.ico}
                     className={inputClass}
-                    {...errorProps("firstName")}
+                    invalidProps={errorProps("ico")}
+                    hideStatus={Boolean(fieldErrors.ico)}
+                    onCompanyChange={setCompany}
                   />
                 </Field>
+              )}
+            </Grid>
+          </Block>
 
-                <Field label="Email" htmlFor="email" required error={errorOf("email")}>
+          {isDelivery && (
+            <Block title="Маршрут">
+              <Grid single>
+                <Field label="Откуда" htmlFor="pickupAddress" required error={errorOf("pickupAddress")} route="from">
+                  <AddressInput
+                    id="pickupAddress"
+                    name="pickupAddress"
+                    defaultValue={values?.pickupAddress}
+                    className={inputClass}
+                    invalidProps={errorProps("pickupAddress")}
+                  />
+                </Field>
+                <Field label="Куда" htmlFor="deliveryAddress" required error={errorOf("deliveryAddress")} route="to">
+                  <AddressInput
+                    id="deliveryAddress"
+                    name="deliveryAddress"
+                    defaultValue={values?.deliveryAddress}
+                    className={inputClass}
+                    invalidProps={errorProps("deliveryAddress")}
+                  />
+                </Field>
+                <label className="flex cursor-pointer items-center gap-3 bg-[#EFE9F6] px-4 py-3.5 transition has-[:focus-visible]:shadow-[inset_0_0_0_2px_#925AF4]">
                   <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    placeholder="example@domain.com"
-                    required
-                    autoComplete="email"
-                    maxLength={EMAIL_MAX}
-                    defaultValue={values?.email}
-                    className={inputClass}
-                    {...errorProps("email")}
+                    type="checkbox"
+                    name="recipientIsCustomer"
+                    checked={recipientIsCustomer}
+                    onChange={(e) => setRecipientIsCustomer(e.target.checked)}
+                    className="peer sr-only"
                   />
-                </Field>
+                  <span
+                    aria-hidden
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] border-[1.5px] border-[#1D1425]/50 transition peer-checked:border-[#1D1425] peer-checked:bg-[#1D1425]"
+                  >
+                    <svg viewBox="0 0 12 12" className={`h-3 w-3 text-[#F4EDE1] ${recipientIsCustomer ? "" : "hidden"}`}>
+                      <path d="M2 6.5 4.8 9 10 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </span>
+                  <span className="text-[15px]">Получатель — я сам</span>
+                </label>
+              </Grid>
 
-                <Field label="Телефон" htmlFor="phone" required={isDelivery} error={errorOf("phone")}>
-                  <PhoneInput
-                    id="phone"
-                    name="phone"
-                    autoComplete="tel"
-                    required={isDelivery}
-                    defaultValue={values?.phone}
-                    invalidProps={errorProps("phone")}
-                  />
-                </Field>
+              <DeliveryQuote quote={quote} />
 
-                {isDelivery && customerType === "company" && (
-                  <Field label="IČO компании" htmlFor="ico" required error={errorOf("ico")}>
-                    <IcoField
-                      defaultValue={values?.ico}
-                      className={inputClass}
-                      invalidProps={errorProps("ico")}
-                      hideStatus={Boolean(fieldErrors.ico)}
-                    />
-                  </Field>
-                )}
-
-                {isDelivery && (
-                  <label className="flex w-fit cursor-pointer items-center gap-3 md:col-span-2">
-                    <input
-                      type="checkbox"
-                      name="recipientIsCustomer"
-                      checked={recipientIsCustomer}
-                      onChange={(e) => setRecipientIsCustomer(e.target.checked)}
-                      className="peer sr-only"
-                    />
-                    <span
-                      aria-hidden
-                      className="flex h-5 w-5 items-center justify-center rounded-md border border-hairline-strong bg-bg/40 transition peer-checked:border-brand peer-checked:bg-brand peer-focus-visible:ring-2 peer-focus-visible:ring-brand/50"
-                    >
-                      <svg viewBox="0 0 12 12" className={`h-3 w-3 text-ink ${recipientIsCustomer ? "" : "hidden"}`}>
-                        <path d="M2 6.5 4.8 9 10 3" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </span>
-                    <span className="text-sm text-ink-muted">Я получатель</span>
-                  </label>
-                )}
-              </div>
-            </FormSection>
-
-            {isDelivery && (
-              <FormSection index="02" title="Маршрут">
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-                  <div className="md:col-span-2">
-                    <Field label="Адрес забора" htmlFor="pickupAddress" required error={errorOf("pickupAddress")}>
-                      <AddressInput
-                        id="pickupAddress"
-                        name="pickupAddress"
-                        defaultValue={values?.pickupAddress}
-                        className={inputClass}
-                        invalidProps={errorProps("pickupAddress")}
-                      />
-                    </Field>
-                  </div>
-                  <div className="md:col-span-2">
-                    <Field label="Адрес доставки" htmlFor="deliveryAddress" required error={errorOf("deliveryAddress")}>
-                      <AddressInput
-                        id="deliveryAddress"
-                        name="deliveryAddress"
-                        defaultValue={values?.deliveryAddress}
-                        className={inputClass}
-                        invalidProps={errorProps("deliveryAddress")}
-                      />
-                    </Field>
-                  </div>
+              <details open={extrasOpen} className="group mt-3 border border-[#1D1425]/15">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3.5 text-[15px] transition hover:bg-[#1D1425]/[0.03] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#925AF4] [&::-webkit-details-marker]:hidden">
+                  <span>
+                    {recipientIsCustomer ? "Фото отправления" : "Получатель и фото отправления"}
+                    <span className="ml-2 text-[13px] text-[#1D1425]/70">необязательно</span>
+                  </span>
+                  <ChevronDown size={18} aria-hidden className="shrink-0 transition group-open:rotate-180" />
+                </summary>
+                <div className="grid grid-cols-1 gap-px border-t border-[#1D1425]/15 bg-[#1D1425]/15 sm:grid-cols-2">
                   {!recipientIsCustomer && (
                     <>
                       <Field label="Имя получателя" htmlFor="recipientName" error={errorOf("recipientName")}>
@@ -518,7 +499,7 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                           id="recipientName"
                           name="recipientName"
                           type="text"
-                          placeholder="Пётр Новак"
+                          placeholder="Кто примет отправление"
                           autoComplete="off"
                           maxLength={NAME_MAX}
                           defaultValue={values?.recipientName}
@@ -536,72 +517,81 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                       </Field>
                     </>
                   )}
+                  <div data-cell className="bg-[#EFE9F6] px-4 py-3 sm:col-span-2">
+                    <PhotoField serverError={errorOf("photo")?.text} onBusyChange={setPhotoBusy} />
+                  </div>
                 </div>
-              </FormSection>
+              </details>
+            </Block>
+          )}
+
+          <Block title={isDelivery ? "Отправление и оплата" : "Ваш вопрос"}>
+            {isDelivery && (
+              <fieldset
+                className="mb-3"
+                aria-describedby={fieldErrors.paymentMethod ? "paymentMethod-error" : undefined}
+              >
+                <legend className="mb-2 text-[13px] text-[#1D1425]/70">
+                  Способ оплаты
+                  <RequiredMark />
+                </legend>
+                <div className="grid grid-cols-1 gap-px border border-[#1D1425]/15 bg-[#1D1425]/15 sm:grid-cols-2">
+                  {PAYMENT_METHODS.map((method) => (
+                    <ChoiceCell
+                      key={method}
+                      name="paymentMethod"
+                      value={method}
+                      label={PAYMENT_LABEL[method]}
+                      Icon={PAYMENT_ICON[method]}
+                      defaultChecked={values?.paymentMethod === method}
+                      invalid={Boolean(fieldErrors.paymentMethod)}
+                    />
+                  ))}
+                </div>
+                {errorOf("paymentMethod") && (
+                  <p id="paymentMethod-error" className="mt-2 text-sm text-[#B3261E]">
+                    {errorOf("paymentMethod")?.text}
+                  </p>
+                )}
+              </fieldset>
             )}
 
-            <FormSection index={isDelivery ? "03" : "02"} title={isDelivery ? "Детали заказа" : "Ваш вопрос"}>
-              <div className="space-y-6">
-                {isDelivery && (
-                  <fieldset aria-describedby={fieldErrors?.paymentMethod ? "paymentMethod-error" : undefined}>
-                    <legend className="mb-3 block font-mono text-[11px] uppercase tracking-label text-ink-muted">
-                      Способ оплаты
-                      <span className="ml-1 text-brand-glow">*</span>
-                    </legend>
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      {PAYMENT_METHODS.map((method) => (
-                        <ChoiceCard
-                          key={method}
-                          name="paymentMethod"
-                          value={method}
-                          label={PAYMENT_LABEL[method]}
-                          Icon={PAYMENT_ICON[method]}
-                          defaultChecked={values?.paymentMethod === method}
-                          required
-                          invalid={Boolean(fieldErrors.paymentMethod)}
-                        />
-                      ))}
-                    </div>
-                    {errorOf("paymentMethod") && (
-                      <p id="paymentMethod-error" className="mt-2 text-sm text-red-400">
-                        {errorOf("paymentMethod")?.text}
-                      </p>
-                    )}
-                  </fieldset>
-                )}
+            <Grid single>
+              <Field label={isDelivery ? "Комментарий по заказу" : "Вопрос"} htmlFor="message" required={!isDelivery} error={errorOf("message")}>
+                <textarea
+                  id="message"
+                  name="message"
+                  rows={4}
+                  placeholder={
+                    isDelivery
+                      ? "Ваши заметки по доставке. Например, что нужно доставить, вес и габариты."
+                      : "Опишите ваш вопрос."
+                  }
+                  required={!isDelivery}
+                  maxLength={MESSAGE_MAX}
+                  defaultValue={values?.message}
+                  className={`${inputClass} min-h-[112px] resize-y`}
+                  {...errorProps("message")}
+                />
+              </Field>
+            </Grid>
+          </Block>
 
-                <Field label="Сообщение" htmlFor="message" required error={errorOf("message")}>
-                  <textarea
-                    id="message"
-                    name="message"
-                    rows={5}
-                    placeholder={messagePlaceholder}
-                    required
-                    maxLength={MESSAGE_MAX}
-                    defaultValue={values?.message}
-                    className={`${inputClass} min-h-[140px] resize-y`}
-                    {...errorProps("message")}
-                  />
-                </Field>
-
-                <DeliveryQuote quote={quote} />
-
-                {isDelivery && (
-                  <PhotoField serverError={errorOf("photo")?.text} onBusyChange={setPhotoBusy} />
-                )}
-              </div>
-            </FormSection>
-          </div>
-
-          {Object.keys(fieldErrors).length > 0 && (
-            <div
-              role="alert"
-              className="relative mt-8 rounded-xl border border-red-400/40 bg-red-400/10 px-4 py-3.5 text-sm text-ink"
-            >
+          {errorFields.length > 0 && (
+            <div className="mt-8 border border-[#B3261E]/35 bg-[#B3261E]/[0.06] px-4 py-3.5 text-[15px] leading-relaxed">
               Заполните или исправьте:{" "}
-              {FIELD_ORDER.filter((f) => fieldErrors[f])
-                .map((f) => FIELD_LABEL[f])
-                .join(", ")}
+              {errorFields.map((f, i) => (
+                <span key={f}>
+                  {i > 0 && ", "}
+                  <button
+                    type="button"
+                    onClick={() => focusField(f)}
+                    className="underline decoration-[#B3261E]/50 underline-offset-4 transition hover:decoration-[#B3261E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#925AF4]"
+                  >
+                    {FIELD_LABEL[f]}
+                  </button>
+                </span>
+              ))}
               .
             </div>
           )}
@@ -609,75 +599,184 @@ function LeadForm({ onReset }: { onReset: () => void }) {
           {formError && (
             <div
               role="alert"
-              className="relative mt-6 rounded-xl border border-red-400/40 bg-red-400/10 px-4 py-3.5 text-sm text-ink"
+              className="mt-6 border border-[#B3261E]/35 bg-[#B3261E]/[0.06] px-4 py-3.5 text-[15px] leading-relaxed"
             >
               {FORM_ERROR_TEXT[formError]}{" "}
-              <a href={SUPPORT_PHONE_HREF} className="font-mono text-brand-glow underline-offset-4 hover:underline">
+              <a href={SUPPORT_PHONE_HREF} className="font-medium tabular-nums underline underline-offset-4">
                 {SUPPORT_PHONE}
               </a>
             </div>
           )}
 
-          {/* Divider */}
-          <div className="relative my-8 h-px w-full bg-hairline-strong" />
-
-          {/* Footer row */}
-          <div className="relative flex flex-col-reverse items-start gap-6 sm:flex-row sm:items-center sm:justify-between">
-            <p className="max-w-md text-xs leading-relaxed text-ink-dim">
-              Отправляя форму, вы соглашаетесь с обработкой персональных
-              данных в соответствии с политикой конфиденциальности.
-            </p>
+          <div className="mt-8 flex flex-col gap-5 sm:flex-row-reverse sm:items-center sm:justify-between">
             <button
               type="submit"
               disabled={pending || photoBusy}
               aria-busy={pending || photoBusy}
-              className="group inline-flex items-center gap-2 rounded-full bg-ink px-7 py-4 font-mono text-[11px] uppercase tracking-label text-bg transition hover:bg-brand hover:text-ink disabled:cursor-wait disabled:opacity-60"
+              className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#1D1425] px-7 py-4 text-[15px] font-medium text-[#F4EDE1] transition hover:bg-brand focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#925AF4] disabled:cursor-wait disabled:opacity-60 sm:w-auto sm:shrink-0"
             >
-              {pending ? "Отправляем…" : "Отправить"}
+              {pending ? "Отправляем…" : photoBusy ? "Обрабатываем фото…" : isDelivery ? "Отправить заявку" : "Отправить вопрос"}
               <ArrowUpRight
-                size={14}
+                size={16}
+                aria-hidden
                 className="transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
               />
             </button>
+            <p className="max-w-md text-[13px] leading-relaxed text-[#1D1425]/70">
+              Отправляя форму, вы соглашаетесь с обработкой персональных
+              данных в соответствии с политикой конфиденциальности.
+            </p>
           </div>
+
+          {/* Под кнопкой — только страховка и только для доставки; у вопроса строки нет. */}
+          {isDelivery && (
+            <p className="mt-6 flex items-center gap-2 border-t border-dotted border-[#B8ADC6] pt-5 text-sm text-[#1D1425]/70">
+              <ShieldCheck size={16} aria-hidden className="shrink-0 text-[#925AF4]" />
+              Отправление застраховано
+            </p>
+          )}
         </>
       )}
     </form>
   );
 }
 
-/** Блок формы с номером и заголовком — визуально делит длинную форму на шаги. */
-function FormSection({
-  index,
-  title,
-  children,
+/**
+ * Квитанция после отправки: что будет дальше и печать Skoro.
+ * Печать «опускается» на лист один раз — единственное движение формы.
+ */
+function Receipt({
+  kind,
+  audience,
+  onReset,
 }: {
-  index: string;
-  title: string;
-  children: ReactNode;
+  kind: LeadKind;
+  audience: Audience;
+  onReset: () => void;
 }) {
+  const ref = useReveal<HTMLDivElement>();
+  const headingRef = useRef<HTMLHeadingElement>(null);
+
+  // Кнопка отправки исчезла: переводим фокус и экран на квитанцию, чтобы не потерять пользователя.
+  useEffect(() => {
+    const heading = headingRef.current;
+    heading?.focus({ preventScroll: true });
+    heading?.closest("form")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+
+  const steps =
+    kind === "question"
+      ? ["Ответим в течение рабочего дня — на email или по телефону."]
+      : audience === "business"
+        ? [
+            "Менеджер позвонит в течение рабочего дня.",
+            "Уточним задачи, объёмы и цену.",
+            "Заключим договор и подключим вас за 1 рабочий день.",
+          ]
+        : ["Менеджер позвонит в течение рабочего дня.", "Уточним детали и стоимость доставки."];
+
+  const date = new Intl.DateTimeFormat("ru-RU", {
+    day: "numeric",
+    month: "long",
+    timeZone: "Europe/Prague",
+  }).format(new Date());
+
   return (
-    <section>
-      <div className="mb-5 flex items-center gap-3">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-brand/40 bg-brand/10 font-mono text-[10px] text-brand-glow">
-          {index}
-        </span>
-        <h4 className="font-mono text-[11px] uppercase tracking-label text-ink">{title}</h4>
-        <span aria-hidden className="h-px flex-1 bg-hairline" />
+    <div ref={ref} data-reveal role="status" className="relative pb-24 sm:pb-0">
+      <div className="flex items-baseline justify-between gap-4 border-b border-[#1D1425]/80 pb-5">
+        <h3 ref={headingRef} tabIndex={-1} className="font-display text-2xl leading-tight focus:outline-none sm:text-3xl">
+          {kind === "question" ? "Вопрос получен" : "Заявка принята"}
+        </h3>
+        <span className="shrink-0 text-sm text-[#1D1425]/70">{date}</span>
+      </div>
+
+      <p className="mt-6 text-[13px] text-[#1D1425]/70">Что дальше</p>
+      <ol className="mt-3 max-w-[30rem] space-y-3">
+        {steps.map((step, i) => (
+          <li key={step} className="flex gap-3 text-base leading-snug sm:text-lg">
+            <span className="w-5 shrink-0 font-display text-[#925AF4]">{i + 1}</span>
+            {step}
+          </li>
+        ))}
+      </ol>
+
+      <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+        <button
+          type="button"
+          onClick={onReset}
+          className="inline-flex items-center rounded-full border border-[#1D1425]/30 px-6 py-3.5 text-[15px] transition hover:border-[#1D1425] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#925AF4]"
+        >
+          Отправить ещё одну
+        </button>
+        <a href={SUPPORT_PHONE_HREF} className="text-[15px] text-[#1D1425]/70 underline decoration-[#1D1425]/30 underline-offset-4 transition hover:text-[#1D1425]">
+          Срочно? {SUPPORT_PHONE}
+        </a>
+      </div>
+
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -bottom-4 right-0 select-none opacity-0 mix-blend-multiply transition-[opacity,transform] delay-200 duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] [transform:rotate(-12deg)_scale(1.5)] motion-reduce:opacity-90 motion-reduce:transition-none motion-reduce:[transform:rotate(-12deg)] sm:bottom-0 sm:right-2 [.is-visible_&]:opacity-90 [.is-visible_&]:[transform:rotate(-12deg)_scale(1)]"
+      >
+        <SkoroStamp top="SKORO U VÁS · KURÝRNÍ SLUŽBA" bottom="PŘIJATO" className="h-28 w-28 sm:h-40 sm:w-40" />
+      </div>
+    </div>
+  );
+}
+
+/** Переключение версии сайта текстовой ссылкой: второй переключатель-«таблетка» до полей не нужен. */
+function AudienceToggle({ audience }: { audience: Audience }) {
+  const next: Audience = audience === "business" ? "personal" : "business";
+  return (
+    <button
+      type="button"
+      onClick={() => setAudience(next)}
+      className="text-sm text-[#1D1425]/70 underline decoration-[#1D1425]/30 underline-offset-4 transition hover:text-[#1D1425] hover:decoration-[#925AF4] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#925AF4]"
+    >
+      {audience === "business" ? "Заказываете как частное лицо?" : "Заказываете для компании?"}
+    </button>
+  );
+}
+
+/** Раздел накладной: подпись и, при необходимости, действие справа. */
+function Block({ title, aside, children }: { title: string; aside?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="mt-8">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h4 className="text-[15px] font-semibold">{title}</h4>
+        {aside}
       </div>
       {children}
     </section>
   );
 }
 
-/** Карточка выбора (radio) с иконкой. */
-function ChoiceCard({
+/** Ячейки бланка: линии между ними — это просвет фона сетки (gap-px). */
+function Grid({ single, children }: { single?: boolean; children: ReactNode }) {
+  return (
+    <div
+      className={`grid grid-cols-1 gap-px border border-[#1D1425]/15 bg-[#1D1425]/15 ${single ? "" : "sm:grid-cols-2"}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function RequiredMark() {
+  return (
+    <>
+      <span aria-hidden className="ml-0.5 text-[#925AF4]">*</span>
+      <span className="sr-only"> (обязательно)</span>
+    </>
+  );
+}
+
+/** Ячейка выбора (radio) с иконкой. */
+function ChoiceCell({
   name,
   value,
   label,
   Icon,
   defaultChecked,
-  required,
   invalid,
 }: {
   name: string;
@@ -685,32 +784,29 @@ function ChoiceCard({
   label: string;
   Icon: LucideIcon;
   defaultChecked?: boolean;
-  required?: boolean;
   invalid?: boolean;
 }) {
   return (
-    <label className="group relative cursor-pointer">
+    <label
+      className={`flex cursor-pointer items-center gap-3 px-4 py-3.5 transition has-[:checked]:bg-[#E3D8F2] has-[:focus-visible]:shadow-[inset_0_0_0_2px_#925AF4] ${
+        invalid ? "bg-[#F6E4E6]" : "bg-[#EFE9F6] hover:bg-[#E9E1F3]"
+      }`}
+    >
       <input
         type="radio"
         name={name}
         value={value}
-        required={required}
+        required
         defaultChecked={defaultChecked}
         className="peer sr-only"
       />
-      <span className={`flex items-center gap-3 rounded-2xl border bg-bg/40 p-3.5 transition ${invalid ? "border-red-400/70" : "border-hairline-strong"} hover:border-ink/30 peer-checked:border-brand/70 peer-checked:bg-brand/10 peer-focus-visible:ring-2 peer-focus-visible:ring-brand/50`}>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-ink-muted transition group-has-[:checked]:bg-brand group-has-[:checked]:text-ink">
-          <Icon size={18} aria-hidden />
-        </span>
-        <span className="flex-1 font-mono text-sm text-ink-muted transition group-has-[:checked]:text-ink">
-          {label}
-        </span>
-        <span
-          aria-hidden
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-hairline-strong transition group-has-[:checked]:border-brand"
-        >
-          <span className="h-2.5 w-2.5 scale-0 rounded-full bg-brand transition group-has-[:checked]:scale-100" />
-        </span>
+      <Icon size={20} aria-hidden className="shrink-0 text-[#1D1425]/70 peer-checked:text-[#925AF4]" />
+      <span className="flex-1 text-base">{label}</span>
+      <span
+        aria-hidden
+        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-[1.5px] border-[#1D1425]/50 transition peer-checked:border-[#1D1425]"
+      >
+        <span className="h-2.5 w-2.5 scale-0 rounded-full bg-[#1D1425] transition [label:has(:checked)_&]:scale-100" />
       </span>
     </label>
   );
@@ -720,30 +816,50 @@ function Field({
   label,
   htmlFor,
   required,
-  hint,
   error,
+  wide,
+  route,
   children,
 }: {
   label: string;
   htmlFor: string;
   required?: boolean;
-  hint?: string;
   error?: { id: string; text: string };
+  wide?: boolean;
+  /** Точка маршрута слева: «откуда» — кольцо, «куда» — заливка; между ними пунктир. */
+  route?: "from" | "to";
   children: ReactNode;
 }) {
   return (
-    <div>
-      <label
-        htmlFor={htmlFor}
-        className="mb-3 block font-mono text-[11px] uppercase tracking-label text-ink-muted"
-      >
+    <div
+      data-cell
+      className={`relative px-4 pb-3 pt-3 transition focus-within:shadow-[inset_0_0_0_2px_#925AF4] ${
+        error ? "bg-[#F6E4E6]" : "bg-[#EFE9F6] focus-within:bg-[#F5F1FA]"
+      } ${wide ? "sm:col-span-2" : ""} ${route ? "pl-11" : ""}`}
+    >
+      {route && (
+        <>
+          <span
+            aria-hidden
+            className={`absolute left-4 top-[2.625rem] h-3 w-3 rounded-full ${
+              route === "from" ? "border-2 border-[#1D1425] bg-[#EFE9F6]" : "bg-[#925AF4]"
+            }`}
+          />
+          <span
+            aria-hidden
+            className={`absolute left-[21px] w-0 border-l-2 border-dashed border-[#1D1425]/35 ${
+              route === "from" ? "-bottom-px top-[3.375rem]" : "-top-px h-[2.7rem]"
+            }`}
+          />
+        </>
+      )}
+      <label htmlFor={htmlFor} className="block text-[13px] leading-5 text-[#1D1425]/70">
         {label}
-        {required && <span className="ml-1 text-brand-glow">*</span>}
+        {required && <RequiredMark />}
       </label>
       {children}
-      {hint && <p className="mt-2 text-xs text-ink-dim">{hint}</p>}
       {error && (
-        <p id={error.id} className="mt-2 text-sm text-red-400">
+        <p id={error.id} className="mt-1.5 text-sm text-[#B3261E]">
           {error.text}
         </p>
       )}

@@ -37,7 +37,8 @@ export function checkRequiredFields(input: ClientCheckInput): Partial<Record<Lea
 
   if (!has(input.email)) errors.email = "required";
   else if (!EMAIL_RE.test(input.email.trim())) errors.email = "invalid";
-  if (!has(input.message)) errors.message = "required";
+  // Комментарий к доставке необязателен, текст вопроса — обязателен.
+  if (input.kind !== "delivery" && !has(input.message)) errors.message = "required";
 
   if (input.kind === "delivery") {
     if (!has(input.phone)) errors.phone = "required";

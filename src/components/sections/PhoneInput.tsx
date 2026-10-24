@@ -37,7 +37,9 @@ export function PhoneInput({
   // Копия значения неуправляемого поля — только чтобы показывать флаг.
   const [value, setValue] = useState(defaultValue ?? "");
   const [open, setOpen] = useState(false);
-  const country = detectPhoneCountry(value);
+  // Номер без кода страны считается чешским — флаг CZ показываем сразу, глобус только для неизвестного кода.
+  const country =
+    detectPhoneCountry(value) ?? (/^\s*(\+|00)/.test(value) ? null : PHONE_COUNTRIES[0]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,7 +87,7 @@ export function PhoneInput({
         }
       }}
     >
-      <div className="flex items-stretch overflow-hidden rounded-xl border border-hairline-strong bg-bg/40 transition focus-within:border-brand/60 has-[[aria-invalid=true]]:border-red-400/70">
+      <div className="flex items-center gap-2">
         <button
           type="button"
           aria-label={country ? `Код страны: ${country.name}` : "Выбрать код страны"}
@@ -93,7 +95,7 @@ export function PhoneInput({
           aria-expanded={open}
           aria-controls={listId}
           onClick={() => setOpen((o) => !o)}
-          className="flex items-center gap-1.5 border-r border-hairline-strong px-3 text-ink-muted transition hover:bg-ink/5 hover:text-ink"
+          className="-ml-1 flex items-center gap-1 rounded-[4px] px-1 py-1 text-[#1D1425]/70 transition hover:bg-[#1D1425]/5 hover:text-[#1D1425] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#925AF4]"
         >
           {country ? (
             <span className="text-base leading-none">{countryFlag(country.code)}</span>
@@ -114,7 +116,7 @@ export function PhoneInput({
           maxLength={PHONE_LOCAL_MAX}
           defaultValue={defaultValue}
           onChange={(e) => reformat(e.currentTarget)}
-          className="min-w-0 flex-1 bg-transparent px-4 py-3.5 font-mono text-sm text-ink placeholder:text-ink-dim focus:outline-none"
+          className="min-w-0 flex-1 border-l border-[#1D1425]/15 bg-transparent py-1 pl-3 text-base tabular-nums text-[#1D1425] placeholder:text-[#1D1425]/60 focus:outline-none"
           {...invalidProps}
         />
       </div>
@@ -124,20 +126,20 @@ export function PhoneInput({
           id={listId}
           role="listbox"
           aria-label="Код страны"
-          className="absolute left-0 top-full z-30 mt-2 max-h-72 w-72 overflow-y-auto rounded-xl border border-hairline-strong bg-bg-soft py-1 shadow-card"
+          className="absolute left-0 top-full z-30 mt-2 max-h-72 w-72 overflow-y-auto rounded-[4px] border border-[#1D1425]/15 bg-[#FBF8FE] py-1 shadow-[0_18px_40px_-16px_rgba(29,20,37,0.45)]"
         >
           {PHONE_COUNTRIES.map((c) => (
             <li key={c.code} role="option" aria-selected={country?.code === c.code}>
               <button
                 type="button"
                 onClick={() => pick(c)}
-                className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm text-ink transition hover:bg-brand/15 ${
-                  country?.code === c.code ? "bg-brand/10" : ""
+                className={`flex w-full items-center gap-3 px-4 py-2.5 text-left text-[15px] text-[#1D1425] transition hover:bg-[#925AF4]/10 ${
+                  country?.code === c.code ? "bg-[#925AF4]/15" : ""
                 }`}
               >
                 <span className="text-base leading-none">{countryFlag(c.code)}</span>
                 <span className="flex-1">{c.name}</span>
-                <span className="font-mono text-xs text-ink-dim">{c.dial}</span>
+                <span className="text-sm tabular-nums text-[#1D1425]/70">{c.dial}</span>
               </button>
             </li>
           ))}

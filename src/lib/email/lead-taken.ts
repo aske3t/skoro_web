@@ -17,7 +17,7 @@ export type LeadTakenInput = {
   recipient_name: string | null;
   recipient_phone: string | null;
   payment_method: string | null;
-  message: string;
+  message: string | null; // комментарий к доставке необязателен (P-36)
 };
 
 const SUPPORT_PHONE = "+420 795 402 571";
@@ -83,7 +83,7 @@ export function buildLeadTakenEmail(
       t.payment,
       lead.payment_method ? (t.paymentLabel[lead.payment_method] ?? lead.payment_method) : "—",
     ],
-    ...(lead.message.trim()
+    ...(lead.message?.trim()
       ? [[t.note, truncate(lead.message, MESSAGE_PREVIEW_MAX)] as [string, string]]
       : []),
   ];

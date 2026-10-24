@@ -62,7 +62,7 @@ export type Database = {
           ip_hash: string | null
           kind: string
           last_name: string | null
-          message: string
+          message: string | null
           number: number | null
           payment_method: string | null
           phone: string | null
@@ -89,7 +89,7 @@ export type Database = {
           ip_hash?: string | null
           kind: string
           last_name?: string | null
-          message: string
+          message?: string | null
           number?: number | null
           payment_method?: string | null
           phone?: string | null
@@ -116,7 +116,7 @@ export type Database = {
           ip_hash?: string | null
           kind?: string
           last_name?: string | null
-          message?: string
+          message?: string | null
           number?: number | null
           payment_method?: string | null
           phone?: string | null

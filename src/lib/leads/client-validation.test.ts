@@ -29,7 +29,6 @@ describe("checkRequiredFields", () => {
   it("lists every missing required field of a business delivery", () => {
     expect(checkRequiredFields(empty)).toEqual({
       email: "required",
-      message: "required",
       phone: "required",
       pickupAddress: "required",
       deliveryAddress: "required",
@@ -47,6 +46,10 @@ describe("checkRequiredFields", () => {
       email: "invalid",
       ico: "invalid",
     });
+  });
+
+  it("does not require a comment for deliveries", () => {
+    expect(checkRequiredFields({ ...filled, message: "  " })).toEqual({});
   });
 
   it("does not require IČO from private persons", () => {

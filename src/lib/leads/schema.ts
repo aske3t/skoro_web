@@ -185,11 +185,12 @@ const baseLeadSchema = z.object({
       }
       return phone;
     }),
+  // Обязателен только для вопроса (проверка в transform ниже); к доставке — необязательный комментарий.
   message: z
     .string()
     .trim()
-    .min(1, "required")
-    .max(MESSAGE_MAX, "too_long"),
+    .max(MESSAGE_MAX, "too_long")
+    .transform((v) => v || null),
   utm: z
     .string()
     .optional()
@@ -225,10 +226,13 @@ export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
     ico: null,
     recipientIsCustomer: false,
   };
-  if (lead.kind !== "delivery") return { ...lead, ...empty };
-
   const fail = (path: LeadField, message: FieldErrorCode) =>
     ctx.addIssue({ code: "custom", message, path: [path] });
+
+  if (lead.kind !== "delivery") {
+    if (!lead.message) fail("message", "required");
+    return { ...lead, ...empty };
+  }
 
   if (!lead.pickupAddress) fail("pickupAddress", "required");
   if (!lead.deliveryAddress) fail("deliveryAddress", "required");

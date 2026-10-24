@@ -19,15 +19,21 @@ export function IcoField({
   className,
   invalidProps,
   hideStatus,
+  onCompanyChange,
 }: {
   defaultValue?: string;
   className: string;
   invalidProps: Record<string, unknown>;
   hideStatus?: boolean; // при ошибке поля текст ошибки показывает Field
+  onCompanyChange?: (name: string | null) => void; // название найденной в ARES фирмы — для шапки формы
 }) {
   const [ico, setIco] = useState(() => normalizeIco(defaultValue ?? ""));
   const [status, setStatus] = useState<Status>({ state: "idle" });
   const requestRef = useRef(0);
+
+  useEffect(() => {
+    onCompanyChange?.("status" in status && status.status === "found" ? status.name : null);
+  }, [status, onCompanyChange]);
 
   useEffect(() => {
     const requestId = ++requestRef.current;
@@ -74,37 +80,37 @@ export function IcoField({
 
 function IcoStatus({ status }: { status: Status }) {
   const line = (icon: React.ReactNode, text: React.ReactNode, tone: string) => (
-    <p id="ico-status" role="status" className={`mt-2 flex items-start gap-1.5 text-sm ${tone}`}>
-      <span className="mt-0.5 shrink-0">{icon}</span>
+    <p id="ico-status" role="status" className={`mt-1.5 flex items-start gap-1.5 text-sm ${tone}`}>
+      {icon && <span className="mt-0.5 shrink-0">{icon}</span>}
       <span>{text}</span>
     </p>
   );
 
   if ("state" in status) {
     return status.state === "checking"
-      ? line(<LoaderCircle size={14} className="animate-spin" />, "Проверяем в реестре ARES…", "text-ink-dim")
-      : line(null, "Проверим фирму в реестре ARES.", "text-xs text-ink-dim");
+      ? line(<LoaderCircle size={14} className="animate-spin" />, "Проверяем в реестре ARES…", "text-[#1D1425]/70")
+      : line(null, "Проверим фирму в реестре ARES.", "text-[13px] text-[#1D1425]/70");
   }
   switch (status.status) {
     case "found":
       return line(
         <CircleCheck size={14} />,
         <>
-          <span className="text-ink">{status.name}</span> — найдена в ARES
+          <span className="font-medium text-[#1D1425]">{status.name}</span> — найдена в ARES
         </>,
-        "text-emerald-400",
+        "text-[#1E6B3A]",
       );
     case "inactive":
-      return line(<CircleX size={14} />, `${status.name} — по данным ARES фирма закрыта.`, "text-red-400");
+      return line(<CircleX size={14} />, `${status.name} — по данным ARES фирма закрыта.`, "text-[#B3261E]");
     case "not_found":
-      return line(<CircleX size={14} />, "Фирма с таким IČO не найдена в ARES.", "text-red-400");
+      return line(<CircleX size={14} />, "Фирма с таким IČO не найдена в ARES.", "text-[#B3261E]");
     case "invalid":
-      return line(<CircleX size={14} />, "Проверьте IČO: контрольная цифра не сходится.", "text-red-400");
+      return line(<CircleX size={14} />, "Проверьте IČO: контрольная цифра не сходится.", "text-[#B3261E]");
     case "unavailable":
       return line(
         <TriangleAlert size={14} />,
         "ARES сейчас не отвечает — проверим при отправке.",
-        "text-amber-300",
+        "text-[#8A5300]",
       );
   }
 }
