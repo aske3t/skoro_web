@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight } from "lucide-react";
+import { ArrowDownRight } from "lucide-react";
 import { useReveal } from "@/lib/useReveal";
 import { SkoroStamp } from "./SkoroStamp";
 
@@ -12,7 +12,7 @@ const CONTENT = {
   // Заголовок уже выводится внутри <h2>, поэтому здесь фрагмент, а не второй <h2>.
   title: <>Договор под <span className="italic text-brand-glow">ваш бизнес</span> вместо общего прайса</>,
   text:
-    "Если доставок много или они регулярные, закрепим цену и условия в индивидуальном договоре и возьмём логистику целиком: забор, доставку, возвраты и документы.",
+    "Если доставок много или они регулярные, закрепим цену и условия в индивидуальном договоре и возьмём логистику целиком: забор, доставку, возвраты и закупки.",
   cta: "Обсудить договор",
   ctaHref: "#contact",
   note: "Ответим в течение рабочего дня",
@@ -21,16 +21,16 @@ const CONTENT = {
     number: "№ ______",
     terms: [
       { label: "Заказчик", value: "Ваша компания" },
-      { label: "Цена", value: "Фиксируем под ваш объём" },
-      { label: "Маршруты", value: "Ваши точки и график" },
-      { label: "Возвраты и выкуп", value: "Берём на себя" },
-      { label: "Документы", value: "Акты, реестры, выгрузка в 1С" },
+      { label: "Цена", value: "Фиксируем под ваш объём и задачи" },
+      { label: "Маршруты", value: "Под ваш график и точки" },
+      { label: "Сервис", value: "Как личный курьер" },
+      { label: "Отчетность", value: "В удобном формате через нашу CRM" },
       { label: "Контакт", value: "Личный менеджер" },
     ],
     signature: "Подпись заказчика",
     // Печать из логотипа: текст по кругу сверху и снизу.
     stampTop: "SKORO U VÁS · KURÝRNÍ SLUŽBA",
-    stampBottom: "BRNO · ČR",
+    stampBottom: "ČR a dál",
   },
 };
 
@@ -59,10 +59,10 @@ export default function Individual() {
               className="group inline-flex items-center gap-2.5 rounded-full bg-brand px-7 py-4 text-sm font-medium text-ink transition hover:bg-brand-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-brand-glow"
             >
               {CONTENT.cta}
-              <ArrowUpRight
+              <ArrowDownRight
                 size={16}
                 aria-hidden
-                className="transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+                className="transition group-hover:-translate-x-0.5 group-hover:translate-y-0.5"
               />
             </a>
             <span className="text-sm text-ink-dim">{CONTENT.note}</span>

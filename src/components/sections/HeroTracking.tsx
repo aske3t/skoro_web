@@ -19,7 +19,7 @@ export default function HeroTracking() {
           {/* Manifest tag */}
           <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
             <span className="inline-block h-px w-8 bg-ink-muted" />
-            Доставка для бизнеса
+            Больше, чем курьер
           </div>
 
           {/* Кто клиент: от выбора зависят версии сайта (сейчас — форма заявки, P-31). */}

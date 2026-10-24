@@ -137,7 +137,7 @@ export function CouponBox({ coupons, label }: { coupons: [Coupon, Coupon]; label
         <path d={PATHS.body} fill={`url(#${clipId}-body)`} />
         <image
           href="/images/home/skoro_cropped.png"
-          x="210"
+          x="190"
           y="236"
           width="236"
           height="60"
