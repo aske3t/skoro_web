@@ -107,10 +107,15 @@ npm run bot:commands
 
 ## Вебхук (после релиза в `main`)
 
-Не настроено в этом шаге. Будет: отдельный скрипт `setWebhook` на
-`https://skorouvas.cz/api/telegram/dispatch` с `secret_token` и `allowed_updates`, после того как
-`dev` → `main`. Preview-адреса Vercel закрыты авторизацией, Telegram до них не достучится — вебхук
-только на прод-домен.
+`npm run bot:webhook` (`scripts/telegram-set-webhook.mts`) ставит вебхук на
+`https://skorouvas.cz/api/telegram/dispatch` с `secret_token` и `allowed_updates: message, callback_query`,
+сбрасывает накопившиеся обновления и печатает `getWebhookInfo`. Preview-адреса Vercel закрыты
+авторизацией, Telegram до них не достучится — вебхук только на прод-домен.
+
+- Секрет берётся из `TELEGRAM_WEBHOOK_SECRET` окружения (переменная окружения важнее `.env.local`)
+  и должен совпадать со значением в Vercel (Production), иначе route отвечает 401.
+- `npm run bot:webhook -- --delete` снимает вебхук (откат; после этого снова работает `bot:dev`).
+- Пока вебхук стоит, `bot:dev` откажется стартовать — так задумано.
 
 ## История шагов
 

@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "bot:dev": "node --env-file-if-exists=.env.local --conditions=react-server scripts/telegram-bot-dev.mts",
-    "bot:commands": "node --env-file-if-exists=.env.local --conditions=react-server scripts/telegram-bot-commands.mts"
+    "bot:commands": "node --env-file-if-exists=.env.local --conditions=react-server scripts/telegram-bot-commands.mts",
+    "bot:webhook": "node --env-file-if-exists=.env.local --conditions=react-server scripts/telegram-set-webhook.mts"
   },
   "dependencies": {
     "@googlemaps/js-api-loader": "^2.0.2",
