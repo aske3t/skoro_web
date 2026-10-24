@@ -7,7 +7,7 @@ import Promotions from "@/components/sections/Promotions";
 import ContactForm from "@/components/sections/ContactForm";
 import MarqueeTicker from "@/components/ornaments/MarqueeTicker";
 import Abons from "@/components/sections/Abons"
-
+import Individual from "@/components/sections/Individual";
 export default function Home() {
   return (
     <>
@@ -17,6 +17,7 @@ export default function Home() {
       <WhySkoro />
       <Tariffs />
       <Abons />
+      <Individual />
       <Cooperation />
       <Promotions />
       <ContactForm />

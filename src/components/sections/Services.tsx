@@ -104,8 +104,6 @@ export default function Services() {
         <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-end">
           <div>
             <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-bg/80">
-              <span className="inline-block h-px w-8 bg-bg/50" />
-              Проблемы · 4 причины
             </div>
             <h2 className="mt-5 max-w-3xl font-display text-[clamp(2.25rem,6vw,4.5rem)] font-normal leading-[1] tracking-[-0.02em] text-bg">
               Почему мы
@@ -117,16 +115,6 @@ export default function Services() {
             Четыре узких места, с которыми чаще всего приходят к нам. Отметьте
             знакомое — с него и начнём.
           </p>
-        </div>
-
-        {/* Counter strip */}
-        <div className="mt-12 flex items-center gap-5 border-y border-bg/15 py-3.5 font-mono text-[11px] uppercase tracking-label text-bg/60">
-          <span>Обнаружено</span>
-          <span className="font-display text-[22px] italic leading-none text-bg">
-            04
-          </span>
-          <span className="h-px flex-1 bg-bg/10" />
-          <span className="hidden sm:inline">Обновлено · Q2 · 2026</span>
         </div>
 
         {/* Cards — asymmetric 2x2 */}

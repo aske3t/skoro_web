@@ -68,10 +68,6 @@ export default function Abons() {
         {/* Section header */}
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_1fr] lg:gap-12">
           <div>
-            <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
-              <span className="inline-block h-px w-8 bg-ink-muted" />
-              Абонементы · фиксированная цена
-            </div>
             <h2 className="mt-5 max-w-2xl font-display text-[clamp(1.75rem,4.5vw,3rem)] font-normal leading-[1.05] tracking-[-0.02em] text-ink">
               Больше выгоды с{" "}
               <span className="italic text-brand-glow">абонементами!</span>

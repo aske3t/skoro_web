@@ -47,66 +47,81 @@ export type Database = {
       leads: {
         Row: {
           client_notified_at: string | null
+          company_name: string | null
           created_at: string
+          customer_type: string | null
           delivery_address: string | null
           email: string
           first_name: string | null
           handled_at: string | null
           handled_by_name: string | null
           handled_by_tg_id: number | null
+          ico: string | null
+          ico_verified: boolean | null
           id: string
           ip_hash: string | null
           kind: string
           last_name: string | null
-          message: string
+          message: string | null
           number: number | null
           payment_method: string | null
           phone: string | null
           pickup_address: string | null
+          recipient_name: string | null
           recipient_phone: string | null
           status: string
           utm: Json | null
         }
         Insert: {
           client_notified_at?: string | null
+          company_name?: string | null
           created_at?: string
+          customer_type?: string | null
           delivery_address?: string | null
           email: string
           first_name?: string | null
           handled_at?: string | null
           handled_by_name?: string | null
           handled_by_tg_id?: number | null
+          ico?: string | null
+          ico_verified?: boolean | null
           id?: string
           ip_hash?: string | null
           kind: string
           last_name?: string | null
-          message: string
+          message?: string | null
           number?: number | null
           payment_method?: string | null
           phone?: string | null
           pickup_address?: string | null
+          recipient_name?: string | null
           recipient_phone?: string | null
           status?: string
           utm?: Json | null
         }
         Update: {
           client_notified_at?: string | null
+          company_name?: string | null
           created_at?: string
+          customer_type?: string | null
           delivery_address?: string | null
           email?: string
           first_name?: string | null
           handled_at?: string | null
           handled_by_name?: string | null
           handled_by_tg_id?: number | null
+          ico?: string | null
+          ico_verified?: boolean | null
           id?: string
           ip_hash?: string | null
           kind?: string
           last_name?: string | null
-          message?: string
+          message?: string | null
           number?: number | null
           payment_method?: string | null
           phone?: string | null
           pickup_address?: string | null
+          recipient_name?: string | null
           recipient_phone?: string | null
           status?: string
           utm?: Json | null

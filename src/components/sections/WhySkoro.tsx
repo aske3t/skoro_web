@@ -76,10 +76,6 @@ export default function WhySkoro() {
         {/* Top row — title & stats */}
         <div className="grid grid-cols-1 gap-14 lg:grid-cols-[1.2fr_1fr]">
           <div>
-            <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
-              <span className="inline-block h-px w-8 bg-ink-muted" />
-              Решение · почему&nbsp;мы?
-            </div>
             <h2 className="mt-6 max-w-2xl font-display text-[clamp(2.25rem,6vw,4.75rem)] font-normal leading-[1] tracking-[-0.02em] text-ink">
               Нет нужды искать курьера под каждую задачу.
               <br />

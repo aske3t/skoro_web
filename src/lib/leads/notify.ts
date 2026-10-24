@@ -17,13 +17,18 @@ export type LeadNotification = Pick<
   | "utm"
   | "pickup_address"
   | "delivery_address"
+  | "recipient_name"
   | "recipient_phone"
   | "payment_method"
+  | "customer_type"
+  | "ico"
+  | "company_name"
+  | "ico_verified"
 >;
 
 /** Колонки, нужные для уведомления; тот же список читает бот при правке сообщения. */
 export const LEAD_NOTIFICATION_COLUMNS =
-  "id, number, created_at, kind, first_name, last_name, email, phone, message, utm, pickup_address, delivery_address, recipient_phone, payment_method" as const;
+  "id, number, created_at, kind, first_name, last_name, email, phone, message, utm, pickup_address, delivery_address, recipient_name, recipient_phone, payment_method, customer_type, ico, company_name, ico_verified" as const;
 
 type LeadNotifier = (
   text: string,
@@ -73,12 +78,24 @@ function escapeAndTruncate(value: string, max: number): string {
   return out;
 }
 
+/** Строка о клиенте: компания с IČO и результатом ARES или частное лицо. Старые заявки — без строки. */
+function customerLine(lead: LeadNotification): string[] {
+  if (lead.customer_type === "person") return ["Клиент: частное лицо"];
+  if (lead.customer_type !== "company") return [];
+  const name = lead.company_name ? ` «${escapeHtml(lead.company_name)}»` : "";
+  const ico = lead.ico ? ` · IČO ${escapeHtml(lead.ico)}` : "";
+  const check = lead.ico_verified ? " ✅ ARES" : " ⚠️ ARES недоступен, не проверено";
+  return [`Клиент: компания${name}${ico}${check}`];
+}
+
 function deliveryLines(lead: LeadNotification): string[] {
   const phoneLink = (phone: string) =>
     `<a href="tel:${escapeHtml(phone)}">${escapeHtml(phone)}</a>`;
   return [
+    ...customerLine(lead),
     `Забор: ${lead.pickup_address ? escapeHtml(lead.pickup_address) : "—"}`,
     `Доставка: ${lead.delivery_address ? escapeHtml(lead.delivery_address) : "—"}`,
+    `Получатель: ${lead.recipient_name ? escapeHtml(lead.recipient_name) : "—"}`,
     `Тел. получателя: ${lead.recipient_phone ? phoneLink(lead.recipient_phone) : "—"}`,
     `Оплата: ${
       lead.payment_method
@@ -122,9 +139,10 @@ export function formatLeadMessage(lead: LeadNotification, note?: string): string
     MESSAGE_PREVIEW_MAX,
     TELEGRAM_TEXT_LIMIT - header.length - footer.length - 8,
   );
-  const message = escapeAndTruncate(lead.message, Math.max(budget, 0));
+  // Комментарий к доставке необязателен: без него блок сообщения не выводим.
+  const message = lead.message ? escapeAndTruncate(lead.message, Math.max(budget, 0)) : null;
 
-  return `${header}\n\n${message}\n\n${footer}`;
+  return [header, message, footer].filter(Boolean).join("\n\n");
 }
 
 const sendTelegram: LeadNotifier = async (text, lead, photo) => {

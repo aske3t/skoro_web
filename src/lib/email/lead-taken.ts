@@ -14,9 +14,10 @@ export type LeadTakenInput = {
   first_name: string | null;
   pickup_address: string | null;
   delivery_address: string | null;
+  recipient_name: string | null;
   recipient_phone: string | null;
   payment_method: string | null;
-  message: string;
+  message: string | null; // комментарий к доставке необязателен (P-36)
 };
 
 const SUPPORT_PHONE = "+420 795 402 571";
@@ -44,6 +45,7 @@ const TEMPLATES = {
     summary: "Shrnutí doručení",
     pickup: "Vyzvednutí",
     delivery: "Doručení",
+    recipientName: "Příjemce",
     recipientPhone: "Telefon příjemce",
     payment: "Platba",
     note: "Poznámka",
@@ -75,12 +77,13 @@ export function buildLeadTakenEmail(
   const rows: [string, string][] = [
     [t.pickup, lead.pickup_address ?? "—"],
     [t.delivery, lead.delivery_address ?? "—"],
+    ...(lead.recipient_name ? [[t.recipientName, lead.recipient_name] as [string, string]] : []),
     ...(lead.recipient_phone ? [[t.recipientPhone, lead.recipient_phone] as [string, string]] : []),
     [
       t.payment,
       lead.payment_method ? (t.paymentLabel[lead.payment_method] ?? lead.payment_method) : "—",
     ],
-    ...(lead.message.trim()
+    ...(lead.message?.trim()
       ? [[t.note, truncate(lead.message, MESSAGE_PREVIEW_MAX)] as [string, string]]
       : []),
   ];

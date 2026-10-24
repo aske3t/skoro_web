@@ -3,8 +3,10 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { lookupIco } from "./ares";
 import { PHOTO_MAX_BYTES } from "./constants";
 import { LEAD_NOTIFICATION_COLUMNS, notifyNewLead } from "./notify";
+import { composePhone } from "./phone-format";
 import { checkPhoto, type PhotoUpload } from "./photo";
 import {
   getFieldErrors,
@@ -35,8 +37,12 @@ function readValues(formData: FormData): LeadFormValues {
     message: field(formData, "message"),
     pickupAddress: field(formData, "pickupAddress"),
     deliveryAddress: field(formData, "deliveryAddress"),
+    recipientName: field(formData, "recipientName"),
     recipientPhone: field(formData, "recipientPhone"),
+    recipientIsCustomer: field(formData, "recipientIsCustomer"),
     paymentMethod: field(formData, "paymentMethod"),
+    customerType: field(formData, "customerType"),
+    ico: field(formData, "ico"),
   };
 }
 
@@ -67,6 +73,9 @@ export async function submitLead(
   const values = readValues(formData);
   const parsed = leadSchema.safeParse({
     ...values,
+    // Номер без кода страны считается чешским; дальше схема нормализует его в E.164.
+    phone: composePhone(values.phone),
+    recipientPhone: composePhone(values.recipientPhone),
     kind: formData.get("kind") ?? undefined,
     utm: field(formData, "utm"),
   });
@@ -97,6 +106,24 @@ export async function submitLead(
       return { status: "error", code: "rate_limited", values };
     }
 
+    // IČO компании сверяется с ARES. Фирмы нет или она закрыта — ошибка поля.
+    // ARES недоступен — заявку не теряем: принимаем по контрольной сумме, ico_verified = false.
+    let companyName: string | null = null;
+    let icoVerified: boolean | null = null;
+    if (lead.customerType === "company" && lead.ico) {
+      const ares = await lookupIco(lead.ico);
+      if (ares.status === "not_found" || ares.status === "inactive") {
+        return {
+          status: "error",
+          code: "validation",
+          fieldErrors: { ico: ares.status },
+          values,
+        };
+      }
+      icoVerified = ares.status === "found";
+      companyName = ares.status === "found" ? ares.name : null;
+    }
+
     const { data, error } = await supabase
       .from("leads")
       .insert({
@@ -108,8 +135,13 @@ export async function submitLead(
         message: lead.message,
         pickup_address: lead.pickupAddress,
         delivery_address: lead.deliveryAddress,
+        recipient_name: lead.recipientName,
         recipient_phone: lead.recipientPhone,
         payment_method: lead.paymentMethod,
+        customer_type: lead.customerType,
+        ico: lead.ico,
+        company_name: companyName,
+        ico_verified: icoVerified,
         utm: lead.utm,
         ip_hash: ipHash,
       })
