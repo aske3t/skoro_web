@@ -109,6 +109,80 @@
     transform: translateY(0);
   }
 
+  /* ——— двойной ползунок (Abons) ———————————————
+     Два input range друг на друге; дорожку и заливку рисует разметка.
+     Указатель ловят только ручки, чтобы обе были доступны мышью. */
+  .range-dual {
+    -webkit-appearance: none;
+    appearance: none;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    background: transparent;
+    pointer-events: none;
+  }
+  .range-dual::-webkit-slider-runnable-track {
+    height: 100%;
+    background: transparent;
+  }
+  .range-dual::-moz-range-track {
+    background: transparent;
+  }
+  .range-dual::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    pointer-events: auto;
+    cursor: grab;
+    width: 24px;
+    height: 24px;
+    margin-top: 10px; /* (44px высота поля − 24px ручка) / 2 */
+    border-radius: 9999px;
+    border: 4px solid theme("colors.brand.DEFAULT");
+    background: theme("colors.ink.DEFAULT");
+    box-shadow: 0 4px 14px rgb(14 8 22 / 0.5);
+    transition: transform 150ms ease-out;
+  }
+  .range-dual::-moz-range-thumb {
+    pointer-events: auto;
+    cursor: grab;
+    width: 16px;
+    height: 16px;
+    border-radius: 9999px;
+    border: 4px solid theme("colors.brand.DEFAULT");
+    background: theme("colors.ink.DEFAULT");
+    box-shadow: 0 4px 14px rgb(14 8 22 / 0.5);
+    transition: transform 150ms ease-out;
+  }
+  .range-dual:hover::-webkit-slider-thumb,
+  .range-dual:active::-webkit-slider-thumb {
+    transform: scale(1.15);
+  }
+  .range-dual:hover::-moz-range-thumb,
+  .range-dual:active::-moz-range-thumb {
+    transform: scale(1.15);
+  }
+  .range-dual:focus-visible {
+    outline: none;
+  }
+  .range-dual:focus-visible::-webkit-slider-thumb {
+    outline: 2px solid theme("colors.brand.glow");
+    outline-offset: 3px;
+  }
+  .range-dual:focus-visible::-moz-range-thumb {
+    outline: 2px solid theme("colors.brand.glow");
+    outline-offset: 3px;
+  }
+  /* Webkit- и moz-селекторы раздельно: незнакомый псевдоэлемент отменяет всё правило. */
+  @media (prefers-reduced-motion: reduce) {
+    .range-dual::-webkit-slider-thumb {
+      transition: none;
+    }
+    .range-dual::-moz-range-thumb {
+      transition: none;
+    }
+  }
+
   /* ——— shared scrollbars ————————————————— */
   .no-scrollbar::-webkit-scrollbar {
     display: none;
