@@ -36,6 +36,7 @@ export default {
         display: ["var(--font-display)", "Impact", "ui-sans-serif", "sans-serif"],
         body: ["var(--font-body)", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "SFMono-Regular", "monospace"],
+        tagline: ["var(--font-tagline)", "var(--font-display)", "sans-serif"],
       },
       letterSpacing: {
         label: "0.22em",
@@ -52,6 +53,7 @@ export default {
         "dash-flow": "dashFlow 2.4s linear infinite",
         "spin-slow": "spin 18s linear infinite",
         "float-slow": "float 7s ease-in-out infinite",
+        "slide-in-right": "slideInRight 900ms cubic-bezier(0.16, 1, 0.3, 1) 150ms both",
       },
       keyframes: {
         marquee: {
@@ -69,6 +71,11 @@ export default {
         float: {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-8px)" },
+        },
+        // Выезд слева направо: текст открывается шторкой и чуть доезжает на место.
+        slideInRight: {
+          "0%": { opacity: "0", transform: "translateX(-24px)", clipPath: "inset(0 100% 0 0)" },
+          "100%": { opacity: "1", transform: "translateX(0)", clipPath: "inset(0 0 0 0)" },
         },
       },
     },

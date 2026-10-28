@@ -7,9 +7,9 @@ import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 
 const links = [
-  { href: "/#services", label: "Услуги" },
-  { href: "/#tariffs", label: "Под задачу" },
-  { href: "/#abons", label: "Тарифы" },
+  { href: "/#services", label: "Почему мы" },
+  { href: "/#calculator", label: "Под задачу" },
+  { href: "/#tariffs", label: "Тарифы" },
   { href: "/#cooperation", label: "О работе с нами" },
   { href: "/#contact", label: "Контакты" },
 ];

@@ -1,19 +1,18 @@
 "use client";
 
-import { useReveal } from "@/lib/useReveal";
+import { useRef } from "react";
 import {
   CircleChevronDown,
   FileCheck,
-  Zap,
   ShoppingBasket,
   Truck,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import Calculator from "@/components/calculator/Calculator";
+import { useReveal } from "@/lib/useReveal";
 
 type Feature = {
-  number: string;
-  ordinal: string;
   icon: LucideIcon;
   title: string;
   description: string;
@@ -21,36 +20,28 @@ type Feature = {
 
 const features: Feature[] = [
   {
-    number: "I",
-    ordinal: "01",
     icon: FileCheck,
     title: "Доставка документов",
     description:
       "Подпишем за вас документы, представим ваши интересы в возможной форме и доставим на указанный адрес.",
   },
   {
-    number: "II",
-    ordinal: "02",
     icon: Zap,
     title: "Экспресс-доставка",
     description:
-      "Довезем ваши заказы до получателя, примем оплату и настроии работу с вашей системой.",
+      "Довезём ваши заказы до получателя, примем оплату и настроим работу с вашей системой.",
   },
   {
-    number: "III",
-    ordinal: "03",
     icon: ShoppingBasket,
     title: "Закупки и снабжение",
     description:
-      "Предоставим регулярные и разовые пополнения расходных материалов под нужды вашего бизнеса в согласованным с вами графиком.\nКупить кофе в офис? Докупить материалы в строительном и привезти через полчаса?\n\nНе проблема!",
+      "Предоставим регулярные и разовые пополнения расходных материалов под нужды вашего бизнеса по согласованному с вами графику.",
   },
   {
-    number: "IV",
-    ordinal: "04",
     icon: Truck,
     title: "Переезды и крупногабарит",
     description:
-      "Организуем переезд и перевозку крупногабаритного груза.\nПереезд офиса, поставка мебели.",
+      "Организуем переезд и перевозку крупногабаритного груза.\nПереезд офиса, доставку мебели.",
   },
 ];
 
@@ -73,10 +64,10 @@ export default function WhySkoro() {
       <div className="noise-layer" />
 
       <div className="relative mx-auto max-w-[1400px] px-6 md:px-10">
-        {/* Top row — title & stats */}
+        {/* Top row — title & calculator */}
         <div className="grid grid-cols-1 gap-14 lg:grid-cols-[1.2fr_1fr]">
           <div>
-            <h2 className="mt-6 max-w-2xl font-display text-[clamp(2.25rem,6vw,4.75rem)] font-normal leading-[1] tracking-[-0.02em] text-ink">
+            <h2 className="mt-6 max-w-2xl font-display text-[clamp(2.25rem,6vw,4.75rem)] leading-[1] tracking-[-0.02em] text-ink">
               Нет нужды искать курьера под каждую задачу.
               <br />
               Мы закроем&nbsp;
@@ -84,19 +75,19 @@ export default function WhySkoro() {
               <br />
               за один маршрут.
             </h2>
-            <p className="mt-7 max-w-lg text-base leading-relaxed text-ink-muted md:text-lg">
-              Мы подойдем как развиющимся предприятиям, так и уже собранному бизнесу.
-              Создаем логистику и заменяем уже существующую в случае форс-мажора.
+            <p className="mt-7 max-w-lg text-pretty text-base leading-relaxed text-ink-muted md:text-lg">
+              Мы подойдём как развивающимся предприятиям, так и уже собранному бизнесу.
+              Создаём логистику и заменяем уже существующую в случае форс-мажора.
               Ознакомьтесь с нашим спектром услуг более детально.
             </p>
 
-            {/* Скролл-хинт к секции тарифов */}
+            {/* Скролл-хинт к списку услуг */}
             <a
-              href="#tariffs"
-              aria-label="К тарифам"
+              href="#why-services"
+              aria-label="К списку услуг"
               className="group mt-12 inline-block rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-glow focus-visible:ring-offset-4 focus-visible:ring-offset-bg"
             >
-              <span className="block animate-float-slow">
+              <span className="block animate-float-slow motion-reduce:animate-none">
                 <CircleChevronDown
                   size={64}
                   strokeWidth={1.25}
@@ -106,52 +97,98 @@ export default function WhySkoro() {
             </a>
           </div>
 
-          {/* Calculator (заменил блок статистики) */}
           <Calculator />
         </div>
 
-        {/* Feature rows */}
-        <div className="mt-24 border-t border-hairline-strong">
-          {features.map((f, i) => (
-            <FeatureRow key={f.number} feature={f} delay={i * 140} />
-          ))}
-        </div>
+        <ServiceList />
       </div>
     </section>
   );
 }
 
-function FeatureRow({ feature, delay }: { feature: Feature; delay: number }) {
-  const ref = useReveal<HTMLDivElement>();
+// Список услуг: фиолетовая полоса скользит к строке под курсором (Interactive List Preview
+// с 21st.dev, без GSAP и картинок — координаты в style, анимация на CSS). Строки не кликаются,
+// поэтому подсветка мягкая, без инверсии текста. На сенсорных экранах полосы нет.
+function ServiceList() {
+  const revealRef = useReveal<HTMLDivElement>();
+  const barRef = useRef<HTMLSpanElement>(null);
+  const activeRef = useRef<HTMLElement | null>(null);
+
+  function activate(row: HTMLElement | null) {
+    const bar = barRef.current;
+    if (!bar || !row || !window.matchMedia("(hover: hover)").matches) return;
+    // Первое появление — на месте; дальше полоса едет, если анимации не отключены.
+    const travel =
+      bar.dataset.on === "true" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    bar.style.transitionProperty = travel ? "opacity, transform, height" : "opacity";
+    bar.style.transform = `translateY(${row.offsetTop}px)`;
+    bar.style.height = `${row.offsetHeight}px`;
+    bar.dataset.on = "true";
+    if (activeRef.current && activeRef.current !== row) activeRef.current.dataset.active = "false";
+    row.dataset.active = "true";
+    activeRef.current = row;
+  }
+
+  function deactivate() {
+    if (barRef.current) barRef.current.dataset.on = "false";
+    if (activeRef.current) activeRef.current.dataset.active = "false";
+    activeRef.current = null;
+  }
+
+  return (
+    // Одно появление на весь список: отдельный transition у .reveal не мешает строкам.
+    <div
+      ref={revealRef}
+      id="why-services"
+      className="reveal relative mt-24 scroll-mt-24 border-t border-hairline-strong motion-reduce:transform-none"
+    >
+      <span
+        ref={barRef}
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 rounded-2xl bg-brand/15 opacity-0 duration-[400ms] ease-[cubic-bezier(0.16,1,0.3,1)] data-[on=true]:opacity-100"
+      />
+      <ul
+        aria-label="Услуги"
+        className="relative"
+        onPointerLeave={deactivate}
+      >
+        {features.map(f => (
+          <ServiceRow key={f.title} feature={f} onActivate={activate} />
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ServiceRow({
+  feature,
+  onActivate,
+}: {
+  feature: Feature;
+  onActivate: (row: HTMLElement | null) => void;
+}) {
   const Icon = feature.icon;
   return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className="reveal group grid grid-cols-[auto_1fr_auto] items-start gap-6 border-b border-hairline-strong py-10 transition md:grid-cols-[auto_1fr_auto_auto] md:gap-10 md:py-14"
+    <li
+      className="group/row relative border-b border-hairline-strong"
+      onPointerEnter={e => {
+        if (e.pointerType === "mouse") onActivate(e.currentTarget);
+      }}
     >
-      <div className="font-display text-3xl italic leading-none text-brand-glow/80 md:text-5xl">
-        {feature.number}
-      </div>
-
-      <div className="max-w-2xl">
-        <h3 className="font-display text-2xl leading-tight text-ink md:text-[2rem]">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 py-8 md:grid-cols-[auto_minmax(0,5fr)_minmax(0,6fr)] md:items-baseline md:gap-x-10 md:px-8 md:py-11">
+        {/* Фирменный фиолетовый — как у прежних римских номеров */}
+        <Icon
+          aria-hidden
+          strokeWidth={1.5}
+          className="h-8 w-8 self-center text-brand-glow/80 transition-colors duration-300 group-data-[active=true]/row:text-brand-glow md:h-10 md:w-10 md:self-start"
+        />
+        <h3 className="font-display text-[clamp(1.75rem,3.2vw,2.75rem)] leading-[1.05] text-ink">
           {feature.title}
         </h3>
-        <p className="whitespace-pre-line mt-3 text-base leading-relaxed text-ink-muted md:text-lg">
+        <p className="col-span-2 max-w-prose whitespace-pre-line text-pretty text-base leading-relaxed text-ink-muted md:col-span-1 md:text-lg">
           {feature.description}
         </p>
       </div>
-
-      <div className="hidden items-center justify-center md:flex">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full border border-hairline-strong text-ink-muted transition group-hover:border-brand group-hover:text-brand-glow">
-          <Icon size={22} />
-        </div>
-      </div>
-
-      <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim md:pt-2">
-        / {feature.ordinal}
-      </div>
-    </div>
+    </li>
   );
 }
