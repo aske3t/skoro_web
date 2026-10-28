@@ -20,6 +20,7 @@ import {
 } from "react";
 import { setAudience, useAudience, type Audience } from "@/lib/audience";
 import { submitLead } from "@/lib/leads/actions";
+import { onLeadPrefill } from "@/lib/leads/prefill";
 import { useReveal } from "@/lib/useReveal";
 import { PhotoField } from "./PhotoField";
 import {
@@ -178,6 +179,10 @@ export default function ContactForm() {
   );
 }
 
+function messageField(form: HTMLFormElement | null) {
+  return form?.querySelector<HTMLTextAreaElement>('textarea[name="message"]') ?? null;
+}
+
 function LeadForm({ onReset }: { onReset: () => void }) {
   const [state, formAction, pending] = useActionState(submitLead, INITIAL_STATE);
   const formRef = useRef<HTMLFormElement>(null);
@@ -229,6 +234,46 @@ function LeadForm({ onReset }: { onReset: () => void }) {
     mountedAtRef.current = Date.now();
     setUtm(readUtmFromLocation());
   }, []);
+
+  // Кнопка «Обсудить с менеджером» из секции «Почему мы»: форма переходит на вопрос,
+  // отмеченные карточки попадают в поле, если клиент его ещё не начал (или там наша же подстановка).
+  // Поле сообщения одно в обоих типах заявки, поэтому текст ставим сразу, без ожидания рендера.
+  // Подстановка относится только к вопросу: см. changeKind.
+  const prefilledRef = useRef<string | null>(null);
+  useEffect(
+    () =>
+      onLeadPrefill(({ kind, message }) => {
+        const field = messageField(formRef.current);
+        if (!field) return; // заявка уже отправлена — на экране квитанция
+        setFormType(kind);
+        if (kind !== "question") return;
+        if (message && (field.value.trim() === "" || field.value === prefilledRef.current)) {
+          field.value = message;
+          prefilledRef.current = message;
+          setFieldErrors((prev) => {
+            const next = { ...prev };
+            delete next.message;
+            return next;
+          });
+        }
+      }),
+    [],
+  );
+
+  /** Смена типа заявки. Текст из «Почему мы» живёт только в вопросе: на доставке убираем
+   *  (если клиент его не правил), при возврате к вопросу ставим обратно в пустое поле. */
+  function changeKind(kind: LeadKind) {
+    const field = messageField(formRef.current);
+    const prefill = prefilledRef.current;
+    if (field && prefill) {
+      if (kind === "delivery" && field.value === prefill) field.value = "";
+      if (kind === "question" && field.value.trim() === "") {
+        field.value = prefill;
+        clearFieldError("message");
+      }
+    }
+    setFormType(kind);
+  }
 
   function recordElapsed() {
     if (mountedAtRef.current !== null && elapsedRef.current) {
@@ -361,7 +406,7 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                     name="kind"
                     value={kind}
                     checked={formType === kind}
-                    onChange={() => setFormType(kind)}
+                    onChange={() => changeKind(kind)}
                     className="peer sr-only"
                   />
                   <span className="block rounded-full px-5 py-2 text-center text-[15px] text-[#1D1425]/70 transition hover:text-[#1D1425] peer-checked:bg-[#1D1425] peer-checked:text-[#F4EDE1] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[#925AF4]">

@@ -4,21 +4,22 @@ type TariffItem = {
   sub?: string;
 };
 
+// Названия и подсказки — как в калькуляторе (Calculator.tsx: SLOT_TITLE, SLOT_HINT).
 const items: TariffItem[] = [
   {
-    label: "Экспресс <60m",
+    label: "Экспресс",
     price: "240 Kč",
-    sub: "Курьер на месте за ≤30 минут",
+    sub: "Доставим в течение часа после заявки, курьер приедет за ≤30 минут",
   },
   {
-    label: "Слот в течение 3-х часов",
+    label: "За 3 часа",
     price: "180 Kč",
-    sub: "",
+    sub: "Доставим в пределах 3 часов после заявки",
   },
   {
-    label: "Слот в течение дня",
+    label: "За день",
     price: "150 Kč",
-    sub: "",
+    sub: "Время доставки — позже, чем через 3 часа после заявки",
   },
 ];
 
@@ -42,59 +43,48 @@ export default function Tariffs() {
 
       <div className="relative mx-auto max-w-[1400px] px-6 md:px-10">
         {/* Section header */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_1fr] lg:gap-12">
-          <div>
-            <h2 className="mt-5 max-w-2xl font-display text-[clamp(1.75rem,4.5vw,3rem)] font-normal leading-[1.05] tracking-[-0.02em] text-ink">
-              Базовые{" "}
-              <span className="italic text-brand-glow">тарифы.</span>
-            </h2>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.3fr_1fr] lg:items-end lg:gap-12">
+          <h2 className="max-w-2xl font-display text-[clamp(1.75rem,4.5vw,3rem)] leading-[1.05] tracking-[-0.02em] text-ink">
+            Базовые{" "}
+            <span className="italic text-brand-glow">тарифы.</span>
+          </h2>
+          {/* Было <p> внутри <p>: браузер разрывал абзац, разметка расходилась с сервером */}
+          <div className="max-w-md text-sm leading-relaxed text-ink-muted md:text-base lg:ml-auto">
+            <p>Стандартные тарифы для разовых заказов из&nbsp;точки&nbsp;A в&nbsp;точку&nbsp;B.</p>
+            <p>
+              Вы выбираете время доставки, а тариф зависит от того, сколько до него остаётся
+              с&nbsp;момента заявки. Больше запас&nbsp;— ниже цена.
+            </p>
           </div>
-          <p className="max-w-md self-end ml-auto text-sm leading-relaxed text-ink-muted md:text-base">
-            Стандартные тарифы для разовых заказов A-B. <p>Больше времени до исполнения - ниже цена</p>
-          </p>
         </div>
 
         {/* Tariff table */}
-        <div className="mt-10 overflow-hidden rounded-2xl border border-hairline-strong bg-bg-soft/60 shadow-card backdrop-blur-sm">
-          {/* Table header */}
-          <div className="grid grid-cols-[1fr_auto] gap-4 border-b border-hairline-strong bg-bg-deep/60 px-5 py-2.5 font-mono text-[10px] uppercase tracking-label text-ink-dim md:px-6">
-            <span>Услуга</span>
-            <span>Тариф</span>
-          </div>
-
-          {/* Rows */}
-          {items.map((it, i) => (
-            <TariffRow key={it.label} item={it} last={i === items.length - 1} />
+        <ul className="mt-10 divide-y divide-hairline-strong rounded-2xl border border-hairline-strong bg-bg-soft shadow-card">
+          {items.map(it => (
+            <TariffRow key={it.label} item={it} />
           ))}
-        </div>
+        </ul>
 
-        {/* Footnote */}
-        <p className="mt-4 max-w-2xl font-mono text-[10px] uppercase tracking-label text-ink-dim">
-          * Все цены указаны без НДС.
-        </p>
+        <p className="mt-4 text-[13px] text-ink-muted">Все цены указаны без НДС.</p>
       </div>
     </section>
   );
 }
 
-function TariffRow({ item, last }: { item: TariffItem; last: boolean }) {
+function TariffRow({ item }: { item: TariffItem }) {
   return (
-    <div
-      className={`grid grid-cols-[1fr_auto] items-center gap-4 px-5 py-3.5 md:px-6 md:py-4 ${
-        last ? "" : "border-b border-hairline"
-      }`}
-    >
+    <li className="grid grid-cols-[1fr_auto] items-center gap-6 px-5 py-5 md:px-8 md:py-6">
       <div>
-        <div className="font-display text-base text-ink md:text-lg">
+        <div className="font-display text-xl leading-tight text-ink md:text-2xl">
           {item.label}
         </div>
         {item.sub && (
-          <div className="mt-0.5 text-xs text-ink-muted">{item.sub}</div>
+          <div className="mt-1 text-[13px] leading-snug text-ink-muted md:text-sm">{item.sub}</div>
         )}
       </div>
-      <div className="font-display text-lg tabular-nums text-brand-glow md:text-xl">
+      <div className="whitespace-nowrap font-display text-2xl tabular-nums text-brand-glow md:text-3xl">
         {item.price}
       </div>
-    </div>
+    </li>
   );
 }

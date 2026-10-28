@@ -10,3 +10,9 @@ next-env.d.ts
 # local tool state
 supabase/.temp/
 .claude/settings.local.json
+
+# локальные инструменты
+.mcp.json
+.impeccable/
+.github/hooks/
+PRODUCT.md

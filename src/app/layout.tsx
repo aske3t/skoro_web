@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Space_Grotesk, Oswald, Inter } from "next/font/google";
+import { Space_Grotesk, Oswald, Inter, Barlow_Condensed } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
 import "./globals.css";
@@ -16,6 +16,18 @@ const body = Space_Grotesk({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
+});
+
+// Слоган с визитки («Více než kurýr»). Без кириллицы — только для латинского текста.
+const tagline = Barlow_Condensed({
+  subsets: ["latin", "latin-ext"],
+  weight: ["800"],
+  style: ["italic"],
+  variable: "--font-tagline",
+  display: "swap",
+  // Без запасного Arial: иначе им наберётся кириллица. Так русские буквы берутся из Oswald,
+  // следующего в стеке font-tagline (tailwind.config.ts).
+  adjustFontFallback: false,
 });
 
 const mono = Inter({
@@ -37,7 +49,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${display.variable} ${body.variable} ${mono.variable}`}
+      className={`${display.variable} ${body.variable} ${mono.variable} ${tagline.variable}`}
     >
       <body className="min-h-screen overflow-x-hidden bg-bg font-body text-ink">
         <Navbar />

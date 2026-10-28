@@ -1,7 +1,23 @@
 "use client";
 
-import { ArrowRight, MapPin } from "lucide-react";
+import { useRef } from "react";
+import { ArrowRight, FileSignature, HandCoins, MapPin, Package, Route, Truck } from "lucide-react";
 import { AudienceSwitch } from "@/components/layout/AudienceSwitch";
+
+// Карточка «Что можно нам поручить»: иконка подсказывает тип задачи, текст — что именно делаем.
+const SERVICES = [
+  { icon: Package, text: "Доставляем заказы из рук в руки от\u00a030\u00a0минут" },
+  { icon: FileSignature, text: "Работаем с документами через доверенность" },
+  { icon: HandCoins, text: "Работаем с деньгами и осуществляем выкуп товара" },
+  { icon: Route, text: "Собираем мульти-маршруты под ваши задачи" },
+  { icon: Truck, text: "Выполняем междугородние отправления" },
+];
+
+const SOCIALS = [
+  { label: "Instagram", href: "https://www.instagram.com/skoro.u.vas?igsh=Znp5ejlwbmk1ZHcy" },
+  { label: "Telegram", href: "https://t.me/skorouvas" },
+  { label: "Facebook", href: "https://www.facebook.com/share/1CALLj7NZE/?mibextid=wwXIfr" },
+];
 
 export default function HeroTracking() {
   return (
@@ -16,11 +32,18 @@ export default function HeroTracking() {
       <div className="relative mx-auto grid max-w-[1400px] grid-cols-1 items-center gap-14 px-6 md:px-10 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
         {/* Left column — editorial text */}
         <div className="max-w-2xl">
-          {/* Manifest tag */}
-          <div className="flex items-center gap-3 font-mono text-[11px] uppercase tracking-label text-ink-muted">
-            <span className="inline-block h-px w-8 bg-ink-muted" />
-            Больше, чем курьер
-          </div>
+          {/* Слоган с визитки: тот же шрифт и акцент, линии по бокам; при загрузке выезжает слева направо */}
+          {/* Кириллицы в Barlow нет: русские буквы берутся из Oswald (следующий в font-tagline,
+              запасной Arial у Barlow отключён в layout.tsx). */}
+          <p
+            className="flex w-fit animate-slide-in-right items-center gap-4 font-tagline text-2xl font-extrabold italic leading-none text-ink motion-reduce:animate-none md:text-[1.75rem]"
+          >
+            <span aria-hidden className="h-px w-8 bg-brand-glow" />
+            <span>
+              Больше, чем <em className="text-brand-glow">курьер</em>
+            </span>
+            <span aria-hidden className="h-px w-8 bg-brand-glow" />
+          </p>
 
           {/* Кто клиент: от выбора зависят версии сайта (сейчас — форма заявки, P-31). */}
           <AudienceSwitch variant="hero" className="mt-6" />
@@ -78,90 +101,96 @@ export default function HeroTracking() {
           </div>
         </div>
 
-        {/* Right column — бета */}
-            <div className="relative w-full max-w-[520px]">
-              <div className="relative overflow-hidden rounded-[1.75rem] border border-hairline-strong bg-bg-soft/70 p-7 shadow-card backdrop-blur-sm md:p-8">
-              <div className="noise-layer rounded-[1.75rem]"/>
-              <div aria-hidden className="absolute inset-0 grid-lines-fine opacity-20"/>
+        {/* Right column — что можно поручить */}
+        <div className="relative w-full max-w-[520px]">
+          <div className="relative overflow-hidden rounded-[1.75rem] border border-hairline-strong bg-bg-soft/70 p-7 shadow-card backdrop-blur-sm md:p-8">
+            <h2 className="font-display text-2xl leading-tight text-ink md:text-3xl">
+              Что можно нам поручить
+            </h2>
 
-              <div className="relative">
-                <div>
-                <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+            <div className="mt-5 h-px w-full bg-hairline-strong" />
+            <ul className="mt-6 space-y-4">
+              {SERVICES.map(({ icon: Icon, text }) => (
+                <li key={text} className="flex gap-3 text-pretty text-sm leading-relaxed text-ink md:text-base">
+                  <Icon aria-hidden size={18} strokeWidth={1.75} className="mt-0.5 shrink-0 text-brand-glow md:mt-1" />
+                  {text}
+                </li>
+              ))}
+            </ul>
 
-                </div>
-                <h3 className="mt-2 font-display text-2xl leading-tight text-ink md:text-3xl">
-                  Что можно нам <span className="italic text-brand-glow">поручить</span>
-                </h3>
-              </div>
+            <div className="mt-7 border-t border-hairline-strong pt-5">
+              <p className="text-sm text-ink-muted">Где смотреть нас</p>
+              <SocialLinks />
 
-                <div className="mt-5 h-px w-full bg-hairline-strong"/>
-                <ul className="mt-6 space-y-4">
-                  <li className="flex gap-3 text-sm leading-relaxed text-ink md:text-base">
-                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-glow" />
-                      Доставляем заказы из рук в руки от 30 минут
-                  </li>
-                  <li className="flex gap-3 text-sm leading-relaxed text-ink md:text-base">
-                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-glow" />
-                      Работаем с документами через доверенность
-                  </li>
-                  <li className="flex gap-3 text-sm leading-relaxed text-ink md:text-base">
-                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-glow" />
-                      Работаем с деньгами и осуществляем выкуп товара
-                  </li>
-
-                  <li className="flex gap-3 text-sm leading-relaxed text-ink md:text-base">
-                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-glow" />
-                      Собираем мульти-маршруты под ваши задачи
-                  </li>
-
-                  <li className="flex gap-3 text-sm leading-relaxed text-ink md:text-base">
-                    <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brand-glow" />
-                      Выполняем междугородние отправления
-                  </li>
-                </ul>
-
-                <div className="mt-7 border-t border-hairline-strong pt-5">
-                  <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
-                    Где смотреть нас
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap gap-3">
-                    <a href="https://www.instagram.com/skoro.u.vas?igsh=Znp5ejlwbmk1ZHcy" className="rounded-full border border-hairline-strong bg-bg/40 px-4 py-2 text-sm text-ink-muted transition hover:border-brand/50 hover:bg-brand/15 hover:text-ink">
-                      Instagram
-                    </a>
-
-                    <a href="#" className="rounded-full border border-hairline-strong bg-bg/40 px-4 py-2 text-sm text-ink-muted transition hover:border-brand/50 hover:bg-brand/15 hover:text-ink">
-                      Telegram
-                    </a>
-
-                    <a href="https://www.facebook.com/share/1CALLj7NZE/?mibextid=wwXIfr" className="rounded-full border border-hairline-strong bg-bg/40 px-4 py-2 text-sm text-ink-muted transition hover:border-brand/50 hover:bg-brand/15 hover:text-ink">
-                      Facebook
-                    </a>
-                  </div>
-                  <a
-                  href="https://www.google.com/maps/"
-                  target="blank"
-                  rel="noopener noreferrer"
-                  className="group mt-3 inline-flex w-full items-center gap-4 rounded-2xl border border-hairline-strong bg-bg/40 px-4 py-3 transition hover:border-brand/50 hover:bg-brand/15">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand-glow transition group-hover:bg-brand/25">
-                    <MapPin size={22}/>
-                  </span>
-                  <span className="min-w-0 leading-snug">
-                    <span className="block font-mono text-[10px] uppercase tracking-label text-ink-dim">
-                      Google Maps
-                    </span>
-                    <span className="mt-1 block text-sm text-ink md:text-base">
-                      Оставьте нам отзыв!
-                    </span>
-                  </span>
-                  </a>
-                </div>
-
-              </div>
+              <a
+                href="https://www.google.com/maps/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group mt-3 flex w-full items-center gap-4 rounded-2xl border border-hairline-strong px-4 py-3 transition hover:border-brand/50 hover:bg-brand/15"
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand/15 text-brand-glow transition group-hover:bg-brand/25">
+                  <MapPin aria-hidden size={20} />
+                </span>
+                <span className="min-w-0 leading-snug">
+                  <span className="block text-sm text-ink md:text-base">Оставьте нам отзыв!</span>
+                  <span className="mt-0.5 block text-sm text-ink-muted">Google Maps</span>
+                </span>
+              </a>
+            </div>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+// Одна подсветка на все ссылки: переезжает к той, что под курсором или в фокусе
+// (Fluid Hover Highlight с 21st.dev, без motion — координаты в style, анимация на CSS).
+function SocialLinks() {
+  const glideRef = useRef<HTMLSpanElement>(null);
+
+  function glideTo(link: HTMLElement) {
+    const glide = glideRef.current;
+    if (!glide) return;
+    // Появляется сразу на месте; едет только между ссылками и если анимации не отключены.
+    const travel =
+      glide.dataset.on === "true" && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    glide.style.transitionProperty = travel ? "opacity, transform, width" : "opacity";
+    glide.style.transform = `translate(${link.offsetLeft}px, ${link.offsetTop}px)`;
+    glide.style.width = `${link.offsetWidth}px`;
+    glide.style.height = `${link.offsetHeight}px`;
+    glide.dataset.on = "true";
+  }
+
+  function hide() {
+    if (glideRef.current) glideRef.current.dataset.on = "false";
+  }
+
+  return (
+    <div
+      className="relative mt-3 flex flex-wrap gap-3"
+      onPointerLeave={hide}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) hide();
+      }}
+    >
+      <span
+        ref={glideRef}
+        aria-hidden
+        className="pointer-events-none absolute left-0 top-0 rounded-full bg-brand/15 opacity-0 duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] data-[on=true]:opacity-100"
+      />
+      {SOCIALS.map(({ label, href }) => (
+        <a
+          key={label}
+          href={href}
+          onPointerEnter={(e) => glideTo(e.currentTarget)}
+          onFocus={(e) => glideTo(e.currentTarget)}
+          className="relative rounded-full border border-hairline-strong px-4 py-2 text-sm text-ink-muted transition-colors hover:border-brand/50 hover:text-ink focus-visible:border-brand/50 focus-visible:text-ink"
+        >
+          {label}
+        </a>
+      ))}
+    </div>
   );
 }
 
