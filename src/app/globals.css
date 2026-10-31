@@ -226,6 +226,83 @@
 
 }
 
+/* ——— сцена футера: Старе Место и фургон (FooterScene) ——————————
+   Слои поднимаются при первом появлении. Фургон и посылки двигает скрипт, только пока сцена
+   на экране; колёса и покачивание кузова — CSS, тоже только при .is-running. */
+.city-scene .city-layer {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity 900ms ease,
+    transform 1400ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--i, 0) * 140ms);
+}
+.city-scene.is-visible .city-layer {
+  opacity: 1;
+  transform: none;
+}
+/* До первого кадра фургон стоит слева за кадром. */
+.city-scene .van {
+  transform: translateX(-100%);
+  will-change: transform;
+}
+.city-scene .van-body {
+  animation: van-bob 420ms ease-in-out infinite alternate paused;
+}
+.city-scene .van-wheel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: van-wheel 600ms linear infinite paused;
+}
+.city-scene.is-running .van-body,
+.city-scene.is-running .van-wheel {
+  animation-play-state: running;
+}
+/* Посылка: кремовая коробка с фиолетовой лентой, в цветах фургона. */
+.city-scene .parcel {
+  background:
+    linear-gradient(90deg, transparent 40%, #925af4 40% 60%, transparent 60%),
+    #f4ede1;
+  box-shadow: 0 0 0 1px rgb(14 8 22 / 0.4);
+}
+/* Окно-адрес: тёмное, пока не долетела посылка; гаснет плавно, когда фургон уходит на новый круг. */
+.city-scene .drop-window {
+  transition: fill 1.6s ease;
+}
+.city-scene .drop-window.is-lit {
+  fill: #ffe3a3;
+  filter: drop-shadow(0 0 3px rgb(255 227 163 / 0.9));
+  transition: fill 300ms ease;
+}
+@keyframes van-bob {
+  to {
+    transform: translateY(-1px);
+  }
+}
+@keyframes van-wheel {
+  to {
+    transform: rotate(360deg);
+  }
+}
+/* Без движения: город сразу на месте, фургон припаркован, доставленные окна горят. */
+@media (prefers-reduced-motion: reduce) {
+  .city-scene .city-layer {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .city-scene .van {
+    left: 70%;
+  }
+  .city-scene .van-body,
+  .city-scene .van-wheel {
+    animation: none;
+  }
+  .city-scene .drop-window {
+    fill: #ffe3a3;
+  }
+}
+
 /* ——— Google Places autocomplete ———————————————— */
 /* Вынесено из @layer — иначе Google-инжект бьёт по каскаду. */
 .pac-container {
