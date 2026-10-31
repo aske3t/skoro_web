@@ -128,6 +128,33 @@ export type Database = {
         }
         Relationships: []
       }
+      newsletter_subscribers: {
+        Row: {
+          consented_at: string
+          created_at: string
+          email: string
+          id: string
+          ip_hash: string | null
+          unsubscribed_at: string | null
+        }
+        Insert: {
+          consented_at: string
+          created_at?: string
+          email: string
+          id?: string
+          ip_hash?: string | null
+          unsubscribed_at?: string | null
+        }
+        Update: {
+          consented_at?: string
+          created_at?: string
+          email?: string
+          id?: string
+          ip_hash?: string | null
+          unsubscribed_at?: string | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           comment: string | null
