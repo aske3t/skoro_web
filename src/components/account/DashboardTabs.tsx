@@ -27,7 +27,7 @@ export default function DashboardTabs () {
           <Link
             key={t.href}
             href={t.href}
-            className={`-mb-px border-b-2 px-4 py-3 font-mono text-[11px] uppercase tracking-label transition ${
+            className={`-mb-px border-b-2 px-4 py-3 text-sm font-medium transition ${
               active
                 ? "border-brand text-ink"
                 : "border-transparent text-ink-muted hover:text-ink"

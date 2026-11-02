@@ -14,7 +14,7 @@ export default function OrdersList({
     <section>
       <div className="flex items-baseline justify-between">
         <h2 className="font-display text-xl text-ink">{title}</h2>
-        <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+        <span className="text-[13px] tabular-nums text-ink-dim">
           {orders.length}
         </span>
       </div>

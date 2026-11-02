@@ -37,11 +37,11 @@ export default function OrderCard({ order }: { order: Order }) {
   return (
     <article className="rounded-2xl border border-hairline-strong bg-bg-soft/60 p-5 shadow-card transition hover:-translate-y-0.5 hover:border-brand/40 hover:shadow-brand">
       <header className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+        <span className="text-[13px] tabular-nums text-ink-dim">
           #{order.id.slice(0, 8)}
         </span>
         <span
-          className={`inline-flex rounded-full border px-2.5 py-1 font-mono text-[10px] uppercase tracking-label ${STATUS_STYLE[order.status]}`}
+          className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS_STYLE[order.status]}`}
         >
           {STATUS_LABEL[order.status]}
         </span>
@@ -49,21 +49,21 @@ export default function OrderCard({ order }: { order: Order }) {
 
       <div className="mt-4 grid grid-cols-[1fr_auto_1fr] items-center gap-3">
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+          <div className="text-[13px] text-ink-dim">
             Откуда
           </div>
           <div className="mt-1 text-sm text-ink">{order.from_address ?? "—"}</div>
         </div>
         <div aria-hidden className="text-ink-dim">→</div>
         <div className="text-right">
-          <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+          <div className="text-[13px] text-ink-dim">
             Куда
           </div>
           <div className="mt-1 text-sm text-ink">{order.to_address ?? "—"}</div>
         </div>
       </div>
 
-      <footer className="mt-4 flex items-center justify-between border-t border-hairline pt-3 font-mono text-[11px] uppercase tracking-label">
+      <footer className="mt-4 flex items-center justify-between border-t border-hairline pt-3 text-[13px] tabular-nums">
         <span className="text-ink-muted">{fmtDate(order.created_at)}</span>
         <span className="text-ink">{fmtMoney(order.price)}</span>
       </footer>

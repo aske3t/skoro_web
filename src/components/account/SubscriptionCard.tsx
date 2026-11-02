@@ -21,7 +21,7 @@ export default function SubscriptionCard({
   if (!subscription) {
     return (
       <div className="rounded-2xl border border-hairline-strong bg-bg-soft/60 p-6 shadow-card">
-        <div className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+        <div className="text-[13px] text-ink-dim">
           Абонемент
         </div>
         <p className="mt-3 text-sm text-ink-muted">
@@ -46,7 +46,7 @@ export default function SubscriptionCard({
           <Sparkles size={16} />
         </span>
         <div>
-          <div className="font-mono text-[10px] uppercase tracking-label text-brand-glow">
+          <div className="text-[13px] text-brand-glow">
             Активный абонемент
           </div>
           <div className="font-display text-2xl text-ink">
@@ -60,11 +60,11 @@ export default function SubscriptionCard({
         <div className="flex items-baseline justify-between">
           <div className="font-display text-3xl text-ink">
             {subscription.remaining_deliveries}
-            <span className="ml-1 font-mono text-xs text-ink-dim">
+            <span className="ml-1 text-xs text-ink-dim">
               / {subscription.total_deliveries} доставок
             </span>
           </div>
-          <div className="font-mono text-[10px] uppercase tracking-label text-ink-muted">
+          <div className="text-[13px] text-ink-muted">
             {pct}% использовано
           </div>
         </div>
@@ -79,13 +79,13 @@ export default function SubscriptionCard({
       {detailed && (
         <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-hairline pt-4 text-sm">
           <div>
-            <dt className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+            <dt className="text-[13px] text-ink-dim">
               Куплен
             </dt>
             <dd className="mt-1 text-ink">{fmtDate(subscription.purchased_at)}</dd>
           </div>
           <div>
-            <dt className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+            <dt className="text-[13px] text-ink-dim">
               Действует до
             </dt>
             <dd className="mt-1 text-ink">{fmtDate(subscription.valid_until)}</dd>

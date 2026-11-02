@@ -84,7 +84,7 @@ export default function HeroTracking() {
 
           <a
             href="#contact"
-            className="group/btn relative mt-4 flex w-fit items-center gap-2 rounded-2xl bg-brand px-6 py-5 font-mono text-[11px] uppercase tracking-label text-ink transition hover:bg-brand-hover md:px-8 "
+            className="group/btn relative mt-4 flex w-fit items-center gap-2 rounded-2xl bg-brand px-6 py-5 text-sm font-medium text-ink transition hover:bg-brand-hover md:px-8 "
           >
             Связаться с нами
             <ArrowRight
@@ -200,7 +200,7 @@ function Stat({ value, label }: { value: string; label: string }) {
       <div className="font-display text-3xl leading-none text-ink md:text-4xl">
         {value}
       </div>
-      <div className="mt-2 font-mono text-[10px] uppercase tracking-label text-ink-dim">
+      <div className="mt-2 text-[13px] text-ink-dim">
         {label}
       </div>
     </div>

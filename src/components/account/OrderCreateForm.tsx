@@ -105,7 +105,7 @@ export default function OrderCreateForm({ slots, subscription, service }: Props)
           }
         />
         {picked?.ok && (
-          <p className="mt-2 font-mono text-[11px] uppercase tracking-label text-brand-glow">
+          <p className="mt-2 text-[13px] text-brand-glow">
             Слот: {picked.slot.label}
             {!subscription && ` · ${picked.slot.base_price} Kč`}
           </p>
@@ -156,7 +156,7 @@ function FieldGroup({
 }) {
   return (
     <label className="block">
-      <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+      <span className="text-[13px] text-ink-dim">
         {label}
       </span>
       <div className="mt-1">{children}</div>

@@ -13,7 +13,7 @@ export default function MarqueeTicker() {
   const doubled = [...items, ...items];
   return (
     <div className="relative overflow-hidden border-y border-hairline bg-bg-deep py-4">
-      <div className="flex w-max animate-marquee gap-10 whitespace-nowrap font-mono text-[11px] uppercase tracking-label text-ink-muted">
+      <div className="flex w-max animate-marquee gap-10 whitespace-nowrap text-sm text-ink-muted">
         {doubled.map((t, i) => (
           <span key={i} className="inline-flex items-center gap-4">
             <span
