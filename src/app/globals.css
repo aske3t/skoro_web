@@ -316,7 +316,7 @@
     0 0 0 1px rgb(146 90 244 / 0.05) !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  font-family: var(--font-mono), ui-monospace, monospace !important;
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif !important;
   overflow: hidden !important;
 }
 

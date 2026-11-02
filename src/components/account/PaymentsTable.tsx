@@ -47,14 +47,14 @@ export default function PaymentsTable({ payments }: { payments: Payment[] }) {
                 {fmtMoney(p.amount, p.currency)}
               </span>
               <span
-                className={`rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-label ${
+                className={`rounded-full border px-2.5 py-0.5 text-xs font-medium ${
                   STATUS_STYLE[p.status] ?? "border-hairline text-ink-muted"
                 }`}
               >
                 {STATUS_LABEL[p.status] ?? p.status}
               </span>
             </div>
-            <div className="mt-2 flex justify-between font-mono text-[11px] uppercase tracking-label text-ink-muted">
+            <div className="mt-2 flex justify-between text-[13px] text-ink-muted">
               <span>{fmtDate(p.paid_at ?? "")}</span>
               <span>{p.method ?? "—"}</span>
             </div>
@@ -65,7 +65,7 @@ export default function PaymentsTable({ payments }: { payments: Payment[] }) {
       {/* Desktop: таблица */}
       <table className="hidden w-full md:table">
         <thead>
-          <tr className="border-b border-hairline text-left font-mono text-[10px] uppercase tracking-label text-ink-dim">
+          <tr className="border-b border-hairline text-left text-[13px] font-normal text-ink-dim">
             <th className="py-3 pr-4">Дата</th>
             <th className="py-3 pr-4">Метод</th>
             <th className="py-3 pr-4 text-right">Сумма</th>
@@ -76,7 +76,7 @@ export default function PaymentsTable({ payments }: { payments: Payment[] }) {
           {payments.map((p) => (
             <tr key={p.id} className="border-b border-hairline last:border-0">
               <td className="py-4 pr-4 text-sm text-ink">{fmtDate(p.paid_at ?? "")}</td>
-              <td className="py-4 pr-4 font-mono text-[11px] uppercase tracking-label text-ink-muted">
+              <td className="py-4 pr-4 text-[13px] text-ink-muted">
                 {p.method ?? "—"}
               </td>
               <td className="py-4 pr-4 text-right font-display text-lg text-ink">
@@ -84,7 +84,7 @@ export default function PaymentsTable({ payments }: { payments: Payment[] }) {
               </td>
               <td className="py-4 text-right">
                 <span
-                  className={`inline-flex rounded-full border px-2.5 py-0.5 font-mono text-[10px] uppercase tracking-label ${
+                  className={`inline-flex rounded-full border px-2.5 py-0.5 text-xs font-medium ${
                     STATUS_STYLE[p.status] ?? "border-hairline text-ink-muted"
                   }`}
                 >

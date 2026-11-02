@@ -43,13 +43,13 @@ export default function LoginForm() {
       <Input
         type="password"
         required
-        placeholder="Password"
+        placeholder="Пароль"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
       {error && <p className="text-sm text-red-400">{error}</p>}
       <Button type="submit" disabled={loading} className="w-full">
-        {loading ? "Signing in…" : "Sign in"}
+        {loading ? "Входим…" : "Войти"}
       </Button>
     </form>
   );

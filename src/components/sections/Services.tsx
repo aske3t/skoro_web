@@ -156,7 +156,7 @@ export default function Services() {
           <a
             href="#contact"
             onClick={discuss}
-            className="group/btn inline-flex w-fit shrink-0 items-center gap-2 rounded-2xl bg-bg px-6 py-5 font-mono text-[11px] uppercase tracking-label text-ink transition hover:bg-bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-bg md:px-8"
+            className="group/btn inline-flex w-fit shrink-0 items-center gap-2 rounded-2xl bg-bg px-6 py-5 text-sm font-medium text-ink transition hover:bg-bg-raised focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-bg md:px-8"
           >
             Обсудить с менеджером
             <ArrowRight aria-hidden size={16} className="transition group-hover/btn:translate-x-1 motion-reduce:transition-none" />

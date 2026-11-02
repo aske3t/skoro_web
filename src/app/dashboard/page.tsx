@@ -18,12 +18,12 @@ export default async function DashboardOverviewPage() {
     return (
     <div className="space-y-8">
       <header className="flex items-center justify-between">
-        <span className="font-mono text-[10px] uppercase tracking-label text-ink-dim">
+        <span className="text-[13px] text-ink-dim">
           Обзор
         </span>
         <Link
           href="/dashboard/orders/new"
-          className="inline-flex items-center rounded-full bg-brand px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink transition hover:bg-brand-hover"
+          className="inline-flex items-center rounded-full bg-brand px-4 py-2 text-sm font-medium text-ink transition hover:bg-brand-hover"
         >
           Новый заказ
         </Link>

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, Menu, X, User } from "lucide-react";
+import { ArrowDown, Menu, X, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
@@ -108,7 +108,7 @@ export default function NavbarClient() {
           {auth === "in" ? (
             <Link
               href="/dashboard"
-              className="hidden items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-4 py-2 whitespace-nowrap font-mono text-[11px] uppercase tracking-label text-brand-glow transition hover:border-brand hover:bg-brand/20 md:inline-flex"
+              className="hidden items-center gap-2 rounded-full border border-brand/40 bg-brand/10 px-4 py-2 whitespace-nowrap text-sm font-medium text-brand-glow transition hover:border-brand hover:bg-brand/20 md:inline-flex"
             >
               <User size={14} />
               Кабинет
@@ -119,24 +119,26 @@ export default function NavbarClient() {
               href="/login"
               aria-hidden={auth === "unknown" || undefined}
               tabIndex={auth === "unknown" ? -1 : undefined}
-              className={`hidden whitespace-nowrap rounded-full border border-hairline-strong px-4 py-2 font-mono text-[11px] uppercase tracking-label text-ink/85 transition hover:border-ink/40 hover:text-ink md:inline-flex ${
+              className={`hidden whitespace-nowrap rounded-full border border-hairline-strong px-4 py-2 text-sm font-medium text-ink/85 transition hover:border-ink/40 hover:text-ink md:inline-flex ${
                 auth === "unknown" ? "invisible" : ""
               }`}
             >
-              Sign in
+              Войти
             </Link>
           )}
 
+          {/* Форма заказа внизу страницы — стрелка вниз */}
           <Link
             href="/#contact"
-            className="group inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-ink px-4 py-2 font-mono text-[11px] uppercase tracking-label text-bg transition hover:bg-brand hover:text-ink"
+            className="group inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-ink px-4 py-2 text-sm font-medium text-bg transition hover:bg-brand hover:text-ink"
           >
             {/* На телефоне полный текст не помещается рядом с логотипом и меню */}
             <span className="md:hidden">Заказать</span>
             <span className="hidden md:inline">Заказать доставку</span>
-            <ArrowUpRight
+            <ArrowDown
+              aria-hidden
               size={14}
-              className="transition group-hover:rotate-45"
+              className="transition group-hover:translate-y-0.5 motion-reduce:transition-none"
             />
           </Link>
 
@@ -170,7 +172,7 @@ export default function NavbarClient() {
                 <Link
                   href="/dashboard"
                   onClick={() => setOpen(false)}
-                  className="block rounded-full border border-brand/40 bg-brand/10 py-3 text-center text-brand-glow"
+                  className="block rounded-full border border-brand/40 bg-brand/10 py-3 text-center font-body text-sm font-medium normal-case tracking-normal text-brand-glow"
                 >
                   Кабинет
                 </Link>
@@ -180,11 +182,11 @@ export default function NavbarClient() {
                   onClick={() => setOpen(false)}
                   aria-hidden={auth === "unknown" || undefined}
                   tabIndex={auth === "unknown" ? -1 : undefined}
-                  className={`block rounded-full border border-hairline-strong py-3 text-center text-ink ${
+                  className={`block rounded-full border border-hairline-strong py-3 text-center font-body text-sm font-medium normal-case tracking-normal text-ink ${
                     auth === "unknown" ? "invisible" : ""
                   }`}
                 >
-                  Sign in
+                  Войти
                 </Link>
               )}
             </li>

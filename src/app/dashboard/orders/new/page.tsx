@@ -38,7 +38,7 @@ export default async function NewOrderPage() {
           className="mt-6 rounded-2xl border border-hairline-strong bg-bg-soft/60 p-4 text-sm text-ink-muted"
         >
           Не удалось загрузить настройки сервиса. Свяжитесь с нами:{" "}
-          <a href="tel:+420795402571" className="font-mono text-brand-glow underline-offset-4 hover:underline">
+          <a href="tel:+420795402571" className="tabular-nums text-brand-glow underline-offset-4 hover:underline">
             +420 795 402 571
           </a>
         </div>
