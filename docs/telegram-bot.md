@@ -196,3 +196,5 @@ Telegram проходит через Protection Bypass for Automation: секр�
 - **Шаг 0 пилота (2026-11-05).** Каркас клиентского бота: `createClientBot()`, вебхук
   `/api/telegram/client`, `/start` с заглушкой. Скрипты: `--bot service|client`, адрес из `APP_URL`,
   `--info`, защита боевого вебхука, маскировка секретов. Инструкция — `docs/ops/telegram-dev.md`.
+  **[Факт]** Проверено владельцем на dev-клиентском боте: `/start` отвечает с Preview, `--info` без ошибок.
+  Dev-служебный бот и группа DEV отложены до шага 2 (P-45).
