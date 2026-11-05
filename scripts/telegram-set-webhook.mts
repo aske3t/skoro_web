@@ -1,46 +1,86 @@
-import { createBot } from "../src/lib/telegram/bot.ts";
+import type { WebhookInfo } from "grammy/types";
+import { buildWebhookUrl, maskUrl } from "../src/lib/telegram/app-url.ts";
+import { BOT_CONFIG, type BotKind } from "../src/lib/telegram/bot-kind.ts";
+import { leavesProdWebhook } from "../src/lib/telegram/webhook-guard.ts";
+import { errorText, selectBot } from "./telegram-select-bot.mts";
 
-// Вебхук ставится только на прод-домен: preview-адреса Vercel закрыты авторизацией,
-// Telegram до них не достучится. Другой адрес можно передать первым аргументом.
-const DEFAULT_URL = "https://skorouvas.cz/api/telegram/dispatch";
 // Ограничение Telegram для secret_token: 1–256 символов A–Z, a–z, 0–9, «_» и «-».
 const SECRET_RE = /^[A-Za-z0-9_-]{1,256}$/;
-// Бот обрабатывает команды (message) и кнопки под заявками (callback_query).
+// Боты обрабатывают команды (message) и кнопки (callback_query).
 const ALLOWED_UPDATES = ["message", "callback_query"] as const;
 
-async function main() {
-  const bot = createBot();
-  const args = process.argv.slice(2);
+function log(line: string): void {
+  console.log(`[bot:webhook] ${line}`);
+}
 
-  // Откат: снять вебхук, чтобы снова можно было запускать `npm run bot:dev`.
-  if (args.includes("--delete")) {
-    await bot.api.deleteWebhook();
-    console.log("[bot:webhook] Вебхук снят.");
+function printInfo(info: WebhookInfo): void {
+  log(`Вебхук: ${info.url ? maskUrl(info.url) : "не установлен"}`);
+  log(`В очереди: ${info.pending_update_count}`);
+  if (info.last_error_message) {
+    const when = info.last_error_date ? new Date(info.last_error_date * 1000).toISOString() : "дата неизвестна";
+    log(`Последняя ошибка (${when}): ${info.last_error_message}`);
+  } else {
+    log("Последняя ошибка: нет");
+  }
+}
+
+function webhookTarget(kind: BotKind): string {
+  const appUrl = process.env.APP_URL;
+  if (!appUrl) throw new Error("APP_URL не задан. Для боевого бота: APP_URL=https://skorouvas.cz");
+  return buildWebhookUrl(appUrl, BOT_CONFIG[kind].webhookPath);
+}
+
+function webhookSecret(kind: BotKind): string {
+  const { secretEnv } = BOT_CONFIG[kind];
+  const secret = process.env[secretEnv];
+  if (!secret || !SECRET_RE.test(secret)) {
+    throw new Error(`${secretEnv} не задан или содержит недопустимые символы`);
+  }
+  return secret;
+}
+
+async function main() {
+  const args = process.argv.slice(2);
+  const { kind, bot } = selectBot(args);
+
+  const me = await bot.api.getMe();
+  const info = await bot.api.getWebhookInfo();
+  log(`Бот: @${me.username} (${kind})`);
+
+  // Только чтение: показать, что за бот под этим токеном и куда смотрит его вебхук.
+  if (args.includes("--info")) {
+    printInfo(info);
     return;
   }
 
-  const url = args.find((a) => !a.startsWith("--")) ?? DEFAULT_URL;
-  if (!url.startsWith("https://")) throw new Error(`Нужен https-адрес, получено: ${url}`);
+  const removing = args.includes("--delete");
+  const target = removing ? null : webhookTarget(kind);
 
-  // Секрет должен совпадать с TELEGRAM_WEBHOOK_SECRET в Vercel (Production), иначе route ответит 401.
-  const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
-  if (!secret || !SECRET_RE.test(secret)) {
-    throw new Error("TELEGRAM_WEBHOOK_SECRET не задан или содержит недопустимые символы");
+  if (leavesProdWebhook(info.url, target) && !args.includes("--force")) {
+    throw new Error(
+      `Вебхук @${me.username} стоит на боевом домене: похоже, это боевой бот. ` +
+        "Проверьте токен в .env.local. Если действительно нужно увести его с прода, добавьте --force.",
+    );
   }
 
-  await bot.api.setWebhook(url, {
-    secret_token: secret,
+  // Откат: снять вебхук, чтобы снова можно было запускать `npm run bot:dev`.
+  if (target === null) {
+    await bot.api.deleteWebhook();
+    log("Вебхук снят.");
+    return;
+  }
+
+  // Секрет должен совпадать со значением в Vercel, иначе маршрут ответит 401.
+  await bot.api.setWebhook(target, {
+    secret_token: webhookSecret(kind),
     allowed_updates: [...ALLOWED_UPDATES],
     drop_pending_updates: true,
   });
 
-  const info = await bot.api.getWebhookInfo();
-  console.log(`[bot:webhook] Вебхук: ${info.url}`);
-  console.log(`[bot:webhook] В очереди: ${info.pending_update_count}`);
-  if (info.last_error_message) console.log(`[bot:webhook] Последняя ошибка: ${info.last_error_message}`);
+  printInfo(await bot.api.getWebhookInfo());
 }
 
 main().catch((error) => {
-  console.error("[bot:webhook] Ошибка:", error);
+  console.error("[bot:webhook] Ошибка:", errorText(error));
   process.exit(1);
 });

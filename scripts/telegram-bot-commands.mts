@@ -1,16 +1,22 @@
-import { createBot } from "../src/lib/telegram/bot.ts";
+import type { BotKind } from "../src/lib/telegram/bot-kind.ts";
+import { errorText, selectBot } from "./telegram-select-bot.mts";
 
-async function main() {
-  const bot = createBot();
-  await bot.api.setMyCommands([
+const COMMANDS: Record<BotKind, { command: string; description: string }[]> = {
+  service: [
     { command: "start", description: "Приветствие" },
     { command: "orders", description: "Заказы" },
     { command: "help", description: "Справка по командам" },
-  ]);
-  console.log("[bot:commands] Список команд обновлён.");
+  ],
+  client: [{ command: "start", description: "Начать" }],
+};
+
+async function main() {
+  const { kind, bot } = selectBot(process.argv.slice(2));
+  await bot.api.setMyCommands(COMMANDS[kind]);
+  console.log(`[bot:commands] Список команд обновлён (${kind}).`);
 }
 
 main().catch((error) => {
-  console.error("[bot:commands] Ошибка:", error);
+  console.error("[bot:commands] Ошибка:", errorText(error));
   process.exit(1);
 });
