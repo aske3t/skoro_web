@@ -15,7 +15,7 @@
 - п. 1 — dev-служебного бота;
 - п. 2 — тестовую группу целиком;
 - п. 5 — секрет для `TELEGRAM_WEBHOOK_SECRET`;
-- п. 6 — строки `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ADMIN_IDS`;
+- п. 6 — строки `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_ADMIN_IDS` и `APP_URL` для Production: сайт его пока не читает, завести на шаге 6 вместе с клиентскими переменными;
 - п. 9 и п. 10 — всё про `--bot service` и тестовую заявку.
 
 **Что учесть:**
