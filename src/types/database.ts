@@ -14,6 +14,205 @@ export type Database = {
   }
   public: {
     Tables: {
+      bot_sessions: {
+        Row: {
+          key: string
+          updated_at: string
+          value: Json
+        }
+        Insert: {
+          key: string
+          updated_at?: string
+          value: Json
+        }
+        Update: {
+          key?: string
+          updated_at?: string
+          value?: Json
+        }
+        Relationships: []
+      }
+      client_contacts: {
+        Row: {
+          client_id: string
+          created_at: string
+          email: string | null
+          id: string
+          invite_expires_at: string | null
+          invite_token_hash: string | null
+          name: string
+          phone: string | null
+          status: string
+          telegram_user_id: number | null
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          invite_expires_at?: string | null
+          invite_token_hash?: string | null
+          name: string
+          phone?: string | null
+          status?: string
+          telegram_user_id?: number | null
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          invite_expires_at?: string | null
+          invite_token_hash?: string | null
+          name?: string
+          phone?: string | null
+          status?: string
+          telegram_user_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_contacts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_locations: {
+        Row: {
+          address: string
+          client_id: string
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+        }
+        Insert: {
+          address: string
+          client_id: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+        }
+        Update: {
+          address?: string
+          client_id?: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_locations_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      client_options: {
+        Row: {
+          active: boolean
+          client_id: string
+          created_at: string
+          custom_name: string | null
+          display_order: number
+          form_defaults: Json
+          id: string
+          option_id: string
+          tariff_kind: string
+          tariff_params: Json
+        }
+        Insert: {
+          active?: boolean
+          client_id: string
+          created_at?: string
+          custom_name?: string | null
+          display_order?: number
+          form_defaults?: Json
+          id?: string
+          option_id: string
+          tariff_kind: string
+          tariff_params: Json
+        }
+        Update: {
+          active?: boolean
+          client_id?: string
+          created_at?: string
+          custom_name?: string | null
+          display_order?: number
+          form_defaults?: Json
+          id?: string
+          option_id?: string
+          tariff_kind?: string
+          tariff_params?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_options_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_options_option_id_fkey"
+            columns: ["option_id"]
+            isOneToOne: false
+            referencedRelation: "service_options"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          created_at: string
+          default_payment_method: string
+          email: string | null
+          ico: string | null
+          id: string
+          name: string
+          phone: string | null
+          status: string
+          type: string
+        }
+        Insert: {
+          created_at?: string
+          default_payment_method?: string
+          email?: string | null
+          ico?: string | null
+          id?: string
+          name: string
+          phone?: string | null
+          status?: string
+          type: string
+        }
+        Update: {
+          created_at?: string
+          default_payment_method?: string
+          email?: string | null
+          ico?: string | null
+          id?: string
+          name?: string
+          phone?: string | null
+          status?: string
+          type?: string
+        }
+        Relationships: []
+      }
       delivery_slots: {
         Row: {
           base_price: number
@@ -51,6 +250,7 @@ export type Database = {
           created_at: string
           customer_type: string | null
           delivery_address: string | null
+          delivery_at: string | null
           email: string
           first_name: string | null
           handled_at: string | null
@@ -78,6 +278,7 @@ export type Database = {
           created_at?: string
           customer_type?: string | null
           delivery_address?: string | null
+          delivery_at?: string | null
           email: string
           first_name?: string | null
           handled_at?: string | null
@@ -105,6 +306,7 @@ export type Database = {
           created_at?: string
           customer_type?: string | null
           delivery_address?: string | null
+          delivery_at?: string | null
           email?: string
           first_name?: string | null
           handled_at?: string | null
@@ -155,56 +357,161 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          attempts: number
+          channel: string
+          created_at: string
+          entity: string
+          entity_id: string
+          event: string
+          id: string
+          last_error: string | null
+          recipient: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          attempts?: number
+          channel: string
+          created_at?: string
+          entity: string
+          entity_id: string
+          event: string
+          id?: string
+          last_error?: string | null
+          recipient?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          attempts?: number
+          channel?: string
+          created_at?: string
+          entity?: string
+          entity_id?: string
+          event?: string
+          id?: string
+          last_error?: string | null
+          recipient?: string | null
+          sent_at?: string | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
+          accepted_at: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          client_id: string | null
+          client_option_id: string | null
           comment: string | null
+          contact_id: string | null
           created_at: string | null
+          created_via: string | null
           delivered_at: string | null
+          form_data: Json | null
           from_address: string | null
+          handled_by_name: string | null
+          handled_by_tg_id: number | null
           id: string
+          number: number | null
           payment_status: string
           price: number | null
+          price_breakdown: Json | null
           recipient_contact: string | null
           scheduled_for: string | null
           slot_id: string | null
           status: Database["public"]["Enums"]["order_status"]
           subscription_id: string | null
+          tariff_kind: string | null
+          tg_chat_id: number | null
+          tg_message_id: number | null
           to_address: string | null
-          user_id: string
+          user_id: string | null
         }
         Insert: {
+          accepted_at?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          client_id?: string | null
+          client_option_id?: string | null
           comment?: string | null
+          contact_id?: string | null
           created_at?: string | null
+          created_via?: string | null
           delivered_at?: string | null
+          form_data?: Json | null
           from_address?: string | null
+          handled_by_name?: string | null
+          handled_by_tg_id?: number | null
           id?: string
+          number?: number | null
           payment_status?: string
           price?: number | null
+          price_breakdown?: Json | null
           recipient_contact?: string | null
           scheduled_for?: string | null
           slot_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           subscription_id?: string | null
+          tariff_kind?: string | null
+          tg_chat_id?: number | null
+          tg_message_id?: number | null
           to_address?: string | null
-          user_id: string
+          user_id?: string | null
         }
         Update: {
+          accepted_at?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          client_id?: string | null
+          client_option_id?: string | null
           comment?: string | null
+          contact_id?: string | null
           created_at?: string | null
+          created_via?: string | null
           delivered_at?: string | null
+          form_data?: Json | null
           from_address?: string | null
+          handled_by_name?: string | null
+          handled_by_tg_id?: number | null
           id?: string
+          number?: number | null
           payment_status?: string
           price?: number | null
+          price_breakdown?: Json | null
           recipient_contact?: string | null
           scheduled_for?: string | null
           slot_id?: string | null
           status?: Database["public"]["Enums"]["order_status"]
           subscription_id?: string | null
+          tariff_kind?: string | null
+          tg_chat_id?: number | null
+          tg_message_id?: number | null
           to_address?: string | null
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_client_option_id_fkey"
+            columns: ["client_option_id"]
+            isOneToOne: false
+            referencedRelation: "client_options"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "client_contacts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_slot_id_fkey"
             columns: ["slot_id"]
@@ -355,6 +662,50 @@ export type Database = {
         }
         Relationships: []
       }
+      service_options: {
+        Row: {
+          active: boolean
+          client_id: string | null
+          created_at: string
+          description: string | null
+          display_order: number
+          form_kind: string
+          id: string
+          name: string
+          slug: string
+        }
+        Insert: {
+          active?: boolean
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          form_kind: string
+          id?: string
+          name: string
+          slug: string
+        }
+        Update: {
+          active?: boolean
+          client_id?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          form_kind?: string
+          id?: string
+          name?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_options_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       skoro_pricing: {
         Row: {
           base_price: number
@@ -409,6 +760,30 @@ export type Database = {
           total_deliveries?: number
           user_id?: string
           valid_until?: string | null
+        }
+        Relationships: []
+      }
+      telegram_users: {
+        Row: {
+          first_name: string | null
+          last_name: string | null
+          last_seen_at: string
+          telegram_user_id: number
+          username: string | null
+        }
+        Insert: {
+          first_name?: string | null
+          last_name?: string | null
+          last_seen_at?: string
+          telegram_user_id: number
+          username?: string | null
+        }
+        Update: {
+          first_name?: string | null
+          last_name?: string | null
+          last_seen_at?: string
+          telegram_user_id?: number
+          username?: string | null
         }
         Relationships: []
       }
@@ -471,6 +846,60 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      create_option_order: {
+        Args: {
+          p_client_option_id: string
+          p_comment?: string
+          p_contact_id: string
+          p_created_via: string
+          p_form_data: Json
+          p_from_address: string
+          p_price: number
+          p_price_breakdown: Json
+          p_recipient_contact?: string
+          p_scheduled_for?: string
+          p_slot_id: string
+          p_tariff_kind: string
+          p_to_address: string
+        }
+        Returns: {
+          accepted_at: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          client_id: string | null
+          client_option_id: string | null
+          comment: string | null
+          contact_id: string | null
+          created_at: string | null
+          created_via: string | null
+          delivered_at: string | null
+          form_data: Json | null
+          from_address: string | null
+          handled_by_name: string | null
+          handled_by_tg_id: number | null
+          id: string
+          number: number | null
+          payment_status: string
+          price: number | null
+          price_breakdown: Json | null
+          recipient_contact: string | null
+          scheduled_for: string | null
+          slot_id: string | null
+          status: Database["public"]["Enums"]["order_status"]
+          subscription_id: string | null
+          tariff_kind: string | null
+          tg_chat_id: number | null
+          tg_message_id: number | null
+          to_address: string | null
+          user_id: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       create_order_for_user: {
         Args: {
           p_comment?: string
@@ -481,20 +910,35 @@ export type Database = {
           p_to_address: string
         }
         Returns: {
+          accepted_at: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          client_id: string | null
+          client_option_id: string | null
           comment: string | null
+          contact_id: string | null
           created_at: string | null
+          created_via: string | null
           delivered_at: string | null
+          form_data: Json | null
           from_address: string | null
+          handled_by_name: string | null
+          handled_by_tg_id: number | null
           id: string
+          number: number | null
           payment_status: string
           price: number | null
+          price_breakdown: Json | null
           recipient_contact: string | null
           scheduled_for: string | null
           slot_id: string | null
           status: Database["public"]["Enums"]["order_status"]
           subscription_id: string | null
+          tariff_kind: string | null
+          tg_chat_id: number | null
+          tg_message_id: number | null
           to_address: string | null
-          user_id: string
+          user_id: string | null
         }
         SetofOptions: {
           from: "*"
