@@ -33,6 +33,10 @@ Tests: `npm test` (vitest).
 | `LEAD_IP_SALT` | server | Random string (≥ 32 chars) for hashing client IPs used in rate limiting |
 | `TELEGRAM_WEBHOOK_SECRET` | server | Compared against `X-Telegram-Bot-Api-Secret-Token` on incoming webhook requests (see [docs/telegram-bot.md](docs/telegram-bot.md)) |
 | `TELEGRAM_ADMIN_IDS` | server | Comma-separated Telegram user ids allowed to act as dispatcher in the staff bot |
+| `TELEGRAM_CLIENT_BOT_TOKEN` | server | Client bot token from @BotFather |
+| `TELEGRAM_CLIENT_WEBHOOK_SECRET` | server | Compared against `X-Telegram-Bot-Api-Secret-Token` on the client bot webhook. Must differ from `TELEGRAM_WEBHOOK_SECRET` |
+| `TELEGRAM_CLIENT_BOT_USERNAME` | server | Client bot username without `@`, used in invite links |
+| `APP_URL` | server | Site address for bot webhooks and Mini App buttons; on Preview it carries the deployment protection bypass (see [docs/ops/telegram-dev.md](docs/ops/telegram-dev.md)) |
 | `RESEND_API_KEY` | server | Resend API key (sending access, domain `notify.skorouvas.cz`) for client emails |
 | `EMAIL_FROM` | server | Sender, e.g. `SKORO u vás <noreply@notify.skorouvas.cz>` |
 | `EMAIL_REPLY_TO` | server | Where client replies go (optional) |

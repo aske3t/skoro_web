@@ -14,7 +14,7 @@
 | Что делает | уведомления о заявках с кнопками (`src/lib/leads/notify.ts`), команды; по плану пилота — карточки заказов, `/invite` | по плану пилота — вход по приглашению, меню, Mini App, «Мои заказы», статусы клиенту |
 | Вебхук | `POST /api/telegram/dispatch` | `POST /api/telegram/client` |
 | Код | `src/lib/telegram/` | `src/lib/telegram/client/` |
-| Статус | работает | **[Факт]** кода ещё нет, каркас — шаг 0 пилота |
+| Статус | работает | **[Факт]** каркас: только `/start` в личке. Функции — шаги 3–5 пилота |
 
 Нажатие кнопки получает только бот, который отправил сообщение, и только он может это сообщение править. Поэтому карточку заказа шлёт и обрабатывает служебный бот, а клиенту пишет клиентский.
 
@@ -47,6 +47,18 @@ Route Handler (runtime `nodejs`), вызывая grammY `webhookCallback`.
 `allowImportingTsExtensions` в `tsconfig.json` (безопасно, так как `noEmit: true`). Route handler
 собирается Next.js и может использовать `@/lib/telegram/bot` как обычно.
 
+## Код клиентского бота и общий код
+
+| Файл | Назначение |
+|---|---|
+| `src/lib/telegram/client/bot.ts` | `createClientBot()`: токен читается лениво из `TELEGRAM_CLIENT_BOT_TOKEN` |
+| `src/lib/telegram/client/commands.ts` | `/start` с заглушкой, только в личке |
+| `src/app/api/telegram/client/route.ts` | Route handler вебхука: проверка `TELEGRAM_CLIENT_WEBHOOK_SECRET` → `webhookCallback` |
+| `src/lib/telegram/bot-kind.ts` | Виды ботов, их маршруты и имена секретов, разбор `--bot` (общий) |
+| `src/lib/telegram/app-url.ts` | Адрес вебхука из `APP_URL`, маскировка адреса для вывода (общий) |
+| `src/lib/telegram/webhook-guard.ts` | Также `leavesProdWebhook`: не даёт скрипту увести вебхук с боевого домена (общий) |
+| `scripts/telegram-select-bot.mts` | Выбор бота для скриптов по `--bot` |
+
 ## Команды служебного бота (сейчас)
 
 | Команда | Кто | Что делает |
@@ -55,7 +67,7 @@ Route Handler (runtime `nodejs`), вызывая grammY `webhookCallback`.
 | `/help` | любой | список команд |
 | `/orders` | любой | заглушка: «Список заказов появится позже» |
 
-Команды доступны всем и ничего не меняют.
+Команды доступны всем и ничего не меняют. Клиентский бот пока отвечает только на `/start` в личке.
 
 ## Кнопки под заявкой
 
@@ -84,10 +96,10 @@ Route Handler (runtime `nodejs`), вызывая grammY `webhookCallback`.
 | `TELEGRAM_BOT_TOKEN` | `bot.ts`, `notify.ts` | токен служебного бота: уведомления о заявках и приём обновлений |
 | `TELEGRAM_CHAT_ID` | `notify.ts` | группа «Заявки» |
 | `TELEGRAM_WEBHOOK_SECRET` | `dispatch/route.ts` | секрет служебного бота для `X-Telegram-Bot-Api-Secret-Token`; при установке вебхука передаётся в `setWebhook` |
-| `TELEGRAM_CLIENT_BOT_TOKEN` | шаг 0 | токен клиентского бота |
-| `TELEGRAM_CLIENT_WEBHOOK_SECRET` | шаг 0 | секрет клиентского бота; вебхук с секретом другого бота получает 401 |
-| `TELEGRAM_CLIENT_BOT_USERNAME` | шаг 3 | имя клиентского бота для ссылок-приглашений |
-| `APP_URL` | шаг 0 | адрес сайта для вебхуков dev-ботов и Mini App (ADR-0006 §8) |
+| `TELEGRAM_CLIENT_BOT_TOKEN` | `client/bot.ts` | токен клиентского бота |
+| `TELEGRAM_CLIENT_WEBHOOK_SECRET` | `client/route.ts` | секрет клиентского бота; вебхук с секретом другого бота получает 401 |
+| `TELEGRAM_CLIENT_BOT_USERNAME` | с шага 3 | имя клиентского бота для ссылок-приглашений |
+| `APP_URL` | `scripts/telegram-set-webhook.mts`, с шага 4 — кнопки Mini App | адрес сайта; на Preview — с параметрами обхода защиты (ADR-0006 §8) |
 | `RESEND_API_KEY` | `email/resend.ts` | ключ Resend (Sending access, домен `notify.skorouvas.cz`) |
 | `EMAIL_FROM` | `email/resend.ts` | `SKORO u vás <noreply@notify.skorouvas.cz>` |
 | `EMAIL_REPLY_TO` | `email/resend.ts` | `skorodelivery@gmail.com` — куда приходят ответы клиентов |
@@ -107,9 +119,10 @@ npm run bot:dev
 `npm run bot:dev` (принимает нажатия). Polling слушает `message` и `callback_query`.
 
 Скрипт сначала проверяет `getWebhookInfo()`: если на боте уже стоит вебхук — откажется
-стартовать (polling снял бы вебхук и перехватил обновления у прода). Для разработки по ADR-0006 §8
-заводятся два dev-бота, их значения лежат в `.env.local`. С шага 0 скрипты принимают
-`-- --bot service` или `-- --bot client`; без параметра — служебный бот.
+стартовать (polling снял бы вебхук и перехватил обновления у развёрнутого сайта). Для разработки
+по ADR-0006 §8 заводятся два dev-бота, их значения лежат в `.env.local`
+(настройка — [docs/ops/telegram-dev.md](ops/telegram-dev.md)). Скрипты `bot:dev`, `bot:commands` и
+`bot:webhook` принимают `-- --bot service` или `-- --bot client`; без параметра — служебный бот.
 
 Обновить меню команд в Telegram (`/`):
 
@@ -119,17 +132,23 @@ npm run bot:commands
 
 ## Вебхуки
 
-**Цель (ADR-0006 §8, шаг 0):** боевые боты — на `skorouvas.cz`, dev-боты — на стабильный адрес ветки.
-Защиту Preview Telegram проходит через Protection Bypass for Automation (секрет в параметре адреса).
-Адрес берётся из `APP_URL`: служебный бот — `/api/telegram/dispatch`, клиентский — `/api/telegram/client`.
+Боевые боты — на `skorouvas.cz`, dev-боты — на стабильный адрес ветки (ADR-0006 §8). Защиту Preview
+Telegram проходит через Protection Bypass for Automation: секрет передаётся параметром адреса.
 
-**[Факт] Сейчас** `npm run bot:webhook` (`scripts/telegram-set-webhook.mts`) ставит вебхук служебного бота на
-`https://skorouvas.cz/api/telegram/dispatch` с `secret_token` и `allowed_updates: message, callback_query`,
-сбрасывает накопившиеся обновления и печатает `getWebhookInfo`.
+`npm run bot:webhook` (`scripts/telegram-set-webhook.mts`) ставит вебхук с `secret_token` и
+`allowed_updates: message, callback_query`, сбрасывает накопившиеся обновления и печатает состояние вебхука.
 
-- Секрет берётся из `TELEGRAM_WEBHOOK_SECRET` окружения (переменная окружения важнее `.env.local`)
-  и должен совпадать со значением в Vercel (Production), иначе route отвечает 401.
-- `npm run bot:webhook -- --delete` снимает вебхук (откат; после этого снова работает `bot:dev`).
+| Бот | Параметр | Маршрут | Секрет |
+|---|---|---|---|
+| служебный | без параметра или `-- --bot service` | `/api/telegram/dispatch` | `TELEGRAM_WEBHOOK_SECRET` |
+| клиентский | `-- --bot client` | `/api/telegram/client` | `TELEGRAM_CLIENT_WEBHOOK_SECRET` |
+
+- **Адрес** берётся из `APP_URL`, без него — ошибка. Из параметров в адрес вебхука попадает только
+  `x-vercel-protection-bypass`: `x-vercel-set-bypass-cookie` отвечает редиректом.
+- **`-- --info`** только читает: бот, адрес, очередь, последняя ошибка. Запускать первым, чтобы убедиться, чей токен в `.env.local`.
+- **`-- --delete`** снимает вебхук; после этого снова работает `bot:dev`.
+- **Защита боевого бота:** если вебхук стоит на `skorouvas.cz`, а команда уводит его оттуда или снимает, скрипт откажет. Осознанно — `--force`.
+- **Секреты:** значения параметров в выводе маскируются. Переменная окружения важнее `.env.local`. Секрет должен совпадать со значением в Vercel, иначе маршрут отвечает 401.
 - Пока вебхук стоит, `bot:dev` откажется стартовать — так задумано.
 
 ## История шагов
@@ -173,5 +192,7 @@ npm run bot:commands
   устаревшее нажатие (бот был выключен) больше не прерывает обработку; `bot.catch` не даёт
   ошибке остановить бота.
 - **Два бота (2026-11-05, P-43).** Решение владельца, ADR-0006 §4 изменён: клиентский интерфейс —
-  отдельный бот, нынешний остаётся служебным, его токен, вебхук и профиль не меняются. Каркас
-  клиентского бота — шаг 0 пилота.
+  отдельный бот, нынешний остаётся служебным, его токен, вебхук и профиль не меняются.
+- **Шаг 0 пилота (2026-11-05).** Каркас клиентского бота: `createClientBot()`, вебхук
+  `/api/telegram/client`, `/start` с заглушкой. Скрипты: `--bot service|client`, адрес из `APP_URL`,
+  `--info`, защита боевого вебхука, маскировка секретов. Инструкция — `docs/ops/telegram-dev.md`.
