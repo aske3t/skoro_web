@@ -107,6 +107,8 @@ APP_URL="https://<адрес ветки>?x-vercel-protection-bypass=<секре�
 
 Vercel → **Deployments** → последняя сборка `feature/bot-clients` → **Redeploy**. Новые переменные действуют только на новые сборки.
 
+В окне Redeploy должна быть указана ветка `feature/bot-clients`. Если там `main`, нажми **Cancel**: в той сборке нет нового маршрута.
+
 ## 9. Вебхуки dev-ботов
 
 Все команды — из папки `skoro-bot`. Сначала проверь, что под токенами именно dev-боты:
