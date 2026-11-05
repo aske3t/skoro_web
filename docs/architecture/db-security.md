@@ -101,3 +101,25 @@ where n.nspname = 'public';
 | F-2…F-5, F-7, F-9, F-12…F-14 | без изменений, см. [CURRENT §9](CURRENT.md) | — |
 
 `migration list` синхронен, `db diff` пуст (проверено владельцем).
+
+## 7. Пилот бота: миграция `20261105180000_client_options` (ADR-0006)
+
+> **Статус на 2026-11-05: написана, к удалённой БД ещё не применена.** Проверена на локальном Postgres (PGlite) со всей цепочкой миграций и ролями `anon`, `authenticated`, `service_role`, default privileges — как в Supabase. Проверка на самой БД — после применения владельцем.
+
+| Объект | anon, authenticated | service_role |
+|---|---|---|
+| `clients`, `client_contacts`, `client_locations`, `telegram_users`, `service_options`, `client_options`, `notifications`, `bot_sessions` | нет доступа: `revoke all`, RLS включён, политик нет | чтение и запись |
+| `create_option_order` (`security definer`, `search_path = ''`) | нет `execute` | `execute` |
+| `client_options_check_owner` (функция триггера, без `security definer`, `search_path = ''`) | нет `execute` | — |
+| `orders_number_seq` | нет доступа | `usage`, `select` |
+
+**Изменения существующих объектов.** **[Факт]** Сверено с `origin/main`: прод пишет в `orders` только через `create_order_for_user`, читает через `select("*")` в `lib/account/queries.ts`.
+
+| Изменение | Почему совместимо с `main` |
+|---|---|
+| `orders`: новые колонки и `number` | Все допускают `null` или имеют default. `create_order_for_user` возвращает строку целиком (`returning *`), лишние поля не мешают |
+| `orders.user_id` без `not null` | Прод всегда передаёт пользователя. Строки без `user_id` скрыты от кабинета политикой `auth.uid() = user_id` |
+| `orders.payment_status`: default `pending_payment`, `check (paid, pending_payment)` | Функция задаёт оба значения явно, других в данных нет (диагностика 2026-11-05: `paid` × 3). Закрывает F-9 для `orders`; `payments` — TASK-006 |
+| `leads.delivery_at` | Новая колонка с `null`. Прод читает `leads` своим списком колонок |
+
+**Не меняется до contract-шага:** `create_order_for_user`, старые политики по `user_id`, каскад от `auth.users` (F-12).

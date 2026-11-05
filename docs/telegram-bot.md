@@ -198,3 +198,8 @@ Telegram проходит через Protection Bypass for Automation: секр�
   `--info`, защита боевого вебхука, маскировка секретов. Инструкция — `docs/ops/telegram-dev.md`.
   **[Факт]** Проверено владельцем на dev-клиентском боте: `/start` отвечает с Preview, `--info` без ошибок.
   Dev-служебный бот и группа DEV отложены до шага 2 (P-45).
+- **Шаг 1 пилота (2026-11-05).** Миграция `client_options` и чистые модули: `lib/orders/` (пражское
+  время, слот), `lib/pricing/tariffs/` (`slot_table`, `flat`), `lib/options/forms/` (`city_delivery`),
+  `lib/telegram/init-data.ts`, `lib/telegram/invite.ts`. Поведение ботов не менялось. Сниппеты
+  клиентов — `docs/ops/clients.md`. «Как можно скорее» вне рабочих часов — ошибка `slot_outside_hours`
+  (решение владельца).
