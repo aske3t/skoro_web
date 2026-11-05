@@ -104,7 +104,7 @@ where n.nspname = 'public';
 
 ## 7. Пилот бота: миграция `20261105180000_client_options` (ADR-0006)
 
-> **Статус на 2026-11-05: написана, к удалённой БД ещё не применена.** Проверена на локальном Postgres (PGlite) со всей цепочкой миграций и ролями `anon`, `authenticated`, `service_role`, default privileges — как в Supabase. Проверка на самой БД — после применения владельцем.
+> **Статус на 2026-11-06: применена владельцем**, типы перегенерированы. Проверена на локальном Postgres (PGlite) со всей цепочкой миграций и ролями `anon`, `authenticated`, `service_role`, default privileges — как в Supabase. Проверку на самой БД делал владелец, вывод агент не видел.
 
 | Объект | anon, authenticated | service_role |
 |---|---|---|
