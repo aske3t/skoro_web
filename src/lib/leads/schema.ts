@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { isValidIco, normalizeIco } from "./ico";
+import { isValidIco, normalizeIco } from "./ico.ts";
 import {
   ADDRESS_MAX,
   CUSTOMER_TYPES,
@@ -12,7 +12,7 @@ import {
   PHONE_INPUT_MAX,
   UTM_KEYS,
   UTM_VALUE_MAX,
-} from "./constants";
+} from "./constants.ts";
 
 export {
   ADDRESS_MAX,
@@ -153,7 +153,7 @@ const optionalName = z
   .max(NAME_MAX, "too_long")
   .transform((v) => v || null);
 
-const optionalText = (max: number) =>
+export const optionalText = (max: number) =>
   z
     .string()
     .trim()

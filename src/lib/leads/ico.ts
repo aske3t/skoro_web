@@ -1,5 +1,5 @@
 // Без zod и серверного кода: проверка IČO нужна и схеме, и форме.
-import { ICO_LENGTH } from "./constants";
+import { ICO_LENGTH } from "./constants.ts";
 
 const ICO_WEIGHTS = [8, 7, 6, 5, 4, 3, 2];
 
