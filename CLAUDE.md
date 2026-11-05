@@ -1,6 +1,6 @@
 # CLAUDE.md — правила работы в проекте Skoro
 
-Сайт курьерской службы Skoro (Брно): лендинг с калькулятором доставки, контактная форма (лиды) и личный кабинет клиента.
+Сайт курьерской службы Skoro (Брно): лендинг с калькулятором доставки, контактная форма (лиды), личный кабинет клиента и два Telegram-бота: служебный и клиентский (пилот).
 Стек: Next.js 15 (App Router), React 19, TypeScript, Tailwind 3, Supabase (Auth + Postgres), zod, vitest.
 
 ## Роли и документы
@@ -44,11 +44,26 @@ npx supabase gen types typescript --project-id ukdxpdprxkcslydfobno > /tmp/db.ts
 
 ## Структура
 
-- `src/app/` — маршруты: `/`, `/login`, `/dashboard/*`, route handlers `auth/*`, `api/geocode/search`.
+- `src/app/` — маршруты: `/`, `/services/*`, `/personal/*`, `/insurance`, `/contract`, `/login`, `/dashboard/*`, route handlers `auth/*`, `api/telegram/*`. В пилоте бота — `/tg/*` (Mini App).
 - `src/components/` — `sections/` (лендинг), `calculator/`, `account/` (ЛК), `layout/`, `ui/`.
-- `src/lib/` — `supabase/` (клиенты: browser, server, middleware, `admin.ts` server-only), `leads/` (контактная форма), `calculator/`, `account/`, `maps/`.
+- `src/lib/` — `supabase/` (клиенты: browser, server, middleware, `admin.ts` server-only), `leads/` (контактная форма), `newsletter/`, `email/`, `telegram/` (боты), `pricing/`, `calculator/`, `account/`, `maps/`.
 - `src/types/database.ts` — сгенерированные типы Supabase.
-- `supabase/migrations/` — источник истины схемы (ADR-0002): `create_leads` + baseline `remote_schema`. Аудит доступа — `docs/architecture/db-security.md`.
+- `supabase/migrations/` — источник истины схемы (ADR-0002): `create_leads`, baseline `remote_schema`, `harden_public_access`, расширения `leads_*`, `newsletter_subscribers`. Полный список — в самой папке. Аудит доступа — `docs/architecture/db-security.md`.
+
+## Telegram-боты
+
+Два бота, общие сервер и БД (ADR-0006 §4). Сообщениями в Telegram они не обмениваются: связь — через БД и серверный код. Подробно — `docs/telegram-bot.md`.
+
+| | Служебный (нынешний) | Клиентский (новый, пилот) |
+|---|---|---|
+| Кто и где | админы, позже курьеры; группа «Заявки» и личка | клиенты и гости; только личка |
+| Что делает | карточки заявок и заказов с кнопками, `/invite` | вход по приглашению, меню, Mini App, «Мои заказы», статусы клиенту |
+| Env | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_CHAT_ID`, `TELEGRAM_ADMIN_IDS` | `TELEGRAM_CLIENT_BOT_TOKEN`, `TELEGRAM_CLIENT_WEBHOOK_SECRET`, `TELEGRAM_CLIENT_BOT_USERNAME`, `APP_URL` |
+| Вебхук | `/api/telegram/dispatch` | `/api/telegram/client` |
+| Код | `src/lib/telegram/` | `src/lib/telegram/client/` |
+
+- Нажатие кнопки получает только бот-отправитель, и только он может править своё сообщение. Поэтому карточку заказа шлёт и обрабатывает служебный бот, а клиенту пишет клиентский.
+- Разработка — на двух dev-ботах с тестовой группой (ADR-0006 §8). Токен, вебхук и профиль боевого служебного бота не менять.
 
 ## Правила для агента
 
