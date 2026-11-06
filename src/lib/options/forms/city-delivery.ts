@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DELIVERY_AT_INPUT_MAX } from "../../leads/constants.ts";
 import {
   ADDRESS_MAX,
   MESSAGE_MAX,
@@ -12,7 +13,6 @@ import { formatPragueDateTime, parsePragueLocal } from "../../orders/prague-time
 import { CITY_DELIVERY_FIELDS, CITY_DELIVERY_LABELS, DELIVERY_MODES } from "./constants.ts";
 import type { FormKind, FormSummaryLine } from "./types.ts";
 
-const DELIVERY_AT_INPUT_MAX = 32;
 const UUID_INPUT_MAX = 64;
 
 export type CityDeliveryValues = {

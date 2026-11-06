@@ -3,11 +3,14 @@
 import {
   ArrowUpRight,
   Banknote,
+  CalendarClock,
   ChevronDown,
   CircleCheck,
   CreditCard,
+  LoaderCircle,
   Phone,
   ShieldCheck,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import {
@@ -20,6 +23,7 @@ import {
 } from "react";
 import { setAudience, useAudience, type Audience } from "@/lib/audience";
 import { submitLead } from "@/lib/leads/actions";
+import { checkDeliveryTime, type DeliveryTimeCheck } from "@/lib/leads/delivery-time-check";
 import { onLeadPrefill } from "@/lib/leads/prefill";
 import { useReveal } from "@/lib/useReveal";
 import { PhotoField } from "./PhotoField";
@@ -66,6 +70,8 @@ const FIELD_ERROR_TEXT: Record<FieldErrorCode, string> = {
   too_large: "Файл слишком большой: не более 4 МБ.",
   not_found: "Фирма с таким IČO не найдена в реестре ARES.",
   inactive: "По данным ARES фирма с этим IČO закрыта.",
+  past: "Это время уже прошло: выберите другое.",
+  outside_hours: "В это время мы не работаем: выберите другое.",
 };
 
 const PAYMENT_ICON: Record<(typeof PAYMENT_METHODS)[number], LucideIcon> = {
@@ -82,6 +88,7 @@ const INVALID_FIELD_TEXT: Partial<Record<LeadField, string>> = {
   email: "Проверьте email: например, name@company.cz.",
   phone: "Проверьте номер телефона: например, +420 777 123 456.",
   recipientPhone: "Проверьте номер телефона получателя.",
+  deliveryAt: "Проверьте дату и время доставки.",
   paymentMethod: "Выберите способ оплаты.",
   customerType: "Выберите: компания или частное лицо.",
   ico: "Проверьте IČO: 8 цифр, контрольная цифра не сходится.",
@@ -95,6 +102,7 @@ const REQUIRED_FIELD_TEXT: Partial<Record<LeadField, string>> = {
   ico: "Укажите IČO компании: 8 цифр.",
   pickupAddress: "Укажите, откуда забрать отправление.",
   deliveryAddress: "Укажите, куда доставить отправление.",
+  deliveryAt: "Укажите дату и время доставки.",
   paymentMethod: "Выберите способ оплаты.",
 };
 
@@ -105,6 +113,7 @@ const FIELD_LABEL: Partial<Record<LeadField, string>> = {
   ico: "IČO",
   pickupAddress: "Откуда",
   deliveryAddress: "Куда",
+  deliveryAt: "Когда доставить",
   recipientName: "Имя получателя",
   recipientPhone: "Телефон получателя",
   paymentMethod: "Способ оплаты",
@@ -301,6 +310,8 @@ function LeadForm({ onReset }: { onReset: () => void }) {
       phone: get("phone"),
       pickupAddress: get("pickupAddress"),
       deliveryAddress: get("deliveryAddress"),
+      deliveryMode: get("deliveryMode"),
+      deliveryAt: get("deliveryAt"),
       paymentMethod: get("paymentMethod"),
       ico: get("ico"),
     });
@@ -524,6 +535,14 @@ function LeadForm({ onReset }: { onReset: () => void }) {
                   <span className="text-[15px]">Получатель — я сам</span>
                 </label>
               </Grid>
+
+              <DeliveryTimeField
+                defaultMode={values?.deliveryMode}
+                defaultAt={values?.deliveryAt}
+                error={errorOf("deliveryAt")}
+                invalidProps={errorProps("deliveryAt")}
+                onModeChange={() => clearFieldError("deliveryAt")}
+              />
 
               <DeliveryQuote quote={quote} />
 
@@ -815,6 +834,125 @@ function RequiredMark() {
   );
 }
 
+const DELIVERY_TIME_DEBOUNCE_MS = 400;
+
+type DeliveryTimeStatus = { status: "idle" | "checking" } | DeliveryTimeCheck;
+
+/**
+ * «Когда доставить»: как можно скорее или ко времени. Без выбора сервер считает «как можно скорее».
+ * Слот под полем считает сервер; при отправке он проверяет время заново — это подсказка, а не защита.
+ */
+function DeliveryTimeField({
+  defaultMode,
+  defaultAt,
+  error,
+  invalidProps,
+  onModeChange,
+}: {
+  defaultMode?: string;
+  defaultAt?: string;
+  error?: { id: string; text: string };
+  invalidProps: Record<string, unknown>;
+  onModeChange: () => void;
+}) {
+  const [atTime, setAtTime] = useState(defaultMode === "at");
+  const [value, setValue] = useState(defaultAt ?? "");
+  const [check, setCheck] = useState<DeliveryTimeStatus>({ status: "idle" });
+  const requestRef = useRef(0);
+
+  useEffect(() => {
+    const requestId = ++requestRef.current;
+    if (!atTime || !value) {
+      setCheck({ status: "idle" });
+      return;
+    }
+    setCheck({ status: "checking" });
+    const timer = setTimeout(async () => {
+      try {
+        const result = await checkDeliveryTime(value);
+        if (requestId === requestRef.current) setCheck(result);
+      } catch {
+        if (requestId === requestRef.current) setCheck({ status: "unavailable" });
+      }
+    }, DELIVERY_TIME_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [atTime, value]);
+
+  function chooseMode(next: boolean) {
+    setAtTime(next);
+    onModeChange();
+  }
+
+  return (
+    <fieldset className="mt-3">
+      <legend className="mb-2 text-[13px] text-[#1D1425]/70">Когда доставить</legend>
+      <div className="grid grid-cols-1 gap-px border border-[#1D1425]/15 bg-[#1D1425]/15 sm:grid-cols-2">
+        <ChoiceCell
+          name="deliveryMode"
+          value="asap"
+          label="Как можно скорее"
+          Icon={Zap}
+          checked={!atTime}
+          onChange={() => chooseMode(false)}
+        />
+        <ChoiceCell
+          name="deliveryMode"
+          value="at"
+          label="Ко времени"
+          Icon={CalendarClock}
+          checked={atTime}
+          onChange={() => chooseMode(true)}
+        />
+        {atTime && (
+          <Field label="Дата и время по Праге" htmlFor="deliveryAt" required error={error} wide>
+            <input
+              id="deliveryAt"
+              name="deliveryAt"
+              type="datetime-local"
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              className={inputClass}
+              {...invalidProps}
+            />
+            {!error && <DeliveryTimeHint check={check} />}
+          </Field>
+        )}
+      </div>
+    </fieldset>
+  );
+}
+
+function DeliveryTimeHint({ check }: { check: DeliveryTimeStatus }) {
+  const line = (text: ReactNode, tone: string) => (
+    <p role="status" className={`mt-1.5 flex items-center gap-1.5 text-sm ${tone}`}>
+      {text}
+    </p>
+  );
+
+  switch (check.status) {
+    case "idle":
+      return null;
+    case "checking":
+      return line(
+        <>
+          <LoaderCircle size={14} aria-hidden className="animate-spin" />
+          Подбираем слот…
+        </>,
+        "text-[#1D1425]/70",
+      );
+    case "ok":
+      return line(`Слот: ${check.slotLabel}`, "text-[#1D1425]/70");
+    case "past":
+      return line(FIELD_ERROR_TEXT.past, "text-[#B3261E]");
+    case "outside_hours":
+      return line(FIELD_ERROR_TEXT.outside_hours, "text-[#B3261E]");
+    case "invalid":
+      return line(INVALID_FIELD_TEXT.deliveryAt, "text-[#B3261E]");
+    case "unavailable":
+      return line("Слот уточнит менеджер.", "text-[#1D1425]/70");
+  }
+}
+
 /** Ячейка выбора (radio) с иконкой. */
 function ChoiceCell({
   name,
@@ -822,6 +960,8 @@ function ChoiceCell({
   label,
   Icon,
   defaultChecked,
+  checked,
+  onChange,
   invalid,
 }: {
   name: string;
@@ -829,6 +969,8 @@ function ChoiceCell({
   label: string;
   Icon: LucideIcon;
   defaultChecked?: boolean;
+  checked?: boolean;
+  onChange?: () => void;
   invalid?: boolean;
 }) {
   return (
@@ -843,6 +985,8 @@ function ChoiceCell({
         value={value}
         required
         defaultChecked={defaultChecked}
+        checked={checked}
+        onChange={onChange}
         className="peer sr-only"
       />
       <Icon size={20} aria-hidden className="shrink-0 text-[#1D1425]/70 peer-checked:text-[#925AF4]" />

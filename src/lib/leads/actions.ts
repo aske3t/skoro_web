@@ -3,8 +3,10 @@
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { loadSlotData } from "../orders/queries.ts";
 import { lookupIco } from "./ares";
 import { PHOTO_MAX_BYTES } from "./constants";
+import { evaluateDeliveryTime } from "./delivery-time.ts";
 import { LEAD_NOTIFICATION_COLUMNS, notifyNewLead } from "./notify";
 import { composePhone } from "./phone-format";
 import { checkPhoto, type PhotoUpload } from "./photo";
@@ -37,6 +39,8 @@ function readValues(formData: FormData): LeadFormValues {
     message: field(formData, "message"),
     pickupAddress: field(formData, "pickupAddress"),
     deliveryAddress: field(formData, "deliveryAddress"),
+    deliveryMode: field(formData, "deliveryMode"),
+    deliveryAt: field(formData, "deliveryAt"),
     recipientName: field(formData, "recipientName"),
     recipientPhone: field(formData, "recipientPhone"),
     recipientIsCustomer: field(formData, "recipientIsCustomer"),
@@ -106,6 +110,21 @@ export async function submitLead(
       return { status: "error", code: "rate_limited", values };
     }
 
+    // Выбранное время сверяется с рабочими часами. Справочники не прочитались — заявку не теряем.
+    // «Как можно скорее» принимается и ночью: заявка — первый контакт, запрет только для заказов.
+    if (lead.deliveryAt) {
+      const slotData = await loadSlotData(supabase);
+      const check = slotData && evaluateDeliveryTime(new Date(), lead.deliveryAt, slotData);
+      if (check?.status === "past" || check?.status === "outside_hours") {
+        return {
+          status: "error",
+          code: "validation",
+          fieldErrors: { deliveryAt: check.status },
+          values,
+        };
+      }
+    }
+
     // IČO компании сверяется с ARES. Фирмы нет или она закрыта — ошибка поля.
     // ARES недоступен — заявку не теряем: принимаем по контрольной сумме, ico_verified = false.
     let companyName: string | null = null;
@@ -135,6 +154,7 @@ export async function submitLead(
         message: lead.message,
         pickup_address: lead.pickupAddress,
         delivery_address: lead.deliveryAddress,
+        delivery_at: lead.deliveryAt?.toISOString() ?? null,
         recipient_name: lead.recipientName,
         recipient_phone: lead.recipientPhone,
         payment_method: lead.paymentMethod,

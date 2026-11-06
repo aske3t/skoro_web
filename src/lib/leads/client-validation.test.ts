@@ -9,6 +9,8 @@ const empty: ClientCheckInput = {
   phone: "",
   pickupAddress: "",
   deliveryAddress: "",
+  deliveryMode: "asap",
+  deliveryAt: "",
   paymentMethod: "",
   ico: "",
 };
@@ -21,11 +23,23 @@ const filled: ClientCheckInput = {
   phone: "+420 777 123 456",
   pickupAddress: "Brno, Masarykova 1",
   deliveryAddress: "Brno, Česká 5",
+  deliveryMode: "asap",
+  deliveryAt: "",
   paymentMethod: "cash",
   ico: "45274649",
 };
 
 describe("checkRequiredFields", () => {
+  it("needs a time only in the at mode", () => {
+    expect(checkRequiredFields(filled).deliveryAt).toBeUndefined();
+    expect(checkRequiredFields({ ...filled, deliveryMode: "at" }).deliveryAt).toBe("required");
+    expect(checkRequiredFields({ ...filled, deliveryMode: "at", deliveryAt: "2026-07-15T12:00" }).deliveryAt).toBeUndefined();
+  });
+
+  it("does not ask for a time on a question", () => {
+    expect(checkRequiredFields({ ...filled, kind: "question", deliveryMode: "at" }).deliveryAt).toBeUndefined();
+  });
+
   it("lists every missing required field of a business delivery", () => {
     expect(checkRequiredFields(empty)).toEqual({
       email: "required",

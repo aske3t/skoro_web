@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+import { parsePragueLocal } from "../orders/prague-time.ts";
 import { isValidIco, normalizeIco } from "./ico.ts";
 import {
   ADDRESS_MAX,
   CUSTOMER_TYPES,
+  DELIVERY_AT_INPUT_MAX,
   EMAIL_MAX,
   LEAD_KINDS,
   MESSAGE_MAX,
@@ -40,20 +42,24 @@ export type LeadField =
   | "message"
   | "pickupAddress"
   | "deliveryAddress"
+  | "deliveryAt"
   | "recipientName"
   | "recipientPhone"
   | "paymentMethod"
   | "customerType"
   | "ico"
   | "photo";
-// not_found / inactive — результат проверки IČO в ARES (выставляет action, не схема).
+// not_found / inactive — результат проверки IČO в ARES, past / outside_hours — проверка времени
+// доставки по рабочим часам (выставляет action, не схема).
 export type FieldErrorCode =
   | "required"
   | "invalid"
   | "too_long"
   | "too_large"
   | "not_found"
-  | "inactive";
+  | "inactive"
+  | "past"
+  | "outside_hours";
 export type Utm = Partial<Record<(typeof UTM_KEYS)[number], string>>;
 
 export type LeadFormValues = {
@@ -65,6 +71,8 @@ export type LeadFormValues = {
   message: string;
   pickupAddress: string;
   deliveryAddress: string;
+  deliveryMode: string;
+  deliveryAt: string;
   recipientName: string;
   recipientPhone: string;
   // Галочка «Я получатель»: "on", если отмечена (так её отправляет браузер).
@@ -92,6 +100,7 @@ const LEAD_FIELDS: readonly LeadField[] = [
   "message",
   "pickupAddress",
   "deliveryAddress",
+  "deliveryAt",
   "recipientName",
   "recipientPhone",
   "paymentMethod",
@@ -106,6 +115,8 @@ const FIELD_ERROR_CODES: readonly FieldErrorCode[] = [
   "too_large",
   "not_found",
   "inactive",
+  "past",
+  "outside_hours",
 ];
 
 /**
@@ -198,6 +209,8 @@ const baseLeadSchema = z.object({
   // Поля доставки: правила зависят от kind, проверяются в transform ниже.
   pickupAddress: optionalText(ADDRESS_MAX),
   deliveryAddress: optionalText(ADDRESS_MAX),
+  deliveryMode: optionalText(8),
+  deliveryAt: optionalText(DELIVERY_AT_INPUT_MAX),
   recipientName: optionalText(NAME_MAX),
   recipientPhone: optionalText(PHONE_INPUT_MAX),
   paymentMethod: optionalText(32),
@@ -215,10 +228,11 @@ const baseLeadSchema = z.object({
  * Эти проверки идут после проверки базовых полей: пока email или сообщение
  * невалидны, ошибки полей доставки не показываются (в форме их ловит `required`).
  */
-export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
+export const leadSchema = baseLeadSchema.transform(({ deliveryMode, deliveryAt: rawDeliveryAt, ...lead }, ctx) => {
   const empty = {
     pickupAddress: null,
     deliveryAddress: null,
+    deliveryAt: null,
     recipientName: null,
     recipientPhone: null,
     paymentMethod: null,
@@ -237,6 +251,19 @@ export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
   if (!lead.pickupAddress) fail("pickupAddress", "required");
   if (!lead.deliveryAddress) fail("deliveryAddress", "required");
   if (!lead.phone) fail("phone", "required");
+
+  // Без выбора — как можно скорее (`null`). Время в форме — пражское, где бы ни был браузер.
+  let deliveryAt: Date | null = null;
+  if (deliveryMode === "at") {
+    if (!rawDeliveryAt) {
+      fail("deliveryAt", "required");
+    } else {
+      deliveryAt = parsePragueLocal(rawDeliveryAt);
+      if (!deliveryAt) fail("deliveryAt", "invalid");
+    }
+  } else if (deliveryMode && deliveryMode !== "asap") {
+    fail("deliveryAt", "invalid");
+  }
 
   let paymentMethod: PaymentMethod | null = null;
   if (!lead.paymentMethod) {
@@ -268,6 +295,7 @@ export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
   if (lead.recipientIsCustomer) {
     return {
       ...lead,
+      deliveryAt,
       recipientName: lead.firstName,
       recipientPhone: lead.phone,
       paymentMethod,
@@ -282,7 +310,7 @@ export const leadSchema = baseLeadSchema.transform((lead, ctx) => {
     if (!recipientPhone) fail("recipientPhone", "invalid");
   }
 
-  return { ...lead, recipientPhone, paymentMethod, customerType, ico };
+  return { ...lead, deliveryAt, recipientPhone, paymentMethod, customerType, ico };
 });
 
 export type LeadInput = z.output<typeof leadSchema>;

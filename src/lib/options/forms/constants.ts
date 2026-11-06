@@ -16,8 +16,7 @@ export type FormField = {
   label: string;
 };
 
-export const DELIVERY_MODES = ["asap", "at"] as const;
-export type DeliveryMode = (typeof DELIVERY_MODES)[number];
+export { DELIVERY_MODES } from "../../leads/constants.ts";
 
 export const CITY_DELIVERY_LABELS = {
   pickup: "Откуда",

@@ -42,6 +42,7 @@ describe("leadSchema", () => {
       paymentMethod: null,
       customerType: null,
       ico: null,
+      deliveryAt: null,
       recipientIsCustomer: false,
     });
   });

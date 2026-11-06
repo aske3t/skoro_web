@@ -17,6 +17,10 @@ export const PHOTO_JPEG_QUALITY = 0.85;
 
 export const PAYMENT_METHODS = ["cash", "online"] as const;
 
+// Время доставки: как можно скорее или ко времени (значение datetime-local, по Праге).
+export const DELIVERY_MODES = ["asap", "at"] as const;
+export const DELIVERY_AT_INPUT_MAX = 32;
+
 // Тип клиента в заявке на доставку. Для компании обязательно IČO (проверка в ARES).
 export const CUSTOMER_TYPES = ["company", "person"] as const;
 export const ICO_LENGTH = 8;

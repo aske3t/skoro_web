@@ -11,6 +11,8 @@ export type ClientCheckInput = {
   phone: string;
   pickupAddress: string;
   deliveryAddress: string;
+  deliveryMode: string;
+  deliveryAt: string;
   paymentMethod: string;
   ico: string;
 };
@@ -22,6 +24,7 @@ export const FIELD_ORDER: readonly LeadField[] = [
   "ico",
   "pickupAddress",
   "deliveryAddress",
+  "deliveryAt",
   "recipientName",
   "recipientPhone",
   "paymentMethod",
@@ -44,6 +47,7 @@ export function checkRequiredFields(input: ClientCheckInput): Partial<Record<Lea
     if (!has(input.phone)) errors.phone = "required";
     if (!has(input.pickupAddress)) errors.pickupAddress = "required";
     if (!has(input.deliveryAddress)) errors.deliveryAddress = "required";
+    if (input.deliveryMode === "at" && !has(input.deliveryAt)) errors.deliveryAt = "required";
     if (!has(input.paymentMethod)) errors.paymentMethod = "required";
     if (input.customerType === "company") {
       const ico = normalizeIco(input.ico);
