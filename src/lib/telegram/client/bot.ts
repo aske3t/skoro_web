@@ -1,7 +1,23 @@
 import "server-only";
 
 import { Bot } from "grammy";
-import { registerClientCommands } from "./commands.ts";
+import { createAdminClient } from "../../supabase/admin.ts";
+import { botApi } from "../bot-api.ts";
+import { findClientContact, logoutContact, redeemInvite } from "../contacts.ts";
+import { registerUserTracking, touchTelegramUser } from "../telegram-users.ts";
+import { registerClientCommands, type LinkedNotice } from "./commands.ts";
+
+/** Сообщение в группу от служебного бота. Без parse_mode: имена — данные, разметка им не нужна. */
+async function notifyLinked(notice: LinkedNotice): Promise<void> {
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!chatId) throw new Error("TELEGRAM_CHAT_ID is not set");
+
+  const account = notice.username ? `@${notice.username}` : `${notice.firstName} (id ${notice.telegramUserId})`;
+  await botApi("service").sendMessage(
+    chatId,
+    `${notice.contactName} (${notice.clientName}) подключил Telegram: ${account}`,
+  );
+}
 
 /**
  * Клиентский бот (ADR-0006 §4). Как и служебный, создаётся на каждый вызов route handler
@@ -14,7 +30,14 @@ export function createClientBot(): Bot {
   }
 
   const bot = new Bot(token);
-  registerClientCommands(bot);
+  registerUserTracking(bot, (user) => touchTelegramUser(createAdminClient(), user));
+  registerClientCommands(bot, {
+    findContact: (telegramUserId) => findClientContact(createAdminClient(), telegramUserId),
+    redeemInvite: (inviteToken, telegramUserId) =>
+      redeemInvite(createAdminClient(), inviteToken, telegramUserId, new Date()),
+    logout: (telegramUserId) => logoutContact(createAdminClient(), telegramUserId),
+    notifyLinked,
+  });
 
   // Без обработчика grammY при ошибке в хендлере останавливает polling, и бот «молчит».
   bot.catch((err) => {

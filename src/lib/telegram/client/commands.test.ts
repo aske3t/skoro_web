@@ -1,45 +1,216 @@
 import { Bot } from "grammy";
 import type { Update, UserFromGetMe } from "grammy/types";
-import { describe, expect, it } from "vitest";
-import { registerClientCommands } from "./commands";
+import { describe, expect, it, vi } from "vitest";
+import type { ClientContact } from "../contacts";
+import { registerClientCommands, type ClientDeps } from "./commands";
+import { MENU, TEXT } from "./texts";
 
-function setup() {
+const USER = 42;
+const TOKEN = "a".repeat(32);
+const CONTACT: ClientContact = {
+  id: "contact-1",
+  name: "Анна",
+  phone: "+420777123456",
+  email: "a@example.test",
+  clientId: "client-1",
+  clientName: "Клиент А",
+  paymentMethod: "invoice",
+};
+
+type Sent = { method: string; payload: Record<string, unknown> };
+
+function setup(overrides: Partial<ClientDeps> = {}) {
+  const deps: ClientDeps = {
+    findContact: vi.fn(async () => null),
+    redeemInvite: vi.fn(async () => ({ ok: true as const, contactName: "Анна", clientName: "Клиент А" })),
+    logout: vi.fn(async () => true),
+    notifyLinked: vi.fn(async () => {}),
+    ...overrides,
+  };
   const bot = new Bot("1:test", {
     botInfo: { id: 1, is_bot: true, first_name: "Skoro", username: "skoro_test_bot" } as UserFromGetMe,
   });
-  const methods: string[] = [];
-  bot.api.config.use(async (_prev, method) => {
-    methods.push(method);
+  const sent: Sent[] = [];
+  bot.api.config.use(async (_prev, method, payload) => {
+    sent.push({ method, payload: payload as Record<string, unknown> });
     return { ok: true, result: {} as never };
   });
-  registerClientCommands(bot);
-  return { bot, methods };
+  registerClientCommands(bot, deps);
+  return { bot, deps, sent };
 }
 
-function startFrom(chat: { id: number; type: "private" | "supergroup" }): Update {
+function message(text: string, chat: object = { id: USER, type: "private", first_name: "Test" }): Update {
+  const command = /^\/\w+/.exec(text)?.[0];
   return {
     update_id: 1,
     message: {
       message_id: 1,
       date: 0,
-      chat: chat.type === "private" ? { ...chat, type: "private", first_name: "Test" } : { ...chat, type: "supergroup", title: "Test" },
-      from: { id: 2, is_bot: false, first_name: "Test" },
-      text: "/start",
-      entities: [{ type: "bot_command", offset: 0, length: 6 }],
+      chat,
+      from: { id: USER, is_bot: false, first_name: "Анна", username: "anna" },
+      text,
+      ...(command ? { entities: [{ type: "bot_command", offset: 0, length: command.length }] } : {}),
     },
   } as Update;
 }
 
-describe("client bot /start", () => {
-  it("answers in a private chat", async () => {
-    const { bot, methods } = setup();
-    await bot.handleUpdate(startFrom({ id: 2, type: "private" }));
-    expect(methods).toEqual(["sendMessage"]);
+const textsOf = (sent: Sent[]) => sent.filter((s) => s.method === "sendMessage").map((s) => s.payload.text);
+
+function buttonsOf(sent: Sent[]): string[] {
+  const markup = sent.at(-1)?.payload.reply_markup as { keyboard: { text: string }[][] };
+  return markup.keyboard.flat().map((button) => button.text);
+}
+
+const asClient = { findContact: vi.fn(async () => CONTACT) };
+
+describe("/start without an invite", () => {
+  it("shows a guest only how to connect and how to contact us", async () => {
+    const { bot, sent } = setup();
+    await bot.handleUpdate(message("/start"));
+    expect(textsOf(sent)).toEqual([TEXT.guestWelcome]);
+    expect(buttonsOf(sent)).toEqual([MENU.howToConnect, MENU.contactGuest]);
   });
 
-  it("stays silent in a group", async () => {
-    const { bot, methods } = setup();
-    await bot.handleUpdate(startFrom({ id: -100, type: "supergroup" }));
-    expect(methods).toEqual([]);
+  it("greets a linked client with the full menu", async () => {
+    const { bot, sent } = setup(asClient);
+    await bot.handleUpdate(message("/start"));
+    expect(textsOf(sent)).toEqual(["Здравствуйте, Клиент А"]);
+    expect(buttonsOf(sent)).toEqual([MENU.newOrder, MENU.myOrders, MENU.profile, MENU.contactClient]);
+  });
+
+  it("treats a parameter that is not an invite as a plain start", async () => {
+    const { bot, sent, deps } = setup();
+    await bot.handleUpdate(message("/start hello"));
+    expect(deps.redeemInvite).not.toHaveBeenCalled();
+    expect(textsOf(sent)).toEqual([TEXT.guestWelcome]);
+  });
+});
+
+describe("/start with an invite", () => {
+  it("links the account, greets by client name and tells the group", async () => {
+    const { bot, sent, deps } = setup();
+    await bot.handleUpdate(message(`/start inv_${TOKEN}`));
+
+    expect(deps.redeemInvite).toHaveBeenCalledWith(TOKEN, USER);
+    expect(textsOf(sent)).toEqual(["Здравствуйте, Клиент А"]);
+    expect(buttonsOf(sent)).toContain(MENU.newOrder);
+    expect(deps.notifyLinked).toHaveBeenCalledWith({
+      contactName: "Анна",
+      clientName: "Клиент А",
+      username: "anna",
+      firstName: "Анна",
+      telegramUserId: USER,
+    });
+  });
+
+  it("refuses an invalid link and keeps the guest menu", async () => {
+    const { bot, sent, deps } = setup({ redeemInvite: async () => ({ ok: false, code: "invalid" }) });
+    await bot.handleUpdate(message(`/start inv_${TOKEN}`));
+    expect(textsOf(sent)).toEqual([TEXT.inviteInvalid]);
+    expect(buttonsOf(sent)).toEqual([MENU.howToConnect, MENU.contactGuest]);
+    expect(deps.notifyLinked).not.toHaveBeenCalled();
+  });
+
+  it("refuses a malformed token without asking the database", async () => {
+    const { bot, sent, deps } = setup();
+    await bot.handleUpdate(message("/start inv_abc"));
+    expect(deps.redeemInvite).not.toHaveBeenCalled();
+    expect(textsOf(sent)).toEqual([TEXT.inviteInvalid]);
+  });
+
+  it("keeps the client menu when a linked client opens a used link", async () => {
+    const { bot, sent } = setup({ ...asClient, redeemInvite: async () => ({ ok: false, code: "invalid" }) });
+    await bot.handleUpdate(message(`/start inv_${TOKEN}`));
+    expect(textsOf(sent)).toEqual([TEXT.inviteInvalid]);
+    expect(buttonsOf(sent)).toContain(MENU.newOrder);
+  });
+
+  it("does not call a database failure a bad link", async () => {
+    const { bot, sent } = setup({ redeemInvite: async () => ({ ok: false, code: "error" }) });
+    await bot.handleUpdate(message(`/start inv_${TOKEN}`));
+    expect(textsOf(sent)).toEqual([TEXT.unavailable]);
+  });
+
+  it("still lets the client in when the group notice fails", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { bot, sent } = setup({ notifyLinked: async () => Promise.reject(new Error("telegram down")) });
+    await bot.handleUpdate(message(`/start inv_${TOKEN}`));
+    expect(textsOf(sent)).toEqual(["Здравствуйте, Клиент А"]);
+    error.mockRestore();
+  });
+});
+
+describe("/logout", () => {
+  it("unlinks and switches to the guest menu", async () => {
+    const { bot, sent, deps } = setup(asClient);
+    await bot.handleUpdate(message("/logout"));
+    expect(deps.logout).toHaveBeenCalledWith(USER);
+    expect(textsOf(sent)).toEqual([TEXT.logoutDone]);
+    expect(buttonsOf(sent)).toEqual([MENU.howToConnect, MENU.contactGuest]);
+  });
+
+  it("says so when the account was not linked", async () => {
+    const { bot, sent } = setup({ logout: async () => false });
+    await bot.handleUpdate(message("/logout"));
+    expect(textsOf(sent)).toEqual([TEXT.logoutGuest]);
+  });
+});
+
+describe("menu", () => {
+  it("answers the guest buttons", async () => {
+    const { bot, sent } = setup();
+    await bot.handleUpdate(message(MENU.howToConnect));
+    await bot.handleUpdate(message(MENU.contactGuest));
+    expect(textsOf(sent)).toEqual([TEXT.howToConnect, TEXT.contact]);
+  });
+
+  it("shows a client the profile", async () => {
+    const { bot, sent } = setup(asClient);
+    await bot.handleUpdate(message(MENU.profile));
+    const [profile] = textsOf(sent);
+    expect(profile).toContain("Клиент: Клиент А");
+    expect(profile).toContain("Контакт: Анна");
+    expect(profile).toContain("Оплата: по счёту");
+    expect(profile).toContain("/logout");
+  });
+
+  it("promises orders to a client for now", async () => {
+    const { bot, sent } = setup(asClient);
+    await bot.handleUpdate(message(MENU.newOrder));
+    await bot.handleUpdate(message(MENU.myOrders));
+    expect(textsOf(sent)).toEqual([TEXT.comingSoon, TEXT.comingSoon]);
+  });
+
+  it.each([MENU.newOrder, MENU.myOrders, MENU.profile])("does not let a guest use %s", async (button) => {
+    const { bot, sent } = setup();
+    await bot.handleUpdate(message(button));
+    expect(textsOf(sent)).toEqual([TEXT.notConnected]);
+    expect(buttonsOf(sent)).toEqual([MENU.howToConnect, MENU.contactGuest]);
+  });
+
+  it("points to the menu on anything else", async () => {
+    const { bot, sent } = setup();
+    await bot.handleUpdate(message("привет"));
+    await bot.handleUpdate(message("/unknown"));
+    expect(textsOf(sent)).toEqual([TEXT.chooseFromMenu, TEXT.chooseFromMenu]);
+  });
+});
+
+describe("failures and groups", () => {
+  it("answers instead of staying silent when the database fails", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { bot, sent } = setup({ findContact: async () => Promise.reject(new Error("db down")) });
+    await bot.handleUpdate(message("/start"));
+    await bot.handleUpdate(message(MENU.profile));
+    expect(textsOf(sent)).toEqual([TEXT.unavailable, TEXT.unavailable]);
+    error.mockRestore();
+  });
+
+  it.each(["/start", `/start inv_${TOKEN}`, "/logout", MENU.profile, "привет"])("stays silent in a group: %s", async (text) => {
+    const { bot, sent, deps } = setup();
+    await bot.handleUpdate(message(text, { id: -100, type: "supergroup", title: "Группа" }));
+    expect(sent).toEqual([]);
+    expect(deps.redeemInvite).not.toHaveBeenCalled();
+    expect(deps.logout).not.toHaveBeenCalled();
   });
 });
