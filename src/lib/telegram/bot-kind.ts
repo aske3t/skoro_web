@@ -1,9 +1,17 @@
 export type BotKind = "service" | "client";
 
 /** Что различается у ботов на уровне маршрутов и окружения (ADR-0006 §4). */
-export const BOT_CONFIG: Record<BotKind, { webhookPath: string; secretEnv: string }> = {
-  service: { webhookPath: "/api/telegram/dispatch", secretEnv: "TELEGRAM_WEBHOOK_SECRET" },
-  client: { webhookPath: "/api/telegram/client", secretEnv: "TELEGRAM_CLIENT_WEBHOOK_SECRET" },
+export const BOT_CONFIG: Record<BotKind, { webhookPath: string; secretEnv: string; tokenEnv: string }> = {
+  service: {
+    webhookPath: "/api/telegram/dispatch",
+    secretEnv: "TELEGRAM_WEBHOOK_SECRET",
+    tokenEnv: "TELEGRAM_BOT_TOKEN",
+  },
+  client: {
+    webhookPath: "/api/telegram/client",
+    secretEnv: "TELEGRAM_CLIENT_WEBHOOK_SECRET",
+    tokenEnv: "TELEGRAM_CLIENT_BOT_TOKEN",
+  },
 };
 
 /**
