@@ -1,4 +1,5 @@
 import { escapeHtml } from "../html.ts";
+import { formatPragueDateTime } from "../orders/prague-time.ts";
 import { EMAIL_LOGO_CID, EMAIL_LOGO_HEIGHT, EMAIL_LOGO_WIDTH } from "./logo.ts";
 
 /**
@@ -14,6 +15,7 @@ export type LeadTakenInput = {
   first_name: string | null;
   pickup_address: string | null;
   delivery_address: string | null;
+  delivery_at: string | null; // null — как можно скорее
   recipient_name: string | null;
   recipient_phone: string | null;
   payment_method: string | null;
@@ -45,6 +47,8 @@ const TEMPLATES = {
     summary: "Shrnutí doručení",
     pickup: "Vyzvednutí",
     delivery: "Doručení",
+    deliveryTime: "Čas doručení",
+    deliveryAsap: "co nejdříve",
     recipientName: "Příjemce",
     recipientPhone: "Telefon příjemce",
     payment: "Platba",
@@ -77,6 +81,7 @@ export function buildLeadTakenEmail(
   const rows: [string, string][] = [
     [t.pickup, lead.pickup_address ?? "—"],
     [t.delivery, lead.delivery_address ?? "—"],
+    [t.deliveryTime, lead.delivery_at ? formatPragueDateTime(new Date(lead.delivery_at)) : t.deliveryAsap],
     ...(lead.recipient_name ? [[t.recipientName, lead.recipient_name] as [string, string]] : []),
     ...(lead.recipient_phone ? [[t.recipientPhone, lead.recipient_phone] as [string, string]] : []),
     [

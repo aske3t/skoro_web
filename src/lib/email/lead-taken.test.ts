@@ -7,6 +7,7 @@ const lead = {
   first_name: "Jan",
   pickup_address: "Masarykova 1, Brno",
   delivery_address: "Česká 5, Brno",
+  delivery_at: null,
   recipient_name: "Petr Novák",
   recipient_phone: "+420777000111",
   payment_method: "cash",
@@ -25,6 +26,17 @@ describe("leadNumber", () => {
 });
 
 describe("buildLeadTakenEmail", () => {
+  it("shows as soon as possible without a delivery time", () => {
+    const email = buildLeadTakenEmail(lead);
+    expect(email.text).toContain("Čas doručení: co nejdříve");
+    expect(email.html).toContain("co nejdříve");
+  });
+
+  it("shows the delivery time in Prague time", () => {
+    const email = buildLeadTakenEmail({ ...lead, delivery_at: "2026-07-15T10:05:00Z" });
+    expect(email.text).toContain("Čas doručení: 15.07.2026, 12:05");
+  });
+
   it("builds a Czech email with number, summary and support phone", () => {
     const email = buildLeadTakenEmail(lead);
     expect(email.subject).toBe("Vaše objednávka č. 12 byla přijata");

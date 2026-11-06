@@ -14,6 +14,7 @@ const lead: LeadNotification = {
   utm: { utm_source: "google" },
   pickup_address: null,
   delivery_address: null,
+  delivery_at: null,
   recipient_name: null,
   recipient_phone: null,
   payment_method: null,
@@ -24,6 +25,19 @@ const lead: LeadNotification = {
 };
 
 describe("formatLeadMessage", () => {
+  it("shows the delivery time in Prague time", () => {
+    const text = formatLeadMessage({ ...lead, delivery_at: "2026-07-15T10:05:00Z" });
+    expect(text).toContain("Доставить: 15.07.2026, 12:05");
+  });
+
+  it("shows as soon as possible without a delivery time", () => {
+    expect(formatLeadMessage(lead)).toContain("Доставить: как можно скорее");
+  });
+
+  it("has no delivery time for a question", () => {
+    expect(formatLeadMessage({ ...lead, kind: "question" })).not.toContain("Доставить:");
+  });
+
   it("renders all lead fields", () => {
     const text = formatLeadMessage(lead);
     expect(text).toContain("Новая заявка №7 · Доставка");
