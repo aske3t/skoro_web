@@ -44,7 +44,10 @@ npx supabase gen types typescript --project-id ukdxpdprxkcslydfobno > /tmp/db.ts
 
 ## Структура
 
-- `src/app/` — маршруты: `/`, `/services/*`, `/personal/*`, `/insurance`, `/contract`, `/login`, `/dashboard/*`, route handlers `auth/*`, `api/telegram/*`. В пилоте бота — `/tg/*` (Mini App).
+- `src/app/` — два корневых layout (P-47):
+  - `(site)/` — сайт со своим layout (шапка, футер, шрифты): `/`, `/services/*`, `/personal/*`, `/insurance`, `/contract`, `/login`, `/dashboard/*`. Группа в скобках в адрес не входит;
+  - `tg/` — Mini App клиентского бота: свой layout без шапки и футера, тема Telegram;
+  - route handlers `auth/*`, `api/telegram/*` — вне обеих групп.
 - `src/components/` — `sections/` (лендинг), `calculator/`, `account/` (ЛК), `layout/`, `ui/`.
 - `src/lib/` — `supabase/` (клиенты: browser, server, middleware, `admin.ts` server-only), `leads/` (контактная форма), `newsletter/`, `email/`, `telegram/` (боты), `pricing/`, `calculator/`, `account/`, `maps/`.
 - `src/types/database.ts` — сгенерированные типы Supabase.

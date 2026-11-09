@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Space_Grotesk, Oswald, Inter, Barlow_Condensed } from "next/font/google";
 import Navbar from "@/components/layout/Navbar";
 import Footer from "@/components/layout/Footer";
-import "./globals.css";
+import "../globals.css";
 
 const display = Oswald ({
   subsets: ["latin"],
