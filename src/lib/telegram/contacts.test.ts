@@ -1,38 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { AdminClient } from "../supabase/admin.ts";
-import { createInvite, findClientContact, listInviteContacts, logoutContact, redeemInvite, unlinkContact } from "./contacts";
+import { argsOf, fail, fakeSupabase as fakeDb, hasCall, ok, type Call } from "@/test-utils/fake-supabase";
+import {
+  createInvite,
+  findClientContact,
+  listInviteContacts,
+  logoutContact,
+  redeemInvite,
+  resolveClientContact,
+  unlinkContact,
+} from "./contacts";
 import { hashInviteToken } from "./invite";
 
-type QueryResult = { data: unknown; error: { code?: string; message: string } | null };
-type Call = [method: string, ...args: unknown[]];
-
-/** Подмена клиента Supabase: каждый запрос получает следующий заготовленный ответ, вызовы записываются. */
-function fakeDb(results: QueryResult[]) {
-  const queries: Call[][] = [];
-  const from = (table: string) => {
-    const calls: Call[] = [["from", table]];
-    queries.push(calls);
-    const result = results[queries.length - 1];
-    const builder: Record<string, unknown> = {
-      then: (resolve: (value: QueryResult) => unknown) => resolve(result),
-      maybeSingle: async () => result,
-    };
-    for (const method of ["select", "update", "eq", "is", "not", "order"]) {
-      builder[method] = (...args: unknown[]) => {
-        calls.push([method, ...args]);
-        return builder;
-      };
-    }
-    return builder;
-  };
-  return { db: { from } as unknown as AdminClient, queries };
-}
-
-const ok = (data: unknown): QueryResult => ({ data, error: null });
-const fail = (code?: string): QueryResult => ({ data: null, error: { code, message: "db error" } });
-const updatesOf = (calls: Call[]) => calls.find(([method]) => method === "update")?.[1] as Record<string, unknown>;
-const hasCall = (calls: Call[], ...expected: unknown[]) =>
-  calls.some((call) => expected.every((value, i) => call[i] === value));
+const updatesOf = (calls: Call[]) => argsOf(calls, "update")?.[0] as Record<string, unknown>;
 
 const NOW = new Date("2026-11-06T12:00:00Z");
 const TOKEN = "a".repeat(32);
@@ -198,6 +177,36 @@ describe("findClientContact", () => {
 
   it("throws on a database error", async () => {
     await expect(findClientContact(fakeDb([fail()]).db, 42)).rejects.toBeTruthy();
+  });
+});
+
+describe("resolveClientContact", () => {
+  const row = {
+    id: "contact-1",
+    name: "Анна",
+    phone: null,
+    email: null,
+    status: "active",
+    clients: { id: "client-1", name: "Клиент", status: "active", default_payment_method: "cash" },
+  };
+
+  it("tells an unlinked or blocked contact from an inactive client", async () => {
+    expect(await resolveClientContact(fakeDb([ok(null)]).db, 42)).toEqual({ ok: false, code: "not_linked" });
+    expect(await resolveClientContact(fakeDb([ok({ ...row, status: "blocked" })]).db, 42)).toEqual({
+      ok: false,
+      code: "not_linked",
+    });
+    for (const status of ["pending", "blocked"]) {
+      const inactive = { ...row, clients: { ...row.clients, status } };
+      expect(await resolveClientContact(fakeDb([ok(inactive)]).db, 42)).toEqual({ ok: false, code: "client_inactive" });
+    }
+  });
+
+  it("returns the contact of an active client", async () => {
+    expect(await resolveClientContact(fakeDb([ok(row)]).db, 42)).toMatchObject({
+      ok: true,
+      contact: { clientId: "client-1", clientName: "Клиент", paymentMethod: "cash" },
+    });
   });
 });
 

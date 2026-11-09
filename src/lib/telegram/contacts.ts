@@ -138,25 +138,42 @@ export type ClientContact = {
   paymentMethod: string;
 };
 
-/** Контакт, от имени которого можно заказывать. Заблокированный контакт или клиент — `null`. */
-export async function findClientContact(db: AdminClient, telegramUserId: number): Promise<ClientContact | null> {
+export type ResolvedContact =
+  | { ok: true; contact: ClientContact }
+  | { ok: false; code: "not_linked" | "client_inactive" };
+
+/**
+ * Контакт по Telegram-аккаунту. Нет контакта или он заблокирован — `not_linked`,
+ * клиент не активен — `client_inactive`: Mini App показывает эти случаи по-разному.
+ */
+export async function resolveClientContact(db: AdminClient, telegramUserId: number): Promise<ResolvedContact> {
   const { data, error } = await db
     .from("client_contacts")
     .select("id, name, phone, email, status, clients!inner(id, name, status, default_payment_method)")
     .eq("telegram_user_id", telegramUserId)
     .maybeSingle();
   if (error) throw error;
-  if (!data || data.status !== "active" || data.clients.status !== "active") return null;
+  if (!data || data.status !== "active") return { ok: false, code: "not_linked" };
+  if (data.clients.status !== "active") return { ok: false, code: "client_inactive" };
 
   return {
-    id: data.id,
-    name: data.name,
-    phone: data.phone,
-    email: data.email,
-    clientId: data.clients.id,
-    clientName: data.clients.name,
-    paymentMethod: data.clients.default_payment_method,
+    ok: true,
+    contact: {
+      id: data.id,
+      name: data.name,
+      phone: data.phone,
+      email: data.email,
+      clientId: data.clients.id,
+      clientName: data.clients.name,
+      paymentMethod: data.clients.default_payment_method,
+    },
   };
+}
+
+/** Контакт, от имени которого можно заказывать. Заблокированный контакт или клиент — `null`. */
+export async function findClientContact(db: AdminClient, telegramUserId: number): Promise<ClientContact | null> {
+  const resolved = await resolveClientContact(db, telegramUserId);
+  return resolved.ok ? resolved.contact : null;
 }
 
 /** `/logout`: клиент отвязывает себя сам. `false` — этот аккаунт не был привязан. */
