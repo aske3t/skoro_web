@@ -25,6 +25,8 @@ function setup(overrides: Partial<ClientDeps> = {}) {
     redeemInvite: vi.fn(async () => ({ ok: true as const, contactName: "Анна", clientName: "Клиент А" })),
     logout: vi.fn(async () => true),
     notifyLinked: vi.fn(async () => {}),
+    listOrderOptions: vi.fn(async () => [{ id: "option-1", name: "Доставка по городу" }]),
+    orderUrl: (id: string) => `https://example.test/tg/order/${id}`,
     ...overrides,
   };
   const bot = new Bot("1:test", {
@@ -174,11 +176,10 @@ describe("menu", () => {
     expect(profile).toContain("/logout");
   });
 
-  it("promises orders to a client for now", async () => {
+  it("promises the order list to a client for now", async () => {
     const { bot, sent } = setup(asClient);
-    await bot.handleUpdate(message(MENU.newOrder));
     await bot.handleUpdate(message(MENU.myOrders));
-    expect(textsOf(sent)).toEqual([TEXT.comingSoon, TEXT.comingSoon]);
+    expect(textsOf(sent)).toEqual([TEXT.comingSoon]);
   });
 
   it.each([MENU.newOrder, MENU.myOrders, MENU.profile])("does not let a guest use %s", async (button) => {
@@ -193,6 +194,57 @@ describe("menu", () => {
     await bot.handleUpdate(message("привет"));
     await bot.handleUpdate(message("/unknown"));
     expect(textsOf(sent)).toEqual([TEXT.chooseFromMenu, TEXT.chooseFromMenu]);
+  });
+});
+
+describe("new order", () => {
+  type WebAppButton = { text: string; web_app?: { url: string } };
+  const inlineButtonsOf = (sent: Sent[]) =>
+    (sent.at(-1)?.payload.reply_markup as { inline_keyboard: WebAppButton[][] }).inline_keyboard.flat();
+
+  it("offers each option of the client as a Mini App button", async () => {
+    const { bot, sent, deps } = setup({
+      ...asClient,
+      listOrderOptions: vi.fn(async () => [
+        { id: "option-1", name: "Доставка по городу" },
+        { id: "option-2", name: "Документы" },
+      ]),
+    });
+    await bot.handleUpdate(message(MENU.newOrder));
+
+    expect(deps.listOrderOptions).toHaveBeenCalledWith("client-1");
+    expect(textsOf(sent)).toEqual([TEXT.newOrder]);
+    expect(inlineButtonsOf(sent)).toEqual([
+      { text: "Доставка по городу", web_app: { url: "https://example.test/tg/order/option-1" } },
+      { text: "Документы", web_app: { url: "https://example.test/tg/order/option-2" } },
+    ]);
+  });
+
+  it("sends a button even for a single option", async () => {
+    const { bot, sent } = setup(asClient);
+    await bot.handleUpdate(message(MENU.newOrder));
+    expect(inlineButtonsOf(sent)).toHaveLength(1);
+  });
+
+  it("says so when the client has no options", async () => {
+    const { bot, sent } = setup({ ...asClient, listOrderOptions: vi.fn(async () => []) });
+    await bot.handleUpdate(message(MENU.newOrder));
+    expect(textsOf(sent)).toEqual([TEXT.noOptions]);
+  });
+
+  it("does not offer options to a guest", async () => {
+    const { bot, sent, deps } = setup();
+    await bot.handleUpdate(message(MENU.newOrder));
+    expect(deps.listOrderOptions).not.toHaveBeenCalled();
+    expect(textsOf(sent)).toEqual([TEXT.notConnected]);
+  });
+
+  it("answers instead of sending broken buttons when APP_URL is missing", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { bot, sent } = setup({ ...asClient, orderUrl: () => null });
+    await bot.handleUpdate(message(MENU.newOrder));
+    expect(textsOf(sent)).toEqual([TEXT.unavailable]);
+    error.mockRestore();
   });
 });
 

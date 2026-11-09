@@ -1,4 +1,5 @@
-import type { Bot, Context } from "grammy";
+import { InlineKeyboard, type Bot, type Context } from "grammy";
+import type { ClientOptionSummary } from "../../orders/options.ts";
 import type { ClientContact, RedeemResult } from "../contacts.ts";
 import { parseInviteStart } from "../invite.ts";
 import { clientKeyboard, formatProfile, guestKeyboard, MENU, TEXT } from "./texts.ts";
@@ -18,6 +19,9 @@ export type ClientDeps = {
   redeemInvite: (token: string, telegramUserId: number) => Promise<RedeemResult>;
   logout: (telegramUserId: number) => Promise<boolean>;
   notifyLinked: (notice: LinkedNotice) => Promise<void>;
+  listOrderOptions: (clientId: string) => Promise<ClientOptionSummary[]>;
+  /** Адрес формы опции; `null` — не задан `APP_URL`. */
+  orderUrl: (clientOptionId: string) => string | null;
 };
 
 /** Сбой БД: клиент получает понятный ответ, а не молчание бота. */
@@ -93,7 +97,31 @@ export function registerClientCommands(bot: Bot, deps: ClientDeps): void {
   chat.hears(MENU.howToConnect, (ctx) => ctx.reply(TEXT.howToConnect));
   chat.hears([MENU.contactGuest, MENU.contactClient], (ctx) => ctx.reply(TEXT.contact));
 
-  chat.hears([MENU.newOrder, MENU.myOrders], (ctx) =>
+  // Форма открывается только inline-кнопкой web_app: у кнопки reply-клавиатуры `initData` пуст,
+  // а сам бот открыть Mini App не может — поэтому даже одна опция приходит кнопкой.
+  chat.hears(MENU.newOrder, (ctx) =>
+    safely(ctx, async () => {
+      const contact = await deps.findContact(ctx.from.id);
+      if (!contact) {
+        await ctx.reply(TEXT.notConnected, { reply_markup: guestKeyboard() });
+        return;
+      }
+      const options = await deps.listOrderOptions(contact.clientId);
+      if (options.length === 0) {
+        await ctx.reply(TEXT.noOptions);
+        return;
+      }
+      const keyboard = new InlineKeyboard();
+      for (const option of options) {
+        const url = deps.orderUrl(option.id);
+        if (!url) throw new Error("APP_URL is not set");
+        keyboard.webApp(option.name, url).row();
+      }
+      await ctx.reply(TEXT.newOrder, { reply_markup: keyboard });
+    }),
+  );
+
+  chat.hears(MENU.myOrders, (ctx) =>
     safely(ctx, async () => {
       const contact = await deps.findContact(ctx.from.id);
       if (contact) await ctx.reply(TEXT.comingSoon);

@@ -25,6 +25,17 @@ export function buildWebhookUrl(appUrl: string, path: string): string {
   return url.toString();
 }
 
+/**
+ * Адрес страницы Mini App: хост из `APP_URL` и все его параметры. На Preview это секрет обхода
+ * и `x-vercel-set-bypass-cookie`: cookie нужен запросам страницы после первого (Server Actions).
+ */
+export function buildAppUrl(appUrl: string, path: string): string {
+  const base = parseAppUrl(appUrl);
+  const url = new URL(path, base.origin);
+  base.searchParams.forEach((value, key) => url.searchParams.set(key, value));
+  return url.toString();
+}
+
 /** Адрес для вывода в терминал: значения всех параметров скрыты. */
 export function maskUrl(url: string): string {
   try {

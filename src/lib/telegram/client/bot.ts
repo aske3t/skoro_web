@@ -1,7 +1,9 @@
 import "server-only";
 
 import { Bot } from "grammy";
+import { listClientOptions } from "../../orders/options.ts";
 import { createAdminClient } from "../../supabase/admin.ts";
+import { buildAppUrl } from "../app-url.ts";
 import { botApi } from "../bot-api.ts";
 import { findClientContact, logoutContact, redeemInvite } from "../contacts.ts";
 import { registerUserTracking, touchTelegramUser } from "../telegram-users.ts";
@@ -37,6 +39,11 @@ export function createClientBot(): Bot {
       redeemInvite(createAdminClient(), inviteToken, telegramUserId, new Date()),
     logout: (telegramUserId) => logoutContact(createAdminClient(), telegramUserId),
     notifyLinked,
+    listOrderOptions: (clientId) => listClientOptions(createAdminClient(), clientId),
+    orderUrl: (clientOptionId) => {
+      const appUrl = process.env.APP_URL;
+      return appUrl ? buildAppUrl(appUrl, `/tg/order/${clientOptionId}`) : null;
+    },
   });
 
   // Без обработчика grammY при ошибке в хендлере останавливает polling, и бот «молчит».

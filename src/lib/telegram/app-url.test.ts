@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWebhookUrl, maskUrl } from "./app-url";
+import { buildAppUrl, buildWebhookUrl, maskUrl } from "./app-url";
 
 const PREVIEW =
   "https://skoro-git-branch.vercel.app?x-vercel-protection-bypass=s3cret&x-vercel-set-bypass-cookie=samesitenone";
@@ -21,6 +21,22 @@ describe("buildWebhookUrl", () => {
     expect(() => buildWebhookUrl("http://example.test?x-vercel-protection-bypass=s3cret", "/x")).toThrow(/^(?!.*s3cret)/);
     expect(() => buildWebhookUrl("http://example.test", "/x")).toThrow("https://");
     expect(() => buildWebhookUrl("s3cret", "/x")).toThrow("APP_URL не является адресом");
+  });
+});
+
+describe("buildAppUrl", () => {
+  it("keeps every parameter of APP_URL, including the cookie one", () => {
+    expect(buildAppUrl(PREVIEW, "/tg/order/abc")).toBe(
+      "https://skoro-git-branch.vercel.app/tg/order/abc?x-vercel-protection-bypass=s3cret&x-vercel-set-bypass-cookie=samesitenone",
+    );
+  });
+
+  it("uses the production address as is", () => {
+    expect(buildAppUrl("https://skorouvas.cz", "/tg/order/abc")).toBe("https://skorouvas.cz/tg/order/abc");
+  });
+
+  it("rejects anything but https", () => {
+    expect(() => buildAppUrl("http://example.test", "/tg")).toThrow("https://");
   });
 });
 
