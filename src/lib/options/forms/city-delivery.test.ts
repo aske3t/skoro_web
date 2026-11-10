@@ -142,6 +142,51 @@ describe("city_delivery summary", () => {
   });
 });
 
+describe("city_delivery order helpers", () => {
+  it("give the time and the chosen point", () => {
+    const values = valuesOf({ pickupLocationId: LOCATION, deliveryAddress: "Brno", deliveryMode: "at", deliveryAt: "2026-07-15T12:00" });
+    expect(cityDelivery.deliveryAt(values)?.toISOString()).toBe("2026-07-15T10:00:00.000Z");
+    expect(cityDelivery.pickupLocationId(values)).toBe(LOCATION);
+    expect(cityDelivery.deliveryAt(valuesOf(BASE))).toBeNull();
+    expect(cityDelivery.pickupLocationId(valuesOf(BASE))).toBeNull();
+  });
+
+  it("fill the order columns, with the point address when a point is chosen", () => {
+    const typed = valuesOf({ ...BASE, recipientName: "Иван", recipientPhone: "777123456", comment: "Этаж 3" });
+    expect(cityDelivery.orderColumns(typed, { pickupAddress: null })).toEqual({
+      fromAddress: "Brno, Česká 1",
+      toAddress: "Brno, Veveří 2",
+      recipientContact: "Иван, +420777123456",
+      comment: "Этаж 3",
+    });
+
+    const atPoint = valuesOf({ pickupLocationId: LOCATION, deliveryAddress: "Brno" });
+    expect(cityDelivery.orderColumns(atPoint, { pickupAddress: "Brno, Skladová 1" })).toEqual({
+      fromAddress: "Brno, Skladová 1",
+      toAddress: "Brno",
+      recipientContact: null,
+      comment: null,
+    });
+  });
+
+  it("make a JSON snapshot with the time as ISO", () => {
+    const values = valuesOf({ ...BASE, deliveryMode: "at", deliveryAt: "2026-07-15T12:00" });
+    expect(JSON.parse(JSON.stringify(cityDelivery.snapshot(values)))).toEqual({
+      pickupLocationId: null,
+      pickupAddress: "Brno, Česká 1",
+      deliveryAddress: "Brno, Veveří 2",
+      recipientName: null,
+      recipientPhone: null,
+      deliveryAt: "2026-07-15T10:00:00.000Z",
+      comment: null,
+    });
+  });
+
+  it("composes a local number like the site form does", () => {
+    expect(valuesOf({ ...BASE, recipientPhone: "0777 123 456" }).recipientPhone).toBe("+420777123456");
+  });
+});
+
 describe("city_delivery defaults", () => {
   it("accepts a fixed pickup point", () => {
     expect(cityDelivery.defaultsSchema.safeParse({ pickupLocationId: LOCATION }).success).toBe(true);

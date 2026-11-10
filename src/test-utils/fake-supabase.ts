@@ -11,8 +11,8 @@ const CHAIN_METHODS = ["select", "update", "insert", "upsert", "eq", "is", "not"
  */
 export function fakeSupabase(results: QueryResult[]) {
   const queries: Call[][] = [];
-  const from = (table: string) => {
-    const calls: Call[] = [["from", table]];
+  const start = (first: Call) => {
+    const calls: Call[] = [first];
     queries.push(calls);
     const result = results[queries.length - 1] ?? { data: null, error: { message: "unexpected query" } };
     const builder: Record<string, unknown> = {
@@ -28,7 +28,9 @@ export function fakeSupabase(results: QueryResult[]) {
     }
     return builder;
   };
-  return { db: { from } as unknown as AdminClient, queries };
+  const from = (table: string) => start(["from", table]);
+  const rpc = (fn: string, args: unknown) => start(["rpc", fn, args]);
+  return { db: { from, rpc } as unknown as AdminClient, queries };
 }
 
 export const ok = (data: unknown): QueryResult => ({ data, error: null });

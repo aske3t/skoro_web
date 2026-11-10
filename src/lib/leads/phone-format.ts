@@ -1,5 +1,5 @@
 // Без zod и серверного кода: используется и формой в браузере, и схемой на сервере.
-import { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES } from "./constants";
+import { DEFAULT_PHONE_COUNTRY, PHONE_COUNTRIES } from "./constants.ts";
 
 export type PhoneCountry = (typeof PHONE_COUNTRIES)[number];
 

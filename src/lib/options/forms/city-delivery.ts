@@ -9,6 +9,7 @@ import {
   optionalText,
   type FieldErrorCode,
 } from "../../leads/schema.ts";
+import { composePhone } from "../../leads/phone-format.ts";
 import { formatPragueDateTime, parsePragueLocal } from "../../orders/prague-time.ts";
 import { CITY_DELIVERY_FIELDS, CITY_DELIVERY_LABELS, DELIVERY_MODES } from "./constants.ts";
 import type { FormKind, FormSummaryLine } from "./types.ts";
@@ -47,7 +48,8 @@ const schema = z
 
     let recipientPhone: string | null = null;
     if (form.recipientPhone) {
-      recipientPhone = normalizePhone(form.recipientPhone);
+      // Как в заявке с сайта: номер без кода — чешский, ведущий 0 национального формата убирается.
+      recipientPhone = normalizePhone(composePhone(form.recipientPhone));
       if (!recipientPhone) fail("recipientPhone", "invalid");
     }
 
@@ -107,5 +109,26 @@ export const cityDelivery: FormKind<CityDeliveryValues> = {
       lines.push({ field: "comment", label: labels.comment, value: values.comment });
     }
     return lines;
+  },
+
+  deliveryAt(values) {
+    return values.deliveryAt;
+  },
+
+  pickupLocationId(values) {
+    return values.pickupLocationId;
+  },
+
+  orderColumns(values, context) {
+    return {
+      fromAddress: context.pickupAddress ?? values.pickupAddress ?? "",
+      toAddress: values.deliveryAddress,
+      recipientContact: [values.recipientName, values.recipientPhone].filter(Boolean).join(", ") || null,
+      comment: values.comment,
+    };
+  },
+
+  snapshot(values) {
+    return { ...values, deliveryAt: values.deliveryAt?.toISOString() ?? null };
   },
 };
