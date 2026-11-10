@@ -1,4 +1,6 @@
 import { Keyboard } from "grammy";
+import { formatPragueDateTime } from "../../orders/prague-time.ts";
+import type { RecentOrder } from "../../orders/queries.ts";
 import type { ClientContact } from "../contacts.ts";
 
 // Черновики текстов для утверждения владельцем.
@@ -7,6 +9,14 @@ const SUPPORT_PHONE = "+420 795 402 571";
 const PAYMENT_LABEL: Record<string, string> = {
   invoice: "по счёту",
   cash: "наличными",
+};
+
+// Метки статусов — ADR-0005 §4. Значения order_status не меняются.
+const STATUS_LABEL: Record<string, string> = {
+  new: "Ожидает подтверждения",
+  in_progress: "Принят",
+  delivered: "Доставлен",
+  cancelled: "Отменён",
 };
 
 export const MENU = {
@@ -26,6 +36,9 @@ export const TEXT = {
   inviteInvalid: "Ссылка недействительна — попросите менеджера прислать новую",
   greeting: (clientName: string) => `Здравствуйте, ${clientName}`,
   comingSoon: "Появится на следующем шаге.",
+  noOrders: "Заказов пока нет. Нажмите «🆕 Новый заказ».",
+  orderReceived: (number: number | null) =>
+    `Заказ${number !== null ? ` №${number}` : ""} получен, ждёт подтверждения`,
   newOrder: "Выберите услугу — форма заказа откроется прямо в Telegram.",
   noOptions: `Для вас пока не подключено ни одной услуги. Свяжитесь с менеджером: ${SUPPORT_PHONE}`,
   notConnected: "Сначала подключитесь по ссылке-приглашению от менеджера.",
@@ -45,6 +58,19 @@ export function formatProfile(contact: ClientContact): string {
     "",
     "Отключить этот Telegram: /logout",
   ].join("\n");
+}
+
+export function formatRecentOrders(orders: RecentOrder[]): string {
+  if (orders.length === 0) return TEXT.noOrders;
+  const blocks = orders.map((order) =>
+    [
+      `№${order.number ?? "—"} · ${order.optionName ?? "Заказ"}`,
+      `Когда: ${order.scheduledFor ? formatPragueDateTime(new Date(order.scheduledFor)) : "как можно скорее"}`,
+      `Статус: ${STATUS_LABEL[order.status] ?? order.status}`,
+      `Цена: ${order.price !== null ? `${order.price} Kč` : "—"}`,
+    ].join("\n"),
+  );
+  return [`Последние заказы (${orders.length}):`, ...blocks].join("\n\n");
 }
 
 export function guestKeyboard(): Keyboard {

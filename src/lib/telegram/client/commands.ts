@@ -1,8 +1,9 @@
 import { InlineKeyboard, type Bot, type Context } from "grammy";
 import type { ClientOptionSummary } from "../../orders/options.ts";
+import type { RecentOrder } from "../../orders/queries.ts";
 import type { ClientContact, RedeemResult } from "../contacts.ts";
 import { parseInviteStart } from "../invite.ts";
-import { clientKeyboard, formatProfile, guestKeyboard, MENU, TEXT } from "./texts.ts";
+import { clientKeyboard, formatProfile, formatRecentOrders, guestKeyboard, MENU, TEXT } from "./texts.ts";
 
 const INVITE_PREFIX = "inv_";
 
@@ -22,6 +23,7 @@ export type ClientDeps = {
   listOrderOptions: (clientId: string) => Promise<ClientOptionSummary[]>;
   /** Адрес формы опции; `null` — не задан `APP_URL`. */
   orderUrl: (clientOptionId: string) => string | null;
+  listRecentOrders: (clientId: string) => Promise<RecentOrder[]>;
 };
 
 /** Сбой БД: клиент получает понятный ответ, а не молчание бота. */
@@ -124,8 +126,11 @@ export function registerClientCommands(bot: Bot, deps: ClientDeps): void {
   chat.hears(MENU.myOrders, (ctx) =>
     safely(ctx, async () => {
       const contact = await deps.findContact(ctx.from.id);
-      if (contact) await ctx.reply(TEXT.comingSoon);
-      else await ctx.reply(TEXT.notConnected, { reply_markup: guestKeyboard() });
+      if (!contact) {
+        await ctx.reply(TEXT.notConnected, { reply_markup: guestKeyboard() });
+        return;
+      }
+      await ctx.reply(formatRecentOrders(await deps.listRecentOrders(contact.clientId)));
     }),
   );
 

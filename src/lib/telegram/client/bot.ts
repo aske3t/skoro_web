@@ -2,6 +2,7 @@ import "server-only";
 
 import { Bot } from "grammy";
 import { listClientOptions } from "../../orders/options.ts";
+import { listRecentOrders } from "../../orders/queries.ts";
 import { createAdminClient } from "../../supabase/admin.ts";
 import { buildAppUrl } from "../app-url.ts";
 import { botApi } from "../bot-api.ts";
@@ -44,6 +45,7 @@ export function createClientBot(): Bot {
       const appUrl = process.env.APP_URL;
       return appUrl ? buildAppUrl(appUrl, `/tg/order/${clientOptionId}`) : null;
     },
+    listRecentOrders: (clientId) => listRecentOrders(createAdminClient(), clientId),
   });
 
   // Без обработчика grammY при ошибке в хендлере останавливает polling, и бот «молчит».

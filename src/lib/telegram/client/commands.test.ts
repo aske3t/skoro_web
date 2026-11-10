@@ -27,6 +27,7 @@ function setup(overrides: Partial<ClientDeps> = {}) {
     notifyLinked: vi.fn(async () => {}),
     listOrderOptions: vi.fn(async () => [{ id: "option-1", name: "Доставка по городу" }]),
     orderUrl: (id: string) => `https://example.test/tg/order/${id}`,
+    listRecentOrders: vi.fn(async () => []),
     ...overrides,
   };
   const bot = new Bot("1:test", {
@@ -176,10 +177,31 @@ describe("menu", () => {
     expect(profile).toContain("/logout");
   });
 
-  it("promises the order list to a client for now", async () => {
+  it("lists the latest orders of the client", async () => {
+    const { bot, sent, deps } = setup({
+      ...asClient,
+      listRecentOrders: vi.fn(async () => [
+        { number: 12, optionName: "Доставка по городу", scheduledFor: "2026-07-15T10:05:00Z", status: "in_progress", price: 220 },
+        { number: 11, optionName: null, scheduledFor: null, status: "new", price: null },
+      ]),
+    });
+    await bot.handleUpdate(message(MENU.myOrders));
+
+    expect(deps.listRecentOrders).toHaveBeenCalledWith("client-1");
+    const [text] = textsOf(sent) as string[];
+    expect(text).toContain("№12 · Доставка по городу");
+    expect(text).toContain("Когда: 15.07.2026, 12:05");
+    expect(text).toContain("Статус: Принят");
+    expect(text).toContain("Цена: 220 Kč");
+    expect(text).toContain("№11 · Заказ");
+    expect(text).toContain("Когда: как можно скорее");
+    expect(text).toContain("Статус: Ожидает подтверждения");
+  });
+
+  it("says so when there are no orders yet", async () => {
     const { bot, sent } = setup(asClient);
     await bot.handleUpdate(message(MENU.myOrders));
-    expect(textsOf(sent)).toEqual([TEXT.comingSoon]);
+    expect(textsOf(sent)).toEqual([TEXT.noOrders]);
   });
 
   it.each([MENU.newOrder, MENU.myOrders, MENU.profile])("does not let a guest use %s", async (button) => {
