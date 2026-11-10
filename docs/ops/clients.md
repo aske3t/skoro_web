@@ -162,3 +162,45 @@ set active = false
 where client_id = '<client_id>'
   and option_id = (select id from public.service_options where slug = 'city_delivery');
 ```
+
+## 8. Проверки пилота и уборка
+
+**Битый тариф (проверка из приёмки).** Сначала сохрани текущее значение:
+
+```sql
+select id, tariff_params from public.client_options where client_id = '<client_id>';
+```
+
+Впиши опечатку в слаг слота — тариф станет битым:
+
+```sql
+update public.client_options
+set tariff_params = '{"default": {"expres": 220}}'::jsonb
+where id = '<client_option_id>';
+```
+
+Клиент при заказе увидит ошибку, а в группу придёт сообщение. После проверки верни сохранённое значение:
+
+```sql
+update public.client_options
+set tariff_params = '<сохранённый JSON>'::jsonb
+where id = '<client_option_id>';
+```
+
+**Удалить тестовые заказы перед запуском.** Сначала посмотри, что удалится:
+
+```sql
+select number, created_at, price, from_address, to_address
+from public.orders
+where created_via = 'bot'
+order by created_at;
+```
+
+Затем удали заказы, созданные до запуска:
+
+```sql
+delete from public.orders
+where created_via = 'bot' and created_at < '<дата и время запуска, например 2026-11-20 00:00+01>';
+```
+
+Номера заказов после удаления не переиспользуются: следующий заказ получит следующий номер.
